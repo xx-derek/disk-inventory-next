@@ -174,6 +174,26 @@ BOOL g_EnableLogging;
 }
 
 
+//AppKit has no public "find the item with this action" that descends into
+//submenus, and the Preferences item is inside the application menu.
+static NSMenuItem* FindMenuItemWithAction( NSMenu *menu, SEL action )
+{
+	for ( NSMenuItem *item in [menu itemArray] )
+	{
+		if ( [item action] == action )
+			return item;
+
+		if ( [item hasSubmenu] )
+		{
+			NSMenuItem *found = FindMenuItemWithAction( [item submenu], action );
+			if ( found != nil )
+				return found;
+		}
+	}
+
+	return nil;
+}
+
 #pragma mark --------app notifications-----------------
 
 - (void) applicationWillFinishLaunching: (NSNotification*) notification
@@ -184,9 +204,27 @@ BOOL g_EnableLogging;
 	
 	g_EnableLogging = [[NSUserDefaults standardUserDefaults] boolForKey: EnableLogging];
     
+	[self _renameSettingsMenuItem];
+
 	//show the drives panel before "applicationDidFinishLaunching" so the panel is visible before the first document is loaded
 	//(e.g. through drag&drop)
 	[[DrivesPanelController sharedController] showPanel];
+}
+
+//macOS 13 renamed Preferences to Settings. The item lives in the main menu nib,
+//four localized copies of it, so it is retitled here rather than by editing
+//them — and only on the systems where the new wording is the right one.
+- (void) _renameSettingsMenuItem
+{
+	if ( @available( macOS 13.0, * ) )
+	{
+		NSMenuItem *item = FindMenuItemWithAction( [NSApp mainMenu],
+												   @selector(showPreferencesPanel:) );
+
+		if ( item != nil )
+			[item setTitle: NSLocalizedStringFromTable( @"Settings…", @"Preferences",
+														@"application menu item" )];
+	}
 }
 
 - (void) applicationDidFinishLaunching:(NSNotification *)notification

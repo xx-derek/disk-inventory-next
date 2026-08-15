@@ -36,20 +36,34 @@
     _colors = [[NSMutableDictionary alloc] init];
 
 #define COLOR(r,g,b) [NSColor colorWithCalibratedRed: r green: g blue: b alpha: 1.0]
-    
+
+    //Twelve hues, one every 30 degrees round the colour circle.
+    //
+    //What makes a colour look washed out here is not how light it is but how
+    //close its three components are: shading multiplies all three by the same
+    //number, so it changes value and leaves saturation alone. A first attempt at
+    //"lighter" raised every component to around 0.8, which left barely a third
+    //between the highest and lowest — light, and grey. These keep a high peak
+    //(0.95 or so) and let the other components fall to around 0.4, which is what
+    //makes the hue actually read.
+    //
+    //Their means land between 0.55 and 0.75, comfortably under
+    //TMVMaxColorBrightness, so +normalizeColor: leaves them alone. A saturated
+    //colour has a lower mean than a pale one at the same peak, which is why
+    //raising the cap and raising saturation do not fight each other.
     _predefinedColors = [[NSMutableArray alloc] initWithObjects:
-        COLOR(0, 0, 1),
-        COLOR(1, 0, 0),
-        COLOR(0, 1, 0),
-        COLOR(0, 1, 1),
-        COLOR(1, 0, 1),
-        COLOR(1, 1, 0),
-        COLOR(0.58, 0.58, 1),
-        COLOR(1, 0.58, 0.58),
-        COLOR(0.58, 1, 0.58),
-        COLOR(0.58, 1, 1),
-        COLOR(1, 0.58, 1),
-        COLOR(1, 1, 0.58),
+        COLOR(0.38, 0.68, 0.96),    //azure
+        COLOR(0.96, 0.44, 0.42),    //red
+        COLOR(0.42, 0.82, 0.48),    //green
+        COLOR(0.32, 0.80, 0.88),    //cyan
+        COLOR(0.68, 0.48, 0.94),    //violet
+        COLOR(0.96, 0.85, 0.35),    //yellow
+        COLOR(0.98, 0.63, 0.32),    //orange
+        COLOR(0.97, 0.50, 0.72),    //pink
+        COLOR(0.70, 0.88, 0.38),    //lime
+        COLOR(0.36, 0.85, 0.68),    //spring green
+        COLOR(0.50, 0.55, 0.95),    //blue
+        COLOR(0.88, 0.48, 0.90),    //magenta
         nil];
 
 #undef COLOR
@@ -89,10 +103,13 @@
         }
         else
         {
-            float rgbComponent = /*0.6 +*/ [_colors count] * 0.05;
-            
-            if ( rgbComponent > 0.9 )
-                rgbComponent = 0.9;
+            //Past the palette, kinds get greys. This used to start at
+            //count * 0.05 with the 0.6 offset commented out, so the thirteenth
+            //kind came out pure black and the next few nearly so. The ramp now
+            //runs light to mid and wraps, which keeps them apart from each other
+            //without any of them turning into a hole in the map.
+            const NSUInteger step = [_colors count] - [_predefinedColors count];
+            const CGFloat rgbComponent = 0.86 - ( step % 6 ) * 0.07;
 
             color = [NSColor colorWithCalibratedRed: rgbComponent green: rgbComponent blue: rgbComponent alpha: 1.0];
 

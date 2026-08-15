@@ -11,6 +11,9 @@
     //until the drawers were removed; they are now installed as collapsible
     //split-view panes at window load.
     IBOutlet NSView *_kindStatisticsPane;
+	CGFloat _kindStatisticsWidth;   //remembered across a collapse, so reopening restores it
+	NSTimer *_kindStatisticsAnimationTimer;
+	BOOL _animatingKindStatistics;  //lifts the minimum-width constraint while sliding
     IBOutlet NSView *_selectionListPane;
 
     NSSplitView *_kindStatisticsSplitView;
@@ -38,6 +41,10 @@
 - (IBAction) copy:(id)sender;
 - (IBAction) openFile:(id)sender;
 - (IBAction) toggleFileKindsDrawer:(id)sender;
+
+//The toolbar's standard sidebar button sends this down the responder chain;
+//AppKit supplies the item, the glyph and the placement.
+- (IBAction) toggleSidebar:(id)sender;
 - (IBAction) toggleSelectionListDrawer:(id)sender;
 - (IBAction) zoomIn:(id)sender;
 - (IBAction) zoomOut:(id)sender;

@@ -15,7 +15,7 @@ historical record — see [Naming](#naming) below before "fixing" it.
 
 ## Building
 
-Single Xcode target, `Disk Inventory Next` (application). Deployment target macOS 10.13;
+Single Xcode target, `Disk Inventory Next` (application). Deployment target macOS 11.0;
 `ARCHS = $(ARCHS_STANDARD)`, so the product is a universal arm64 + x86_64 binary. Project
 version `1.4b2`. Bundle ID `io.github.xxderek.DiskInventoryNext`.
 
@@ -77,7 +77,7 @@ Source/Views/                  DIXTableView, DIXOutlineView, ImageAndTextCell, G
 Source/Extensions/             NSAlert-, NSURL- and NSFileManager-Extensions
 Source/Helpers/                Timing, FileSizeFormatter, FileSizeTransformer, AppsForItem
 Source/TreeMapView/            the treemap widget — see its own section below
-Resources/                     Images.xcassets, the app icon, Toolbar/ and Preferences/ images
+Resources/                     Images.xcassets (the app icon) and the toolbar plist
 ```
 
 `Info.plist`, `version.plist`, the entitlements, `documentation/` and the five `.lproj`
@@ -190,17 +190,53 @@ index — the header notes SearchKit was tried and abandoned as too slow, so don
 "modernize" it back.
 
 `FileTypeColors` assigns treemap colors per kind, reserving distinct colors for the
-largest kinds.
+largest kinds. Kinds past the twelve-colour palette get a light grey ramp.
+
+**The palette and the cushion shading are one design, not two.** Cushion shading darkens
+each cell towards its rim, so a base colour is the *brightest* that cell will ever be. The
+saturated primaries this started with — pure blue, pure red — therefore ran from full
+intensity at the centre to near-black at the edge, which is what made the treemap read as
+glowing blobs rather than as curved tiles.
+
+The fix is not to pale the colours down. **Shading multiplies all three components by the
+same number, so it changes value and never touches saturation** — which means a washed-out
+treemap is always the palette's doing, not the shading's. A first attempt raised every
+component to around 0.8; that produced a map that was light and unmistakably grey (mean
+per-pixel saturation 0.26). The palette is now twelve hues 30° apart that keep a high peak
+(~0.95) and let their other components fall to ~0.4, which more than doubles that figure
+to 0.58.
+
+Saturated colours darken into muddy ones — orange into brown — so the shading constants
+in `TMVCushionRenderer` compensate: `Ia`, the unlit floor, is 0.68 (from 0.10), and
+`TMVMaxColorBrightness`, the cap on a base colour's mean, is 0.85 (from 0.6). The dome is
+still plainly visible because the remaining 0.32 of range falls over a curve.
+
+Changing one without the other undoes it. A low `Ia` brings the dark rims back; a low
+brightness cap dims everything to mud; a low-contrast palette turns the map grey however
+light it is. `Ia + Is` must stay at 1.0 — that is what guarantees a pixel cannot exceed its
+base colour, and it took the render from 81 clipped pixels to none.
+
+A saturated colour has a *lower* mean than a pale one at the same peak, so raising the
+brightness cap and raising saturation do not fight each other.
+
+The two synthetic cells are deliberately neutral so they read as "not a file kind":
+free space is the lightest thing on the map, other space a mid grey (set in
+`TreeMapViewController treeMapView:willDisplayItem:withRenderer:`, not in the palette).
 
 ### Controllers
 
 `MainWindowController` owns the split view (outline + treemap) and nearly every `IBAction`
-(zoom, refresh, trash, reveal in Finder, drawer toggles). The per-view controllers
+(zoom, refresh, trash, reveal in Finder, pane toggles). The per-view controllers
 (`TreeMapViewController`, `FilesOutlineViewController`, `FileKindsTableController`,
 `SelectionListTableController`) each manage one pane. `MyDocumentController` is an
 `NSDocumentController` subclass handling app-level concerns (preferences panel, donation
-panel, zoom-stack menu). Drawers are used for the kind statistics and selection list —
-deprecated by Apple and visually imperfect in dark mode, per `documentation/release notes.txt`.
+panel, zoom-stack menu).
+
+The kind statistics and selection list were `NSDrawer`s until 2026-08-15 — deprecated by
+Apple and visually imperfect in dark mode, per `documentation/release notes.txt`. They are
+now collapsible `NSSplitView` panes built in `-buildSidePanes`, statistics leading and
+selection list below. `-toggleFileKindsDrawer:` and `-toggleSelectionListDrawer:` keep
+their old names because the main menu nib and the toolbar plist name those selectors.
 
 ### Preferences: two layers
 
@@ -210,6 +246,24 @@ so "don't show this again" dialogs reappear after an upgrade. Separately, each d
 holds a `_viewOptions` dictionary of per-window display toggles, accessed through the
 `NSMutableDictionary(DocumentPreferences)` category. Adding a display toggle usually means
 touching both layers plus a `ViewOptionChangedNotification` post.
+
+**The settings pages are built in code, not in nibs.** A page overrides
+`-[PrefsPageBase buildControlBox]` and describes itself through `PrefsPageLayout`: a
+section label, then checkboxes, each optionally with explanatory text. Alignment is a
+property of the layout rather than of whoever last opened Interface Builder — which is how
+the two pages had drifted into different shapes, one of them with no label column at all.
+Adding a setting is one `-addCheckboxTitled:defaultsKey:help:` call plus its string in the
+four `Preferences.strings`, where it used to be eight nib bundles.
+
+`-buildControlBox` returning nil still falls back to loading the page record's nib, so a
+page needing something a grid of checkboxes cannot express is not locked out.
+
+Two things to know. Checkboxes bind to `NSUserDefaultsController`, which is what makes a
+change take effect immediately and what lets Restore Defaults show up without reloading
+the page. And **`PrefsPageLayout` must size its grid with `-setFrameSize:[grid fittingSize]`**
+before returning it: the panel sizes the window from `-[pageView frame]`, and a grid that
+has never been laid out still carries the frame it was created with — which produced a
+736-point window around 552 points of content.
 
 ### Prefix header
 
@@ -236,7 +290,10 @@ Background and localized strings: `documentation/macOS privacy protected folders
 Every interface lives in compiled `.nib` bundles under the `.lproj` directories. They are
 not text and cannot be edited or diffed with normal tools — open them in Interface Builder.
 Localizations: `de`, `en`, `es`, `fr` (`English.lproj` is a legacy leftover holding only
-Help index files). A UI change means updating the `.nib` in each of the four languages plus
+Help index files). Six nibs remain per language — `MainMenu`, `TreeMap`, `InfoPanel`,
+`LoadingPanel`, `VolumesPanel`, `DonationPanel`; the three preference-page nibs were
+deleted on 2026-08-15 when those pages moved into code, and their translations moved into
+`Preferences.strings`. A UI change means updating the `.nib` in each of the four languages plus
 `Localizable.strings`.
 
 To change nib text without Interface Builder, round-trip through `ibtool`:
@@ -364,6 +421,90 @@ class name, and skips any page whose class is not in the binary — which is why
 
 `AppController` was an `OAController` and is now an empty `NSObject`; nothing instantiates
 it, since only `OFControllerClass` ever did.
+
+## Icons are SF Symbols, not files
+
+There are no icon bitmaps. The 11 toolbar images and 3 preference-page images were
+deleted on 2026-08-15 and replaced with SF Symbols, which is why the deployment target
+is 11.0 — `+[NSImage imageWithSystemSymbolName:accessibilityDescription:]` needs it.
+
+The symbol names are **data, not code**: they live in `Resources/Toolbar/MainWindowToolbar.toolbar`
+under `symbolName` (plus `symbolNameOffState` / `symbolNameMixedState` for items with
+state, currently only `ShowPackageContents`) and in `Info.plist`'s `Registrations` under
+`symbol` for each preferences page. A typo compiles fine and shows an empty toolbar
+button, so both go through `+[NSImage imageForSymbolName:accessibilityDescription:]`
+(`Source/Extensions/NSImage-Extensions`), which returns nil and logs the bad name rather
+than handing back a blank image. The accessibility description is the item's label, which
+is what VoiceOver reads.
+
+Adding a toolbar item means adding a `symbolName`, and checking the symbol exists **in
+SF Symbols 2** — the app targets macOS 11, and the symbol set grows every release, so a
+name that resolves on a current Mac may be missing on the oldest supported one.
+
+`Resources/Images.xcassets/AppIcon.appiconset` is the app icon. All ten slots are filled,
+1024px included, as of 2026-08-15 — the earlier artwork topped out at 512 and left that
+slot empty. Three pixel sizes serve two slots each (32, 256, 512), and the catalog is
+happy to name the same file twice rather than carry duplicates.
+
+`Resources/AppIcon-master.png` is the 1280px source, kept in the repo but deliberately
+**not** added to the Xcode project, so it is not copied into the bundle. It is there so
+the sizes can be regenerated; the previous icon had no such master, which is exactly why
+the 1024 slot sat empty.
+
+macOS reads the icon from `Assets.car` via `CFBundleIconName`. `AppIcon.icns` is a
+compatibility copy and `iconutil` only ever extracts four sizes from it — that is normal
+and not a sign the catalog is short. To check what the system actually shows, ask
+`-[NSWorkspace iconForFile:]` for the built `.app`.
+
+## The sidebar toggle
+
+The statistics pane is toggled by `NSToolbarToggleSidebarItemIdentifier` — AppKit's own
+item, so the glyph, the leading placement and the short localized label ("Sidebar") come
+from the system. `ToolbarWindowController` gets it for free: it returns nil for any
+identifier with no `itemInfoByIdentifier` entry, and AppKit builds standard items itself.
+
+Three things here are not guessable, and each one cost a probe:
+
+- **`NSWindow` implements `-toggleSidebar:` itself.** The standard item has a nil target,
+  so the action walks the responder chain — and the walk stops at the window, which comes
+  *before* the window controller. Left alone the button is present, enabled, and does
+  nothing. `MainWindow` overrides `-toggleSidebar:` and forwards to its window controller;
+  that forward is the only reason the button works. AppKit's own sidebars do not need it
+  because `NSSplitViewController` sits ahead of the window via the content view controller.
+- **The identifier's *value* is `NSToolbarToggleSidebarItem`**, not
+  `…ItemIdentifier`. The plist stores values, as the neighbouring
+  `NSToolbarFlexibleSpaceItem` shows. Writing the constant's name gives an item AppKit
+  silently declines to build.
+- **`-[NSSplitView setPosition:ofDividerAtIndex:]` is not animatable.** Going through the
+  `-animator` proxy sets it immediately; sampling the pane width midway showed it already
+  at the target. `-animateKindStatisticsDividerTo:completion:` steps it on a timer
+  instead, and `splitView:constrainMinCoordinate:ofSubviewAt:` has to stop enforcing its
+  120-point minimum while that runs, or the slide stops dead instead of reaching zero.
+
+`-toolbarAutosaveIdentifier` is deliberately separate from `-toolbarConfigurationName`:
+AppKit keys the saved toolbar layout on the `NSToolbar` identifier, so bumping it discards
+a layout that refers to items which no longer exist. It was bumped to `MainWindowToolbar-2`
+when the drawer toggle gave way to this item. **Bump it again whenever items are removed**,
+or existing users keep a stale toolbar and never see the new ones.
+
+## Pasteboard types have two spellings
+
+Worth knowing before touching `FSItem`'s pasteboard code. Every type has a UTI and a
+legacy NeXT/Apple name, and **they are different strings**: `NSPasteboardTypeHTML` is
+`public.html`, `NSHTMLPboardType` is `Apple HTML pasteboard type`. `-declareTypes:`
+advertises *both* whichever one is passed, so the outgoing side does not care — but a
+receiver may ask for either, and a plain `-isEqualToString:` against one silently refuses
+the other.
+
+`PasteboardTypeMatches()` in `FSItem.m` compares against both, and every incoming
+comparison goes through it. Renaming the deprecated constants to their modern equivalents
+without it looks like a pure rename and is not: it broke HTML and plain-text requests made
+with the legacy spelling, which a probe caught.
+
+`NSFilenamesPboardType` has no modern equivalent and is deliberately still offered for
+receivers that predate `NSPasteboardTypeFileURL`. It is reached through
+`FSItemLegacyFilenamesPasteboardType()` so the deprecation is suppressed in exactly one
+place.
 
 ## The Info panel
 

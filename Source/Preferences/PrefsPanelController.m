@@ -15,6 +15,7 @@
 //
 
 #import "PrefsPanelController.h"
+#import "NSImage-Extensions.h"
 #import "PrefsPageBase.h"
 #import "PrefsPageRecord.h"
 #import "Preferences.h"
@@ -26,6 +27,8 @@ static NSString * const PrefsTitlesTable = @"Preferences";
 
 + (NSMutableDictionary*) _pageRecordsByIdentifier;
 - (void) _ensureWindowBuilt;
++ (NSString*) _settingsWindowTitle;
+- (NSView*) _contentViewWrappingPage: (NSView*) pageView;
 - (PrefsPageBase*) _pageForRecord: (PrefsPageRecord*) pageRecord;
 - (NSArray*) _visiblePageRecords;
 - (NSString*) _localizedTitleForRecord: (PrefsPageRecord*) pageRecord;
@@ -165,7 +168,7 @@ static NSString * const PrefsTitlesTable = @"Preferences";
 													 backing: NSBackingStoreBuffered
 													   defer: YES];
 
-	[window setTitle: NSLocalizedStringFromTable( @"Preferences", PrefsTitlesTable, @"preferences window title" )];
+	[window setTitle: [[self class] _settingsWindowTitle]];
 	[window setShowsToolbarButton: NO];
 	[window setReleasedWhenClosed: NO];
 	[window setFrameAutosaveName: @"PreferencesWindow"];
@@ -254,18 +257,20 @@ static NSString * const PrefsTitlesTable = @"Preferences";
 	//still installed would stretch it on the way.
 	[window setContentView: [[NSView alloc] initWithFrame: NSZeroRect]];
 
+	NSView *content = [self _contentViewWrappingPage: pageView];
+
 	NSRect contentRect = [window contentRectForFrameRect: [window frame]];
-	const NSSize pageSize = [pageView frame].size;
+	const NSSize contentSize = [content frame].size;
 
 	//grow downwards, so the title bar stays put
-	contentRect.origin.y += NSHeight(contentRect) - pageSize.height;
-	contentRect.size = pageSize;
+	contentRect.origin.y += NSHeight(contentRect) - contentSize.height;
+	contentRect.size = contentSize;
 
 	[window setFrame: [window frameRectForContentRect: contentRect]
 			 display: YES
 			 animate: [window isVisible]];
 
-	[window setContentView: pageView];
+	[window setContentView: content];
 
 	//hand the page its keyboard focus, and close the tab order back to the top
 	NSView *firstResponder = [page initialFirstResponder];
@@ -278,10 +283,62 @@ static NSString * const PrefsTitlesTable = @"Preferences";
 	}
 
 	[[window toolbar] setSelectedItemIdentifier: [pageRecord identifier]];
-	[window setTitle: [self _localizedTitleForRecord: pageRecord]];
 
 	[[NSUserDefaults standardUserDefaults] setObject: [pageRecord identifier]
 											  forKey: @"PreferencesSelection"];
+}
+
+//macOS 13 renamed Preferences to Settings across the system. The deployment
+//target is 11.0, where "Preferences" was still right, so this follows whichever
+//system the user is actually on rather than picking one and being wrong on the
+//other.
++ (NSString*) _settingsWindowTitle
+{
+	NSString *key = @"Preferences";
+
+	if ( @available( macOS 13.0, * ) )
+		key = @"Settings";
+
+	return NSLocalizedStringFromTable( key, PrefsTitlesTable, @"settings window title" );
+}
+
+//Puts the page above a footer holding "Restore Defaults". The action existed
+//but nothing in the window invoked it, so the only way to reach it was to know
+//it was there.
+- (NSView*) _contentViewWrappingPage: (NSView*) pageView
+{
+	NSButton *restore = [NSButton buttonWithTitle: NSLocalizedStringFromTable( @"Restore Defaults",
+																			   PrefsTitlesTable, @"" )
+										   target: self
+										   action: @selector(restoreDefaults:)];
+	[restore sizeToFit];
+
+	NSBox *separator = [[NSBox alloc] initWithFrame: NSZeroRect];
+	[separator setBoxType: NSBoxSeparator];
+
+	const CGFloat inset = 20.0;
+	const CGFloat footerHeight = NSHeight( [restore frame] ) + inset;
+
+	[pageView setFrameOrigin: NSMakePoint( 0.0, footerHeight )];
+
+	const CGFloat width = MAX( NSWidth( [pageView frame] ),
+							   NSWidth( [restore frame] ) + inset * 2.0 );
+
+	NSView *content = [[NSView alloc] initWithFrame:
+		NSMakeRect( 0.0, 0.0, width, NSHeight( [pageView frame] ) + footerHeight )];
+
+	[restore setFrameOrigin: NSMakePoint( inset, ( footerHeight - NSHeight( [restore frame] ) ) / 2.0 )];
+	[separator setFrame: NSMakeRect( 0.0, footerHeight, width, 1.0 )];
+
+	[pageView setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
+	[separator setAutoresizingMask: NSViewWidthSizable | NSViewMaxYMargin];
+	[restore setAutoresizingMask: NSViewMaxXMargin | NSViewMaxYMargin];
+
+	[content addSubview: pageView];
+	[content addSubview: separator];
+	[content addSubview: restore];
+
+	return content;
 }
 
 - (IBAction) _selectPageFromToolbar: (id) sender
@@ -389,8 +446,9 @@ static NSString * const PrefsTitlesTable = @"Preferences";
 	[item setLabel: title];
 	[item setPaletteLabel: title];
 
-	if ( [record iconName] != nil )
-		[item setImage: [NSImage imageNamed: [record iconName]]];
+	if ( [record symbolName] != nil )
+		[item setImage: [NSImage imageForSymbolName: [record symbolName]
+						   accessibilityDescription: [record title]]];
 
 	[item setTarget: self];
 	[item setAction: @selector(_selectPageFromToolbar:)];

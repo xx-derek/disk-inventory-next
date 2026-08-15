@@ -16,6 +16,7 @@
 
 #import "PrefsPageBase.h"
 #import "PrefsPageRecord.h"
+#import "PrefsPageLayout.h"
 
 //Equality that treats nil as a value in its own right. Plain -isEqual: cannot:
 //sending it to nil answers NO, so two absent values would compare as different.
@@ -54,10 +55,29 @@ static BOOL ValuesDiffer( id valueA, id valueB )
 	return [_pageRecord title];
 }
 
+- (NSView*) buildControlBox
+{
+	return nil;
+}
+
+- (void) setLayout: (PrefsPageLayout*) layout
+{
+	_layout = layout;
+}
+
 - (NSView*) controlBox
 {
 	if ( controlBox != nil )
 		return controlBox;
+
+	//a page that builds itself never touches the nib machinery below
+	controlBox = [self buildControlBox];
+	if ( controlBox != nil )
+	{
+		initialFirstResponder = [_layout firstControl];
+		lastKeyView = [_layout lastControl];
+		return controlBox;
+	}
 
 	NSString *nibName = [_pageRecord nibName];
 	if ( nibName == nil )

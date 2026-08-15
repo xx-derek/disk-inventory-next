@@ -125,14 +125,14 @@ NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 - (id) arrangedObjects
 {
 	if ( _model == nil )
-		return NSNotApplicableMarker;
+		return NSBindingSelectionMarker.notApplicableSelectionMarker;
 	
 	if ( _cachedObjects == nil )
 	{
 		id collection = [self collectionModel];
 		
 		if ( collection == nil )
-			return NSNotApplicableMarker;
+			return NSBindingSelectionMarker.notApplicableSelectionMarker;
 		if ( NSIsControllerMarker( collection ) )
 			return collection;
 
@@ -200,7 +200,7 @@ NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 	switch ( [_mySelectionIndexes count] )
 	{
 		case 0:
-			return NSNoSelectionMarker;
+			return NSBindingSelectionMarker.noSelectionMarker;
 		case 1:
 		{
 			NSArray *allObjects = [self arrangedObjects];
@@ -210,7 +210,7 @@ NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 				return [allObjects objectAtIndex: [_mySelectionIndexes firstIndex]];
 		}
 		default:
-			return NSMultipleValuesMarker;
+			return NSBindingSelectionMarker.multipleValuesSelectionMarker;
 	}
 }
 

@@ -1110,7 +1110,7 @@ NSString *OldItem = @"OldItem";
             
             [alert runModal];
             
-            if (alert.suppressionButton.state == NSOnState)
+            if (alert.suppressionButton.state == NSControlStateValueOn)
             {
                 // Suppress this alert for the current version
                 [defaults setBool: YES forVersionDependantKey: DontShowPrivacyWarningMessage];

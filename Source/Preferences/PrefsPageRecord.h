@@ -25,7 +25,7 @@
 	NSString *_identifier;
 	NSString *_className;
 	NSString *_title;
-	NSString *_iconName;
+	NSString *_symbolName;
 	NSString *_nibName;
 	NSString *_category;
 	NSNumber *_ordering;
@@ -42,7 +42,7 @@
 @property (readonly, copy) NSString *className;
 
 @property (readonly, copy) NSString *title;
-@property (readonly, copy) NSString *iconName;
+@property (readonly, copy) NSString *symbolName;
 @property (readonly, copy) NSString *nibName;
 @property (readonly, copy) NSString *category;
 

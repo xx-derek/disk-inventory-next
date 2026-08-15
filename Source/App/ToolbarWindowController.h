@@ -57,6 +57,10 @@
 //nil, the default, means the window has no toolbar
 - (NSString*) toolbarConfigurationName;
 
+//Defaults to -toolbarConfigurationName. Override and bump when the item set
+//changes enough that a saved layout should be discarded rather than restored.
+- (NSString*) toolbarAutosaveIdentifier;
+
 //the whole property list backing the toolbar
 - (NSDictionary*) toolbarConfigurationInfo;
 

@@ -100,7 +100,19 @@
 
 + (void) openItemURL: (NSURL*) itemURL withAppURL: (NSURL*) appURL
 {
-	[[NSWorkspace sharedWorkspace] openFile: [itemURL path] withApplication: [appURL path]];
+	//-openFile:withApplication: went in macOS 11. The replacement is
+	//asynchronous, so failures arrive in the completion handler rather than as
+	//a return value.
+	NSWorkspaceOpenConfiguration *config = [NSWorkspaceOpenConfiguration configuration];
+
+	[[NSWorkspace sharedWorkspace] openURLs: @[ itemURL ]
+					   withApplicationAtURL: appURL
+							  configuration: config
+						  completionHandler: ^( NSRunningApplication *app, NSError *error )
+	{
+		if ( error != nil )
+			LOG( @"could not open %@ with %@: %@", itemURL, appURL, error );
+	}];
 }
 
 @end

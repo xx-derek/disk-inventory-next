@@ -1,5 +1,35 @@
-"Finder Plugin" = "Plugin de Finder";
+/* Page titles for the settings toolbar, and every string on the pages
+   themselves. The pages used to be a nib per language; their text moved
+   here when they were rebuilt in code. */
 
-/* Prefs for Icon buttons - OmniAppKit is coded to look for Preferences.strings */
+/* toolbar */
 "General" = "General";
 "Treemap" = "Treemap";
+"Finder Plugin" = "Plugin de Finder";
+
+"Settings…" = "Ajustes…";
+
+/* pages */
+"Animated Zooming" = "Zoom animado";
+"File kind colors:" = "Colores por tipo de archivo:";
+"Files View" = "Vista de archivos";
+"If set, e.g. PDF files opened by the Finder with Acrobat or Preview are be regarded to have the same kind." = "Si esta activo, por ejemplo los archivos PDF que el Finder abre con Acrobat o con Vista Previa seran considerados del mismo tipo.";
+"Ignore Creator Code" = "Ignorar Código de Creación";
+"Kind Statistic Drawer" = "Estadísticas por Tipo de Archivos";
+"Preferences" = "Preferencias";
+"Restore Defaults" = "Restaurar valores";
+"Selection List" = "Lista de selección";
+"Settings" = "Ajustes";
+"Show Free Space" = "Mostrar espacio libre";
+"Show Other Space" = "Mostrar otro espacio";
+"Show Package Contents" = "Mostrar contenido de paquetes";
+"Show Physical File Size" = "Mostrar tamaño físico de los archivos";
+"Split window horizontally" = "Dividir ventana horizontalmente";
+"The physical size is the space that a file occupies on a drive. Many applications show the logical size, which is the size of a file's content." = "El tamaño físico de un archivo es el espacio que ocupa en el disco. Muchas aplicaciones muestran el tamaño lógico, el cual es el tamaño del contenido del archivo.";
+"This shows free space like a file in the treemap. It helps to see the size relations between the opened folder and the free space on the drive." = "Muestra el espacio libre como un archivo en el treemap. Es útil para ver la cantidad de espacio libre en relación al espacio ocupado en el disco.";
+"This shows space used by not shown files and folders like a file in the treemap. It helps to see how the opened folder compares in size to the rest of the files on the same drive. This option is only available if not a whole drive is shown." = "Muestra el espacio utilizado por archivos que no estan siendo mostrados en el momento. Es útil para comprar la cantidad de espacio utilizado por la carpeta actual con el utilizado por el resto de los archivos. Esta opción solo esta disponible cuando no se esta mostrando todo el Volumen.";
+"Turn this off if the animation is too slow on your machine or if you don't like it." = "Desactiva esta opción si la animación es muy lenta o si produce algun error en el sistema.";
+"Use small font in:" = "Utilizar letras pequeñas en:";
+"Use the same color for each file kind in all windows" = "Usar el mismo color para cada tipo de archivo en todas las ventanas";
+"View settings for new windows:" = "Ver configuración para nuevas ventanas:";
+"Zooming:" = "Zoom:";

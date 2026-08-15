@@ -16,8 +16,6 @@
 
 #import "MainWindowController.h"
 #import "NSAlert-Extensions.h"
-
-NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibilityChanged";
 #import "InfoPanelController.h"
 #import "Timing.h"
 #import <TreeMapView/TreeMapView.h>
@@ -25,6 +23,16 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 #import "FileSizeTransformer.h"
 #import "AppsForItem.h"
 #import "NSURL-Extensions.h"
+
+NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibilityChanged";
+
+//used the first time the pane is reopened, if it was never measured while open
+static const CGFloat kDefaultKindStatisticsWidth = 200.0;
+
+@interface MainWindowController()
+- (void) setKindStatisticsVisible: (BOOL) visible animated: (BOOL) animated;
+- (void) animateKindStatisticsDividerTo: (CGFloat) targetWidth completion: (void (^)(void)) completion;
+@end
 
 @interface MainWindowController(Private)
 - (void) moveItemToTrash: (FSItem*) selectedItem;
@@ -40,8 +48,10 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 		return;
     initialized = YES;
 	
-	//initalize support for the service menu
-    NSArray *sendTypes = [NSArray arrayWithObjects: NSFilenamesPboardType, nil];
+	//Initialise support for the service menu. NSPasteboardTypeFileURL has to be
+	//here: registering only the legacy type meant no service that wants a file
+	//URL ever offered itself, the same way dragging and copying used to fail.
+    NSArray *sendTypes = @[ NSPasteboardTypeFileURL, FSItemLegacyFilenamesPasteboardType() ];
     NSArray *returnTypes = [NSArray array];
 	
 	[NSApp registerServicesMenuSendTypes: sendTypes returnTypes: returnTypes];
@@ -178,11 +188,106 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 
 - (void) setKindStatisticsVisible: (BOOL) visible
 {
+	[self setKindStatisticsVisible: visible animated: NO];
+}
+
+//NSSplitView collapses a pane by hiding the subview: it keeps the subview and
+//its constraints but gives it no space. That is instantaneous, so the animated
+//path slides the divider first and only then hides the pane, since a hidden
+//subview has no width to animate from.
+- (void) setKindStatisticsVisible: (BOOL) visible animated: (BOOL) animated
+{
 	if ( _kindStatisticsPane == nil || visible == [self isKindStatisticsVisible] )
 		return;
 
-	[_kindStatisticsPane setHidden: !visible];
-	[_kindStatisticsSplitView adjustSubviews];
+	if ( !animated || ![[self window] isVisible] )
+	{
+		[_kindStatisticsPane setHidden: !visible];
+		[_kindStatisticsSplitView adjustSubviews];
+		return;
+	}
+
+	//Remember the width so reopening restores it. The split view's own autosave
+	//only records a position it has been left at, and collapsing writes zero.
+	if ( !visible )
+		_kindStatisticsWidth = NSWidth( [_kindStatisticsPane frame] );
+
+	const CGFloat targetWidth = visible ? ( _kindStatisticsWidth > 0.0 ? _kindStatisticsWidth
+																	  : kDefaultKindStatisticsWidth )
+										: 0.0;
+
+	if ( visible )
+	{
+		//give it a zero-width starting point to grow from
+		[_kindStatisticsPane setHidden: NO];
+		_animatingKindStatistics = YES;
+		[_kindStatisticsSplitView setPosition: 0.0 ofDividerAtIndex: 0];
+	}
+
+	[self animateKindStatisticsDividerTo: targetWidth completion: ^
+	{
+		//Collapse for real at the end. Leaving the pane at zero width would keep
+		//the divider draggable and -isKindStatisticsVisible would still say YES.
+		if ( !visible )
+		{
+			[self->_kindStatisticsPane setHidden: YES];
+			[self->_kindStatisticsSplitView adjustSubviews];
+		}
+	}];
+}
+
+//NSSplitView's -setPosition:ofDividerAtIndex: is not animatable: going through
+//the -animator proxy sets it immediately, which a probe caught by sampling the
+//pane width midway and finding it already at the target. So the divider is
+//stepped by a timer instead.
+//
+//The timer is held so it can be stopped if the window goes away mid-slide -
+//NSTimer retains its target, and a repeating one that is never invalidated
+//would keep this controller alive.
+- (void) animateKindStatisticsDividerTo: (CGFloat) targetWidth completion: (void (^)(void)) completion
+{
+	[_kindStatisticsAnimationTimer invalidate];
+
+	const CGFloat startWidth = NSWidth( [_kindStatisticsPane frame] );
+	const NSTimeInterval duration = 0.18;
+	NSDate *startedAt = [NSDate date];
+
+	_animatingKindStatistics = YES;
+
+	__weak MainWindowController *weakSelf = self;
+
+	_kindStatisticsAnimationTimer =
+		[NSTimer scheduledTimerWithTimeInterval: 1.0 / 60.0
+										repeats: YES
+										  block: ^( NSTimer *timer )
+	{
+		MainWindowController *strongSelf = weakSelf;
+		if ( strongSelf == nil )
+		{
+			[timer invalidate];
+			return;
+		}
+
+		double progress = -[startedAt timeIntervalSinceNow] / duration;
+		if ( progress > 1.0 )
+			progress = 1.0;
+
+		//smoothstep, so it eases in and out without needing CAMediaTimingFunction
+		const double eased = progress * progress * ( 3.0 - 2.0 * progress );
+
+		[strongSelf->_kindStatisticsSplitView setPosition: startWidth + ( targetWidth - startWidth ) * eased
+										 ofDividerAtIndex: 0];
+
+		if ( progress >= 1.0 )
+		{
+			[timer invalidate];
+			strongSelf->_kindStatisticsAnimationTimer = nil;
+			strongSelf->_animatingKindStatistics = NO;
+
+			if ( completion != nil )
+				completion();
+		}
+	}];
 }
 
 - (BOOL) isSelectionListVisible
@@ -214,8 +319,13 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 constrainMinCoordinate: (CGFloat) proposedMin
 		  ofSubviewAt: (NSInteger) dividerIndex
 {
-	//keep the statistics pane usable rather than letting it be dragged to a sliver
-	return ( splitView == _kindStatisticsSplitView ) ? MAX( proposedMin, 120.0 ) : proposedMin;
+	//The minimum keeps the pane usable rather than letting it be dragged to a
+	//sliver, but it has to be lifted while collapsing or the slide would stop
+	//dead at 120 points instead of reaching zero.
+	if ( splitView == _kindStatisticsSplitView && !_animatingKindStatistics )
+		return MAX( proposedMin, 120.0 );
+
+	return proposedMin;
 }
 
 - (CGFloat) splitView: (NSSplitView*) splitView
@@ -233,7 +343,16 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 //MainWindowToolbar.toolbar refer to these selectors by name
 - (IBAction)toggleFileKindsDrawer:(id)sender
 {
-    [self setKindStatisticsVisible: ![self isKindStatisticsVisible]];
+    [self setKindStatisticsVisible: ![self isKindStatisticsVisible] animated: YES];
+}
+
+//NSToolbarToggleSidebarItemIdentifier sends -toggleSidebar: to the first
+//responder, so the window controller picks it up off the responder chain. The
+//statistics pane is the leading subview of the outer split view, which is what
+//the platform means by a sidebar.
+- (IBAction) toggleSidebar:(id)sender
+{
+	[self setKindStatisticsVisible: ![self isKindStatisticsVisible] animated: YES];
 }
 
 - (IBAction) toggleSelectionListDrawer:(id)sender
@@ -502,7 +621,7 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 #define SET_TITLE_AND_IMAGE( condition, string1, string2 )	\
 	SET_TITLE( (condition), string1, string2 );				\
 	if ( [menuItem isKindOfClass: [NSToolbarItemValidationAdapter class]] )\
-		 [menuItem setState: (condition) ? NSOffState : NSOnState];
+		 [menuItem setState: (condition) ? NSControlStateValueOff : NSControlStateValueOn];
 	
     if ( menuAction == @selector(openFile:)
 		 || menuAction == @selector(openFileWith:) )
@@ -607,6 +726,14 @@ constrainMaxCoordinate: (CGFloat) proposedMax
     return @"MainWindowToolbar";
 }
 
+//Bumped when the drawer toggle gave way to the standard sidebar item and every
+//icon became an SF Symbol: a layout saved before that refers to items which no
+//longer exist, and would come back missing the sidebar button entirely.
+- (NSString *)toolbarAutosaveIdentifier
+{
+    return @"MainWindowToolbar-2";
+}
+
 #pragma mark -----------------NSWindow delegates-----------------------
 
 - (void)windowDidBecomeMain:(NSNotification *)aNotification
@@ -624,6 +751,12 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 
 - (void)windowWillClose:(NSNotification *)aNotification
 {
+	//A repeating NSTimer retains its target, so a slide still in flight would
+	//keep this controller — and the document behind it — alive.
+	[_kindStatisticsAnimationTimer invalidate];
+	_kindStatisticsAnimationTimer = nil;
+	_animatingKindStatistics = NO;
+
 	if ( [[aNotification object] isMainWindow]
 		&& [[InfoPanelController sharedController] panelIsVisible] )
 	{

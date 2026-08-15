@@ -21,15 +21,27 @@ static const double Lx = -0.09759;
 static const double Ly = -0.19518;
 static const double Lz =  0.97590;
 
-//ambient and diffuse contributions; they sum to 1 so a fully lit pixel reaches
-//exactly the cell's base color
-static const double Ia = 0.10;
-static const double Is = 0.90;
+//Ambient and diffuse contributions. They sum to 1, so a fully lit pixel reaches
+//exactly the cell's base color and nothing can clip.
+//
+//Ia is the floor: what a pixel gets where the cushion turns away from the light.
+//At the 0.10 this started with, the rim of every cell fell to a tenth of its
+//colour - practically black - and the contrast against the lit centre read as a
+//glow rather than as a curved surface.
+//
+//0.68 is high because the palette is saturated. Shading multiplies all three
+//components by the same number, so it never desaturates, only darkens - and a
+//darkened saturated colour is a muddy one, orange going to brown. Keeping the
+//floor high keeps the hues clean; the dome is still plainly visible because the
+//remaining 0.32 of range is spread over a curve, not a gradient.
+static const double Ia = 0.68;
+static const double Is = 0.32;
 
-//Cushion colors are multiplied by a brightness of up to 1/Ia, so the base color
-//has to stay dim enough to leave headroom before it clips. Colors brighter than
-//this (summed over all three components) get scaled down by +normalizeColor:.
-static const double TMVMaxColorBrightness = 0.6;
+//Ceiling on a base colour's mean component, applied by +normalizeColor:.
+//Nothing can clip - the brightest a pixel gets is Ia + Is = 1 times the base
+//colour - so this only decides how light a cell is allowed to be. It was 0.6,
+//which dimmed any pale colour back to a muddy mid-tone.
+static const double TMVMaxColorBrightness = 0.85;
 
 static NSColor *g_defaultCushionColor = nil;
 

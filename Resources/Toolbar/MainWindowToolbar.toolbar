@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>allowedItemIdentifiers</key>
 	<array>
+		<string>NSToolbarToggleSidebarItem</string>
 		<string>ShowInfo</string>
 		<string>ShowPreferences</string>
-		<string>ToggleKindsStatisticDrawer</string>
 		<string>ShowPackageContents</string>
 		<string>ZoomIn</string>
 		<string>ZoomOut</string>
@@ -21,10 +21,10 @@
 	</array>
 	<key>defaultItemIdentifiers</key>
 	<array>
+		<string>NSToolbarToggleSidebarItem</string>
 		<string>ZoomIn</string>
 		<string>ZoomOut</string>
 		<string>NSToolbarFlexibleSpaceItem</string>
-		<string>ToggleKindsStatisticDrawer</string>
 	</array>
 	<key>itemInfoByIdentifier</key>
 	<dict>
@@ -32,81 +32,72 @@
 		<dict>
 			<key>action</key>
 			<string>moveToTrash:</string>
-			<key>imageName</key>
-			<string>MoveToTrash</string>
+			<key>symbolName</key>
+			<string>trash</string>
 		</dict>
 		<key>RefreshAll</key>
 		<dict>
 			<key>action</key>
 			<string>refreshAll:</string>
-			<key>imageName</key>
-			<string>RefreshAll</string>
+			<key>symbolName</key>
+			<string>arrow.clockwise.circle</string>
 		</dict>
 		<key>RefreshSelection</key>
 		<dict>
 			<key>action</key>
 			<string>refresh:</string>
-			<key>imageName</key>
-			<string>RefreshSelection</string>
+			<key>symbolName</key>
+			<string>arrow.clockwise</string>
 		</dict>
 		<key>RevealInFinder</key>
 		<dict>
 			<key>action</key>
 			<string>showInFinder:</string>
-			<key>imageName</key>
-			<string>RevealInFinder</string>
+			<key>symbolName</key>
+			<string>arrow.right.doc.on.clipboard</string>
 		</dict>
 		<key>ShowInfo</key>
 		<dict>
-			<key>label</key>
-			<string>Show Information</string>
 			<key>action</key>
 			<string>showInformationPanel:</string>
-			<key>imageName</key>
-			<string>Inspector</string>
+			<key>label</key>
+			<string>Show Information</string>
+			<key>symbolName</key>
+			<string>info.circle</string>
 		</dict>
 		<key>ShowPackageContents</key>
 		<dict>
-			<key>label</key>
-			<string>Show Package Contents</string>
 			<key>action</key>
 			<string>showPackageContents:</string>
-			<key>imageName</key>
-			<string>ShowPackageContentsOpen</string>
-			<key>imageNameOffState</key>
-			<string>ShowPackageContentsClosed</string>
+			<key>label</key>
+			<string>Show Package Contents</string>
+			<key>symbolName</key>
+			<string>shippingbox.fill</string>
+			<key>symbolNameOffState</key>
+			<string>shippingbox</string>
 		</dict>
 		<key>ShowPreferences</key>
 		<dict>
 			<key>action</key>
 			<string>showPreferencesPanel:</string>
-			<key>imageName</key>
-			<string>Preferences</string>
+			<key>symbolName</key>
+			<string>gearshape</string>
 			<key>target</key>
 			<string>documentController</string>
-		</dict>
-		<key>ToggleKindsStatisticDrawer</key>
-		<dict>
-			<key>label</key>
-			<string>Show File Kind Statistics</string>
-			<key>action</key>
-			<string>toggleFileKindsDrawer:</string>
-			<key>imageName</key>
-			<string>KindsStatisticDrawer</string>
 		</dict>
 		<key>ZoomIn</key>
 		<dict>
 			<key>action</key>
 			<string>zoomIn:</string>
-			<key>imageName</key>
-			<string>ZoomIn</string>
+			<key>symbolName</key>
+			<string>plus.magnifyingglass</string>
 		</dict>
 		<key>ZoomOut</key>
 		<dict>
 			<key>action</key>
 			<string>zoomOut:</string>
-			<key>imageName</key>
-			<string>ZoomOut</string>
+			<key>symbolName</key>
+			<string>minus.magnifyingglass</string>
 		</dict>
 	</dict>
 </dict>
