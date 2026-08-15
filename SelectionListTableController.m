@@ -21,8 +21,7 @@
 - (void) setTableViewFont;
 - (void) onDocumentSelectionChanged;
 - (void) onSelectionListSelectionChanged;
-- (void) onDrawerOpened: (NSNotification*) notification;
-- (void) onDrawerClosed: (NSNotification*) notification;
+- (void) onSelectionListVisibilityChanged: (NSNotification*) notification;
 
 @end
 
@@ -38,23 +37,21 @@
 	FileSystemDoc *doc = [self document];
 
 	NSNotificationCenter *notificationCenter = [NSNotificationCenter defaultCenter];
-	NSDrawer *drawer = [_windowController selectionListDrawer];
-	
+
+	//the list used to be a drawer, and watched it open and close; it is now a
+	//split-view pane, and the window controller says when it is shown or hidden
 	[notificationCenter addObserver: self
-						   selector: @selector(onDrawerClosed:)
-							   name: NSDrawerDidCloseNotification
-							 object: drawer];
-	[notificationCenter addObserver: self
-						   selector: @selector(onDrawerOpened:)
-							   name: NSDrawerWillOpenNotification
-							 object: drawer];
+						   selector: @selector(onSelectionListVisibilityChanged:)
+							   name: SelectionListVisibilityChangedNotification
+							 object: _windowController];
 	
     [notificationCenter addObserver: self
 						   selector: @selector(windowWillClose:)
 							   name: NSWindowWillCloseNotification
 							 object: [_windowController window]];
 	
-	if ( [drawer state] == NSDrawerClosedState )
+	//no point recomputing the list while it is not on screen
+	if ( ![_windowController isSelectionListVisible] )
 		[_selectionListArrayController suspendArrangedObjectsUpdates];
 	
 	//set up KVO
@@ -172,7 +169,7 @@ writeRowsWithIndexes:(NSIndexSet *)rowIndexes
 	}
 }
 
-#pragma mark --------drawer notifications-----------------
+#pragma mark --------pane visibility-----------------
 
 @end
 
@@ -249,14 +246,12 @@ writeRowsWithIndexes:(NSIndexSet *)rowIndexes
 		[doc setSelectedItem: selectionListSelection];
 }
 
-- (void) onDrawerOpened: (NSNotification*) notification
+- (void) onSelectionListVisibilityChanged: (NSNotification*) notification
 {
-	[_selectionListArrayController resumeArrangedObjectsUpdates];
-}
-
-- (void) onDrawerClosed: (NSNotification*) notification
-{
-	[_selectionListArrayController suspendArrangedObjectsUpdates];
+	if ( [_windowController isSelectionListVisible] )
+		[_selectionListArrayController resumeArrangedObjectsUpdates];
+	else
+		[_selectionListArrayController suspendArrangedObjectsUpdates];
 }
 
 @end

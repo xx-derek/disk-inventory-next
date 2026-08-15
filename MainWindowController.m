@@ -15,6 +15,8 @@
 //
 
 #import "MainWindowController.h"
+
+NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibilityChanged";
 #import "InfoPanelController.h"
 #import "Timing.h"
 #import <TreeMapView/TreeMapView.h>
@@ -108,31 +110,141 @@
 	
 	//NSSplitView remembers the divider position itself
 	[_splitter setAutosaveName: @"MainWindowSplitter"];
-	
-    [_kindsDrawer toggle: self];
-	//[_selectionListDrawer toggle: self];
+
+	[self buildSidePanes];
 }
 
-- (NSDrawer*) kindStatisticsDrawer
+#pragma mark -----------------side panes-----------------------
+
+//Takes the two views the nib built inside the drawers and installs them as
+//collapsible split-view panes instead: statistics to the left of the outline and
+//treemap, selection list below them, which is where the drawers used to slide
+//out from. Done here rather than in the nib so the four localized nibs do not
+//have to be restructured.
+- (void) buildSidePanes
 {
-	return _kindsDrawer;
+	NSView *contentView = [[self window] contentView];
+
+	_kindStatisticsPane = [_kindsDrawer contentView];
+	_selectionListPane = [_selectionListDrawer contentView];
+
+	//the drawers keep their content views alive, so take them away first
+	[_kindsDrawer setContentView: nil];
+	[_selectionListDrawer setContentView: nil];
+
+	if ( _kindStatisticsPane == nil || _selectionListPane == nil )
+	{
+		NSLog( @"side panes could not be built: the nib did not supply their content views" );
+		return;
+	}
+
+	//Take over exactly the space the outline/treemap splitter occupied, not the
+	//whole content view: the treemap's name and size labels live below it, and
+	//filling the content view would cover them.
+	const NSRect paneFrame = [_splitter frame];
+	const NSAutoresizingMaskOptions paneMask = [_splitter autoresizingMask];
+
+	//selection list goes underneath the outline/treemap splitter
+	_selectionListSplitView = [[NSSplitView alloc] initWithFrame: paneFrame];
+	[_selectionListSplitView setVertical: NO];
+	[_selectionListSplitView setDividerStyle: NSSplitViewDividerStyleThin];
+	[_selectionListSplitView setDelegate: self];
+	[_selectionListSplitView setAutosaveName: @"MainWindowSelectionListSplit"];
+
+	//statistics go to the left of everything else
+	_kindStatisticsSplitView = [[NSSplitView alloc] initWithFrame: paneFrame];
+	[_kindStatisticsSplitView setVertical: YES];
+	[_kindStatisticsSplitView setDividerStyle: NSSplitViewDividerStyleThin];
+	[_kindStatisticsSplitView setDelegate: self];
+	[_kindStatisticsSplitView setAutosaveName: @"MainWindowKindStatisticsSplit"];
+
+	[_splitter removeFromSuperview];
+
+	[_selectionListSplitView addSubview: _splitter];
+	[_selectionListSplitView addSubview: _selectionListPane];
+
+	[_kindStatisticsSplitView addSubview: _kindStatisticsPane];
+	[_kindStatisticsSplitView addSubview: _selectionListSplitView];
+
+	[_kindStatisticsSplitView setFrame: paneFrame];
+	[_kindStatisticsSplitView setAutoresizingMask: paneMask];
+	[contentView addSubview: _kindStatisticsSplitView];
+
+	//the statistics drawer was opened at launch; the selection list was not
+	[self setKindStatisticsVisible: YES];
+	[self setSelectionListVisible: NO];
 }
 
-- (NSDrawer*) selectionListDrawer
+//A hidden subview is how NSSplitView collapses a pane: it keeps the subview and
+//its constraints but gives it no space, which is what the drawers did visually.
+- (BOOL) isKindStatisticsVisible
 {
-	return _selectionListDrawer;
+	return _kindStatisticsPane != nil && ![_kindStatisticsPane isHidden];
+}
+
+- (void) setKindStatisticsVisible: (BOOL) visible
+{
+	if ( _kindStatisticsPane == nil || visible == [self isKindStatisticsVisible] )
+		return;
+
+	[_kindStatisticsPane setHidden: !visible];
+	[_kindStatisticsSplitView adjustSubviews];
+}
+
+- (BOOL) isSelectionListVisible
+{
+	return _selectionListPane != nil && ![_selectionListPane isHidden];
+}
+
+- (void) setSelectionListVisible: (BOOL) visible
+{
+	if ( _selectionListPane == nil || visible == [self isSelectionListVisible] )
+		return;
+
+	[_selectionListPane setHidden: !visible];
+	[_selectionListSplitView adjustSubviews];
+
+	//the list suspends its own updates while it is off screen
+	[[NSNotificationCenter defaultCenter] postNotificationName: SelectionListVisibilityChangedNotification
+														object: self];
+}
+
+#pragma mark -----------------NSSplitView delegate-----------------------
+
+- (BOOL) splitView: (NSSplitView*) splitView canCollapseSubview: (NSView*) subview
+{
+	return subview == _kindStatisticsPane || subview == _selectionListPane;
+}
+
+- (CGFloat) splitView: (NSSplitView*) splitView
+constrainMinCoordinate: (CGFloat) proposedMin
+		  ofSubviewAt: (NSInteger) dividerIndex
+{
+	//keep the statistics pane usable rather than letting it be dragged to a sliver
+	return ( splitView == _kindStatisticsSplitView ) ? MAX( proposedMin, 120.0 ) : proposedMin;
+}
+
+- (CGFloat) splitView: (NSSplitView*) splitView
+constrainMaxCoordinate: (CGFloat) proposedMax
+		  ofSubviewAt: (NSInteger) dividerIndex
+{
+	//and leave room for the outline and treemap
+	return ( splitView == _kindStatisticsSplitView ) ? MIN( proposedMax, NSWidth([splitView bounds]) - 250.0 )
+													 : MIN( proposedMax, NSHeight([splitView bounds]) - 150.0 );
 }
 
 #pragma mark -----------------menu and toolbar actions-----------------------
 
+//named for the drawers they used to toggle, because the main menu nib and
+//MainWindowToolbar.toolbar refer to these selectors by name
 - (IBAction)toggleFileKindsDrawer:(id)sender
 {
-    [_kindsDrawer toggle: self];
+    [self setKindStatisticsVisible: ![self isKindStatisticsVisible]];
 }
 
 - (IBAction) toggleSelectionListDrawer:(id)sender
 {
-	[_selectionListDrawer toggle: self];
+	[self setSelectionListVisible: ![self isSelectionListVisible]];
 }
 
 - (IBAction) openFile:(id)sender
@@ -461,12 +573,12 @@
     }
     else if ( menuAction == @selector(toggleFileKindsDrawer:) )
     {
-        SET_TITLE_AND_IMAGE( [_kindsDrawer state] == NSDrawerClosedState,
+        SET_TITLE_AND_IMAGE( ![self isKindStatisticsVisible],
 							 @"Show File Kind Statistics", @"Hide File Kind Statistics" );
     }
     else if ( menuAction == @selector(toggleSelectionListDrawer:) )
     {
-        SET_TITLE( [_selectionListDrawer state] == NSDrawerClosedState,
+        SET_TITLE( ![self isSelectionListVisible],
 							 @"Show Selection List", @"Hide Selection List" );
     }
     else if ( menuAction == @selector(selectParentItem:) )

@@ -80,10 +80,8 @@
 
 - (IBAction) showFilesInSelectionList: (id) sender
 {
-	int selectionListDrawerState = [[_windowController selectionListDrawer] state];
-	
-	if ( selectionListDrawerState == NSDrawerClosingState || selectionListDrawerState == NSDrawerClosedState )
-		[[_windowController selectionListDrawer] toggle: self];
+	//showing files for a kind is pointless if the list is hidden
+	[_windowController setSelectionListVisible: YES];
 	
 	int selectedRow = [_tableView selectedRow];
 	NSAssert( selectedRow >= 0, @"kinds tableview should have a selection" );
