@@ -195,12 +195,17 @@ largest kinds.
 ### Controllers
 
 `MainWindowController` owns the split view (outline + treemap) and nearly every `IBAction`
-(zoom, refresh, trash, reveal in Finder, drawer toggles). The per-view controllers
+(zoom, refresh, trash, reveal in Finder, pane toggles). The per-view controllers
 (`TreeMapViewController`, `FilesOutlineViewController`, `FileKindsTableController`,
 `SelectionListTableController`) each manage one pane. `MyDocumentController` is an
 `NSDocumentController` subclass handling app-level concerns (preferences panel, donation
-panel, zoom-stack menu). Drawers are used for the kind statistics and selection list —
-deprecated by Apple and visually imperfect in dark mode, per `documentation/release notes.txt`.
+panel, zoom-stack menu).
+
+The kind statistics and selection list were `NSDrawer`s until 2026-08-15 — deprecated by
+Apple and visually imperfect in dark mode, per `documentation/release notes.txt`. They are
+now collapsible `NSSplitView` panes built in `-buildSidePanes`, statistics leading and
+selection list below. `-toggleFileKindsDrawer:` and `-toggleSelectionListDrawer:` keep
+their old names because the main menu nib and the toolbar plist name those selectors.
 
 ### Preferences: two layers
 
@@ -388,6 +393,37 @@ name that resolves on a current Mac may be missing on the oldest supported one.
 filled; **512×512@2x (1024px) is empty because no artwork that large exists** — the
 largest original is 512px. macOS scales the 512 up for it. If higher-resolution artwork
 ever turns up, that is the slot to fill.
+
+## The sidebar toggle
+
+The statistics pane is toggled by `NSToolbarToggleSidebarItemIdentifier` — AppKit's own
+item, so the glyph, the leading placement and the short localized label ("Sidebar") come
+from the system. `ToolbarWindowController` gets it for free: it returns nil for any
+identifier with no `itemInfoByIdentifier` entry, and AppKit builds standard items itself.
+
+Three things here are not guessable, and each one cost a probe:
+
+- **`NSWindow` implements `-toggleSidebar:` itself.** The standard item has a nil target,
+  so the action walks the responder chain — and the walk stops at the window, which comes
+  *before* the window controller. Left alone the button is present, enabled, and does
+  nothing. `MainWindow` overrides `-toggleSidebar:` and forwards to its window controller;
+  that forward is the only reason the button works. AppKit's own sidebars do not need it
+  because `NSSplitViewController` sits ahead of the window via the content view controller.
+- **The identifier's *value* is `NSToolbarToggleSidebarItem`**, not
+  `…ItemIdentifier`. The plist stores values, as the neighbouring
+  `NSToolbarFlexibleSpaceItem` shows. Writing the constant's name gives an item AppKit
+  silently declines to build.
+- **`-[NSSplitView setPosition:ofDividerAtIndex:]` is not animatable.** Going through the
+  `-animator` proxy sets it immediately; sampling the pane width midway showed it already
+  at the target. `-animateKindStatisticsDividerTo:completion:` steps it on a timer
+  instead, and `splitView:constrainMinCoordinate:ofSubviewAt:` has to stop enforcing its
+  120-point minimum while that runs, or the slide stops dead instead of reaching zero.
+
+`-toolbarAutosaveIdentifier` is deliberately separate from `-toolbarConfigurationName`:
+AppKit keys the saved toolbar layout on the `NSToolbar` identifier, so bumping it discards
+a layout that refers to items which no longer exist. It was bumped to `MainWindowToolbar-2`
+when the drawer toggle gave way to this item. **Bump it again whenever items are removed**,
+or existing users keep a stale toolbar and never see the new ones.
 
 ## Pasteboard types have two spellings
 

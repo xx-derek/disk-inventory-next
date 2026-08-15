@@ -4,9 +4,9 @@
 <dict>
 	<key>allowedItemIdentifiers</key>
 	<array>
+		<string>NSToolbarToggleSidebarItem</string>
 		<string>ShowInfo</string>
 		<string>ShowPreferences</string>
-		<string>ToggleKindsStatisticDrawer</string>
 		<string>ShowPackageContents</string>
 		<string>ZoomIn</string>
 		<string>ZoomOut</string>
@@ -21,10 +21,10 @@
 	</array>
 	<key>defaultItemIdentifiers</key>
 	<array>
+		<string>NSToolbarToggleSidebarItem</string>
 		<string>ZoomIn</string>
 		<string>ZoomOut</string>
 		<string>NSToolbarFlexibleSpaceItem</string>
-		<string>ToggleKindsStatisticDrawer</string>
 	</array>
 	<key>itemInfoByIdentifier</key>
 	<dict>
@@ -84,15 +84,6 @@
 			<string>gearshape</string>
 			<key>target</key>
 			<string>documentController</string>
-		</dict>
-		<key>ToggleKindsStatisticDrawer</key>
-		<dict>
-			<key>action</key>
-			<string>toggleFileKindsDrawer:</string>
-			<key>label</key>
-			<string>Show File Kind Statistics</string>
-			<key>symbolName</key>
-			<string>chart.pie</string>
 		</dict>
 		<key>ZoomIn</key>
 		<dict>

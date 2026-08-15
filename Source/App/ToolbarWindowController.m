@@ -113,6 +113,15 @@ static NSMutableDictionary *g_toolbarStateImages = nil;
 	return nil;
 }
 
+//AppKit keys the autosaved toolbar layout on the NSToolbar's identifier, which
+//is deliberately not the configuration file's name: bumping this invalidates a
+//saved layout, which is what you want when the set of items has changed enough
+//that restoring the old one would leave a wrong or half-empty toolbar.
+- (NSString*) toolbarAutosaveIdentifier
+{
+	return [self toolbarConfigurationName];
+}
+
 - (NSDictionary*) toolbarConfigurationInfo
 {
 	NSString *name = [self toolbarConfigurationName];
@@ -234,7 +243,7 @@ static NSMutableDictionary *g_toolbarStateImages = nil;
 	if ( [self toolbarConfigurationInfo] == nil )
 		return;
 
-	NSToolbar *toolbar = [[NSToolbar alloc] initWithIdentifier: [self toolbarConfigurationName]];
+	NSToolbar *toolbar = [[NSToolbar alloc] initWithIdentifier: [self toolbarAutosaveIdentifier]];
 
 	[toolbar setDelegate: self];
 	[toolbar setAllowsUserCustomization: YES];
