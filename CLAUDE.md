@@ -127,9 +127,10 @@ and leaks silently:
 - **`ZoomInfo._delegate` is `__weak`, and `-cancel` exists** because `NSTimer` retains its
   target. A running zoom keeps the `ZoomInfo` alive on its own, so `TreeMapView -dealloc`
   calls `-cancel` rather than just dropping its reference.
-- **`NTPasteboardHelper` parks itself in a static set** while it owns a pasteboard, since
-  under ARC it can no longer retain itself. It removes itself in `-pasteboardChangedOwner:`,
-  holding a local strong reference across the removal.
+- **`FSItem` owns nothing on the pasteboard.** `-declareTypes:owner:` does not retain its
+  owner, and `FSItem` passes `self`; that is safe only because an item lives as long as
+  the document's tree. Anything shorter-lived must not be a pasteboard owner. (The old
+  `NTPasteboardHelper` existed to park a short-lived owner in a static set; it is gone.)
 
 ### Verifying you have not reintroduced a cycle
 
@@ -343,7 +344,7 @@ compatibility layer** — if something looks like it is missing, it was inlined:
 | `OAPreferenceController` | folded into `PrefsPanelController` |
 | `OAPreferenceClient` | folded into `PrefsPageBase` |
 | `OAPreferenceClientRecord` | `PrefsPageRecord` |
-| `OAPasteboardHelper` | `Source/CocoaTech-Depreciated/NTPasteboardHelper` |
+| `OAPasteboardHelper` | `NTPasteboardHelper`, then deleted — `FSItem` promises its own data via `-declareTypes:owner:self` |
 | `OASplitView` | plain `NSSplitView` (`setPositionAutosaveName:` → `setAutosaveName:`) |
 | `+[NSString isEmptyString:]`, `-[NSDictionary boolForKey:]`, `-[NSMutableDictionary setBoolValue:forKey:]`, the two `NSMutableArray` sorts, `+horizontalEllipsisString`, `-[NSTableView setFont:]` | inlined at their call sites |
 | `OBPRECONDITION` | `NSAssert` (both compile out in release builds) |
@@ -367,8 +368,28 @@ it, since only `OFControllerClass` ever did.
 
 ## Vendored legacy code
 
-`Source/CocoaTech-Depreciated/` holds third-party `NT*` classes (pasteboard, info view, ID3
-helpers) kept for compatibility. Treat as legacy; prefer not to extend it.
+`Source/CocoaTech-Depreciated/` holds what is left of a set of classes lifted from
+CocoaTech's Path Finder frameworks — "Depreciated" is upstream's spelling, and it describes
+their status *at CocoaTech*, which dropped them, not their status here. Three classes
+remain, and all three are the Info panel: `NTInfoView` (gathers the name/kind/size/date/
+permission rows), `NTTitledInfoView` (hand-drawn two-column layout, including a private
+`NTFastTextView` that draws glyphs itself) and `NTTitledInfoPair` (a title/value pair).
+
+`DIXFileInfoView` subclasses `NTInfoView` and overrides a *private* method by redeclaring
+it in a category — untangle that before changing the superclass.
+
+**These are the only files in the repo carrying "All rights reserved" with no license
+grant** (Steve Gehrman / CocoaTech, 2001–2003), inherited from upstream. That is the same
+problem as `treemapview-framework`, so the direction of travel is out, not in: replacing
+`NTTitledInfoView` with an `NSGridView` would delete the drawing code and bring dark mode
+and VoiceOver with it, while `NTInfoView`'s data gathering is app logic that has to be kept
+and moved rather than dropped. Do not extend any of it.
+
+`NTFilePasteboardSource`, `NTPasteboardHelper` and the already-dead `NTID3Helper` were
+removed on 2026-08-15 — see the Omni table above for where the pasteboard behavior went.
+
+The class name that matters for nibs is `DIXFileInfoView`, not `NTInfoView`: all four
+`InfoPanel.nib`s reference the former, so the superclass can change without touching a nib.
 
 ## Naming
 

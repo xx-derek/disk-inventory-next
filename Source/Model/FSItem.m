@@ -16,7 +16,6 @@
 
 #import "FSItem.h"
 #import "NSURL-Extensions.h"
-#import "NTFilePasteboardSource.h"
 
 //for debugging and logging purposes
 unsigned g_fileCount;
@@ -754,8 +753,13 @@ static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newCh
 - (BOOL) supportsPasteboardType: (NSString*) type
 {
 	NSString * uti = [[self fileURL] cachedUTI];
-	
-	//this if clause is derived from the code in NTFilePasteboardSource's "- (NSArray*)pasteboardTypes:(NSArray *)types"
+
+	//Every branch below has a matching one in -pasteboard:provideDataForType:;
+	//this method decides what is promised, that one has to deliver it.
+	//
+	//The HTML and PDF tests used to compare the file's UTI against the
+	//pasteboard type name rather than the UTI ("NeXT HTML pasteboard type" and
+	//friends), which can never match, so neither type was ever offered.
 	return [type isEqualToString: NSPasteboardTypeFileURL]
 			|| [type isEqualToString: NSFilenamesPboardType]
 			|| [type isEqualToString: NSStringPboardType]
@@ -763,25 +767,33 @@ static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newCh
 			|| ([type isEqualToString: NSTIFFPboardType] && UTTypeConformsTo((__bridge CFStringRef)uti, kUTTypeImage))
 			|| ([type isEqualToString: NSRTFPboardType] && [uti isEqualToString:(__bridge NSString*)kUTTypeRTF])
 			|| ([type isEqualToString: NSRTFDPboardType] && [uti isEqualToString:(__bridge NSString*)kUTTypeFlatRTFD])
-			|| ([type isEqualToString: NSHTMLPboardType] && [uti isEqualToString:NSHTMLPboardType])
-			|| ([type isEqualToString: NSPDFPboardType] && [uti isEqualToString:NSPDFPboardType]);
+			|| ([type isEqualToString: NSHTMLPboardType] && [uti isEqualToString:(__bridge NSString*)kUTTypeHTML])
+			|| ([type isEqualToString: NSPDFPboardType] && [uti isEqualToString:(__bridge NSString*)kUTTypePDF]);
 }
 
+//The data is promised rather than written: -pasteboard:provideDataForType:
+//supplies it if and when the receiver actually asks. Note that a pasteboard
+//does not retain its owner — this is safe because an FSItem lives as long as
+//the document's tree does.
 - (void) writeToPasteboard: (NSPasteboard*) pboard
 {
-	//[NTFilePasteboardSource file: [self fileDesc] toPasteboard: pboard types: [NTFilePasteboardSource defaultTypes]];
-	//[NTFilePasteboardSource file: [self fileDesc] toPasteboard: pboard types: [self supportedPasteboardTypes]];
-	
 	[pboard declareTypes:[self supportedPasteboardTypes] owner:self];
-	
-	//NSString *path = [[self fileURL] path];
-	//NSAssert( [pboard setPropertyList:[NSArray arrayWithObject: path] forType:NSFilenamesPboardType], @"can't set pasteboard data (NSFilenamesPboardType)" );
-	//NSAssert( [pboard setString:path forType:NSStringPboardType], @"can't set pasteboard data (NSStringPboardType)" );
 }
 
-- (void) writeToPasteboard: (NSPasteboard*) pasteboard withTypes: (NSArray*) types
+//The Services machinery passes on whatever the chosen service asks for, which
+//can include types this particular file cannot supply. -declareTypes:owner:
+//promises data for everything it lists, so the request is filtered first and
+//the pasteboard is left untouched if nothing survives.
+- (void) writeToPasteboard: (NSPasteboard*) pasteboard withTypes: (NSArray<NSPasteboardType>*) types
 {
-	[NTFilePasteboardSource file: [self fileURL] toPasteboard: pasteboard types: types];
+	NSMutableArray<NSPasteboardType> *supportedTypes = [NSMutableArray arrayWithCapacity: [types count]];
+
+	for ( NSPasteboardType type in types )
+		if ( [self supportsPasteboardType: type] )
+			[supportedTypes addObject: type];
+
+	if ( [supportedTypes count] > 0 )
+		[pasteboard declareTypes: supportedTypes owner: self];
 }
 
 - (void)pasteboard:(NSPasteboard *)pboard provideDataForType:(NSString *)type

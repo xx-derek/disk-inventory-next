@@ -44,6 +44,7 @@ releases. This fork exists to modernize it:
 | 2026-08-15 | Migrated the codebase from manual retain/release to ARC |
 | 2026-08-15 | Fixed a diagnostic that scanned a hex value over the string pointer holding it, then logged the result as an object |
 | 2026-08-15 | Moved the sources out of the repository root into `Source/`, and the loose images into `Resources/`; the directories now mirror the Xcode groups |
+| 2026-08-15 | Dropped the vendored CocoaTech pasteboard classes; `FSItem` promises its own data, so the Services menu now offers `public.file-url` like dragging does, and HTML and PDF are offered instead of being silently refused |
 
 ## Features
 
