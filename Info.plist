@@ -104,6 +104,8 @@ No data will be read.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
 	<string>Disk Inventory Next needs to access these files to inspect their sizes and other file attributes.
 No data will be read.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2003–2022 Tjark Derlien. Copyright © 2026 Disk Inventory Next contributors. Licensed under the GNU General Public License, version 3 or later.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSNetworkVolumesUsageDescription</key>

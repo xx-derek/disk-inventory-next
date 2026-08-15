@@ -17,7 +17,13 @@ historical record — see [Naming](#naming) below before "fixing" it.
 
 Single Xcode target, `Disk Inventory Next` (application). Deployment target macOS 11.0;
 `ARCHS = $(ARCHS_STANDARD)`, so the product is a universal arm64 + x86_64 binary. Project
-version `1.4b2`. Bundle ID `io.github.xxderek.DiskInventoryNext`.
+version `1.0` (`CURRENT_PROJECT_VERSION` `1`). Bundle ID
+`io.github.xxderek.DiskInventoryNext`.
+
+The version was `1.4b2` until 2026-08-16, which was **Derlien's** number carried over by the
+rename — and a beta at that. This fork's own numbering starts at 1.0. Nothing else should
+hardcode it: `CFBundleGetInfoString`, which froze it into four `InfoPlist.strings` files,
+was removed, and the About box takes the version from the build settings.
 
 ```sh
 ./BuildRelease.sh                                                       # Release build

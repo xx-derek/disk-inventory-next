@@ -1,4 +1,3 @@
 /* Localized versions of Info.plist keys */
 
-"CFBundleGetInfoString" = "Disk Inventory Next version 1.4b2, Tjark Derlien 2022";
-"NSHumanReadableCopyright" = "released under GPL";
+"NSHumanReadableCopyright" = "Copyright © 2003–2022 Tjark Derlien. Copyright © 2026 Disk Inventory Next contributors. Licensed under the GNU General Public License, version 3 or later.";

@@ -1,7 +1,5 @@
 /* Localized versions of Info.plist keys */
-CFBundleGetInfoString = "Disk Inventory Next Version 1.4b2, Tjark Derlien 2022";
-NSHumanReadableCopyright = "veröffentlicht unter der GPL";
-
+"NSHumanReadableCopyright" = "Copyright © 2003–2022 Tjark Derlien. Copyright © 2026 Disk Inventory Next contributors. Veröffentlicht unter der GNU General Public License, Version 3 oder später.";
 NSCalendarsUsageDescription = "Disk Inventory Next benötigt Zugriff auf die Kalender-Dateien, um deren Dateigrößen zu ermitteln.\nEs werden keine Daten gelesen.";
 NSRemindersUsageDescription = "Disk Inventory Next benötigt Zugriff auf die Dateien, um deren Dateigrößen zu ermitteln.\nEs werden keine Daten gelesen.";
 NSContactsUsageDescription = "Disk Inventory Next benötigt Zugriff auf die Adressbuch-Dateien, um deren Dateigrößen zu ermitteln.\nEs werden keine Daten gelesen.";
