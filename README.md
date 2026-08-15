@@ -45,6 +45,8 @@ releases. This fork exists to modernize it:
 | 2026-08-15 | Fixed a diagnostic that scanned a hex value over the string pointer holding it, then logged the result as an object |
 | 2026-08-15 | Moved the sources out of the repository root into `Source/`, and the loose images into `Resources/`; the directories now mirror the Xcode groups |
 | 2026-08-15 | Dropped the vendored CocoaTech pasteboard classes; `FSItem` promises its own data, so the Services menu now offers `public.file-url` like dragging does, and HTML and PDF are offered instead of being silently refused |
+| 2026-08-15 | Rebuilt the Info panel on `NSGridView`, removing the last vendored CocoaTech code; values are now selectable text, long paths wrap, and the panel follows dark mode |
+| 2026-08-15 | Fixed the Info panel showing setuid and setgid in all three permission positions — `/usr/bin/sudo` read `-r-s--s--s` where `ls` says `-r-s--x--x` |
 
 ## Features
 
@@ -150,6 +152,5 @@ conveys no trademark rights.
 
 - **Tjark Derlien** — original author of Disk Inventory X, and of essentially all the code here
 - **Anton Repponen** — application icon
-- Includes **CocoaTech** sources under `Source/CocoaTech-Depreciated/`
 - Treemap rendering under `Source/TreeMapView/` was written for this fork and is GPL-3 like the
   rest of the project

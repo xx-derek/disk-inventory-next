@@ -17,9 +17,6 @@
 		FC33B45A230C846F00133632 /* NSURL-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = FC33B459230C846F00133632 /* NSURL-Extensions.m */; };
 		FC4C4AC109802035004CCA22 /* Help in Resources */ = {isa = PBXBuildFile; fileRef = FC4C4ABF09802035004CCA22 /* Help */; };
 		FC4C4FF70981520A004CCA22 /* AppsForItem.m in Sources */ = {isa = PBXBuildFile; fileRef = FC4C4FF50981520A004CCA22 /* AppsForItem.m */; };
-		FC7F77641067BC310090E839 /* NTInfoView.m in Sources */ = {isa = PBXBuildFile; fileRef = FC7F77631067BC310090E839 /* NTInfoView.m */; };
-		FC7F77D71067C9500090E839 /* NTTitledInfoPair.m in Sources */ = {isa = PBXBuildFile; fileRef = FC7F77D41067C9500090E839 /* NTTitledInfoPair.m */; };
-		FC7F77D81067C9500090E839 /* NTTitledInfoView.m in Sources */ = {isa = PBXBuildFile; fileRef = FC7F77D61067C9500090E839 /* NTTitledInfoView.m */; };
 		FCB2FDC42375F4E100DC4806 /* NSFileManager-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = FCB2FDC32375F4E100DC4806 /* NSFileManager-Extensions.m */; };
 		FCCFB2AA097FA3FD009EA2B6 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2A9097FA3FD009EA2B6 /* main.m */; };
 		FCCFB303097FA42B009EA2B6 /* DIXTableView.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2AD097FA42B009EA2B6 /* DIXTableView.m */; };
@@ -163,12 +160,6 @@
 		FC42B86F2202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = folder; name = es; path = es.lproj/Help; sourceTree = "<group>"; };
 		FC4C4FF40981520A004CCA22 /* AppsForItem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppsForItem.h; sourceTree = "<group>"; };
 		FC4C4FF50981520A004CCA22 /* AppsForItem.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AppsForItem.m; sourceTree = "<group>"; };
-		FC7F77621067BC310090E839 /* NTInfoView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NTInfoView.h; sourceTree = "<group>"; };
-		FC7F77631067BC310090E839 /* NTInfoView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NTInfoView.m; sourceTree = "<group>"; };
-		FC7F77D31067C9500090E839 /* NTTitledInfoPair.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NTTitledInfoPair.h; sourceTree = "<group>"; };
-		FC7F77D41067C9500090E839 /* NTTitledInfoPair.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NTTitledInfoPair.m; sourceTree = "<group>"; };
-		FC7F77D51067C9500090E839 /* NTTitledInfoView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NTTitledInfoView.h; sourceTree = "<group>"; };
-		FC7F77D61067C9500090E839 /* NTTitledInfoView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NTTitledInfoView.m; sourceTree = "<group>"; };
 		FCA1D0BA2205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/TreeMapPreferencesPage.nib; sourceTree = "<group>"; };
 		FCA1D0BB2205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/GeneralPreferencesPage.nib; sourceTree = "<group>"; };
 		FCA1D0BC2205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/FinderCMPreferencesPage.nib; sourceTree = "<group>"; };
@@ -360,7 +351,6 @@
 				DEC3DE000000000000000007 /* Extensions */,
 				DEC3DE000000000000000008 /* Helpers */,
 				DEC0DE00000000000000003C /* TreeMapView */,
-				FC7F775A1067BAB10090E839 /* CocoaTech-Depreciated */,
 			);
 			path = Source;
 			sourceTree = "<group>";
@@ -518,19 +508,6 @@
 				DEC0DE000000000000000011 /* NSView-BackingCoordsHelpers.m */,
 			);
 			path = TreeMapView;
-			sourceTree = "<group>";
-		};
-		FC7F775A1067BAB10090E839 /* CocoaTech-Depreciated */ = {
-			isa = PBXGroup;
-			children = (
-				FC7F77621067BC310090E839 /* NTInfoView.h */,
-				FC7F77631067BC310090E839 /* NTInfoView.m */,
-				FC7F77D31067C9500090E839 /* NTTitledInfoPair.h */,
-				FC7F77D41067C9500090E839 /* NTTitledInfoPair.m */,
-				FC7F77D51067C9500090E839 /* NTTitledInfoView.h */,
-				FC7F77D61067C9500090E839 /* NTTitledInfoView.m */,
-			);
-			path = "CocoaTech-Depreciated";
 			sourceTree = "<group>";
 		};
 		2A37F4B8FDCFA73011CA2CEA /* Resources */ = {
@@ -777,9 +754,6 @@
 				FCCFB328097FA42B009EA2B6 /* FileSystemDoc.m in Sources */,
 				FC4C4FF70981520A004CCA22 /* AppsForItem.m in Sources */,
 				FCD5DAFE09CDD4260051C1CF /* MainWindow.m in Sources */,
-				FC7F77641067BC310090E839 /* NTInfoView.m in Sources */,
-				FC7F77D71067C9500090E839 /* NTTitledInfoPair.m in Sources */,
-				FC7F77D81067C9500090E839 /* NTTitledInfoView.m in Sources */,
 				FC33B45A230C846F00133632 /* NSURL-Extensions.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

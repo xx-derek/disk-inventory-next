@@ -77,7 +77,6 @@ Source/Views/                  DIXTableView, DIXOutlineView, ImageAndTextCell, G
 Source/Extensions/             NSAlert-, NSURL- and NSFileManager-Extensions
 Source/Helpers/                Timing, FileSizeFormatter, FileSizeTransformer, AppsForItem
 Source/TreeMapView/            the treemap widget — see its own section below
-Source/CocoaTech-Depreciated/  vendored NT* legacy
 Resources/                     Images.xcassets, the app icon, Toolbar/ and Preferences/ images
 ```
 
@@ -366,30 +365,43 @@ class name, and skips any page whose class is not in the binary — which is why
 `AppController` was an `OAController` and is now an empty `NSObject`; nothing instantiates
 it, since only `OFControllerClass` ever did.
 
-## Vendored legacy code
+## The Info panel
 
-`Source/CocoaTech-Depreciated/` holds what is left of a set of classes lifted from
-CocoaTech's Path Finder frameworks — "Depreciated" is upstream's spelling, and it describes
-their status *at CocoaTech*, which dropped them, not their status here. Three classes
-remain, and all three are the Info panel: `NTInfoView` (gathers the name/kind/size/date/
-permission rows), `NTTitledInfoView` (hand-drawn two-column layout, including a private
-`NTFastTextView` that draws glyphs itself) and `NTTitledInfoPair` (a title/value pair).
+`DIXFileInfoView` (`Source/Panels/`) is the scrolling title/value list. It used to be three
+vendored CocoaTech classes — `NTInfoView` gathering the rows, `NTTitledInfoView` laying
+them out by hand, `NTTitledInfoPair` carrying one pair — all removed on 2026-08-15 along
+with `NTFilePasteboardSource`, `NTPasteboardHelper` and the already-dead `NTID3Helper`.
+**Nothing vendored remains; there is no `Source/CocoaTech-Depreciated/`.** That also
+cleared the last files in the repo carrying "All rights reserved" with no license grant.
 
-`DIXFileInfoView` subclasses `NTInfoView` and overrides a *private* method by redeclaring
-it in a category — untangle that before changing the superclass.
+Three things about the replacement are easy to break:
 
-**These are the only files in the repo carrying "All rights reserved" with no license
-grant** (Steve Gehrman / CocoaTech, 2001–2003), inherited from upstream. That is the same
-problem as `treemapview-framework`, so the direction of travel is out, not in: replacing
-`NTTitledInfoView` with an `NSGridView` would delete the drawing code and bring dark mode
-and VoiceOver with it, while `NTInfoView`'s data gathering is app logic that has to be kept
-and moved rather than dropped. Do not extend any of it.
+- **The class name is load-bearing.** All four `InfoPanel.nib`s hold an `NSCustomView`
+  placeholder naming `DIXFileInfoView`. A placeholder instantiates through
+  **`-initWithFrame:`**, not `-initWithCoder:` — which is why the old code's subviews
+  existed at all, and why both initialisers now funnel into `-buildViewHierarchy`. Rename
+  the class and the panel silently comes up empty.
+- **The value column's width must come from the title column, never from the value field's
+  own frame.** `NSGridView` sizes columns from their content, so a wrapping `NSTextField`
+  whose `preferredMaxLayoutWidth` is derived from where it landed shrinks itself on every
+  pass. Doing that collapsed the value column to five points and made the grid 1428 points
+  tall instead of 166. `-finishRows` pins the title column to the widest title and `-layout`
+  computes the rest from the grid's own width.
+- **`-removeRowAtIndex:` leaves the row's content views as subviews.** They have to be
+  removed by hand or every refresh stacks another set of labels on the last.
 
-`NTFilePasteboardSource`, `NTPasteboardHelper` and the already-dead `NTID3Helper` were
-removed on 2026-08-15 — see the Omni table above for where the pasteboard behavior went.
+`NSLocalizedString` keys are the English strings themselves, and all twelve row titles
+(`Name:` … `Application:`) exist in de/en/es/fr. Changing a literal means changing every
+`Localizable.strings` too.
 
-The class name that matters for nibs is `DIXFileInfoView`, not `NTInfoView`: all four
-`InfoPanel.nib`s reference the former, so the superclass can change without touching a nib.
+Two gaps are deliberate, inherited from the code this replaced: there is no **Size** row
+(the old `sizePairs` was commented out and returned an empty array), and the "long format"
+variant was dead code — `_longFormat` was never set.
+
+Verifying a change here means rendering it, not reading it: a probe compiled into the built
+`.app` can drive `-setURL:` and capture the view with `-dataWithPDFInsideRect:`.
+`-cacheDisplayInRect:toBitmapImageRep:` returns blank, because the text fields are
+layer-backed.
 
 ## Naming
 
