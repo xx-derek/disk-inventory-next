@@ -1,6 +1,6 @@
 //
 //  FileKindsPopupController.h
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 //	This class implements the controller for the popup button which let the user
 //	choose between the file kinds (positioned above the TableView listing all files of the

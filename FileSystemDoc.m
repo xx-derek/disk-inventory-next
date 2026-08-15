@@ -564,7 +564,7 @@ NSString *OldItem = @"OldItem";
 	{
 		//the folder/volume which we are showing doesn't exist anymore!
         NSString *msg = [NSString stringWithFormat: @"\"%@\" does not exist any more.", [[self rootItem] displayPath]];
-        NSString *subMsg = NSLocalizedString( @"The folder will remain visible in Disk Inventory X, but the files cannot be accessed (e.g. shown in the Finder).",@"");
+        NSString *subMsg = NSLocalizedString( @"The folder will remain visible in Disk Inventory Next, but the files cannot be accessed (e.g. shown in the Finder).",@"");
         
         NSBeginInformationalAlertSheet( msg,
                                        NSLocalizedString(@"OK",@""),
@@ -1140,7 +1140,7 @@ NSString *OldItem = @"OldItem";
             
             alert.alertStyle = NSAlertStyleInformational;
             
-            alert.messageText = NSLocalizedString(@"Some folders which will be scanned contain private files. The access is protected by the macOS privacy protection.\n\nUpon first access macOS will ask whether you allow Disk Inventory X access to these folders and files.\n\nDisk Inventory X does not read any data - just information like file sizes and types are collected.", @"");
+            alert.messageText = NSLocalizedString(@"Some folders which will be scanned contain private files. The access is protected by the macOS privacy protection.\n\nUpon first access macOS will ask whether you allow Disk Inventory Next access to these folders and files.\n\nDisk Inventory Next does not read any data - just information like file sizes and types are collected.", @"");
             alert.informativeText = NSLocalizedString(@"You can change the access settings in the System Preferences (Security/Privacy).", @"");
             
             alert.showsSuppressionButton = YES;

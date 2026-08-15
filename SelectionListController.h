@@ -1,6 +1,6 @@
 //
 //  SelectionListController.h
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 //	This class implements the ArrayController for the collection of files
 //	to show in the NSTableView.

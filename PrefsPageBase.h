@@ -1,6 +1,6 @@
 //
 //  PrefsPageBase.h
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 //  Created by Tjark Derlien on 29.11.04.
 //

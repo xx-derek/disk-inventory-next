@@ -1,6 +1,6 @@
 //
 //  SelectionListTableController.m
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 //  Created by Tjark Derlien on 25.03.05.
 //

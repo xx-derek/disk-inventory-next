@@ -1,6 +1,6 @@
 //
 //  DIXTableView.h
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 // DIXTableView derives from NSOutlineView and add some commonly used functionality
 // (e.g. context menu support, drag&drop support)

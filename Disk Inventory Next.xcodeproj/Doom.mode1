@@ -314,7 +314,7 @@
 								<key>PBXProjectModuleGUID</key>
 								<string>1CE0B20306471E060097A5F4</string>
 								<key>PBXProjectModuleLabel</key>
-								<string>Disk Inventory X_Prefix.pch</string>
+								<string>Disk Inventory Next_Prefix.pch</string>
 								<key>PBXSplitModuleInNavigatorKey</key>
 								<dict>
 									<key>Split0</key>
@@ -322,7 +322,7 @@
 										<key>PBXProjectModuleGUID</key>
 										<string>1CE0B20406471E060097A5F4</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>Disk Inventory X_Prefix.pch</string>
+										<string>Disk Inventory Next_Prefix.pch</string>
 										<key>_historyCapacity</key>
 										<integer>20</integer>
 										<key>bookmark</key>
@@ -567,7 +567,7 @@
 	<integer>5</integer>
 	<key>WindowOrderList</key>
 	<array>
-		<string>/Users/Doom/Dev/Disk Inventory X/vdev/make/src/Disk Inventory X new.xcodeproj</string>
+		<string>/Users/Doom/Dev/Disk Inventory Next/vdev/make/src/Disk Inventory Next new.xcodeproj</string>
 	</array>
 	<key>WindowString</key>
 	<string>164 55 1113 823 0 0 1440 878 </string>

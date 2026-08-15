@@ -1,6 +1,6 @@
 //
 //  PrefsPanelController.h
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 //  Created by Tjark Derlien on 28.11.04.
 //

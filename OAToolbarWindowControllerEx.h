@@ -1,6 +1,6 @@
 //
 //  OAToolbarWindowControllerEx.h
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 //  Created by Tjark Derlien on 01.12.04.
 //

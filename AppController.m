@@ -1,6 +1,6 @@
 //
 //  AppController.m
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 //  Created by Tjark Derlien on 17.02.19.
 //

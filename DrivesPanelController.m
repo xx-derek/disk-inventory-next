@@ -1,6 +1,6 @@
 //
 //  DrivesPanelController.m
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 //  Created by Tjark Derlien on 15.11.04.
 //

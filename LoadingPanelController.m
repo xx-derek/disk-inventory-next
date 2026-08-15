@@ -1,6 +1,6 @@
 //
 //  LoadingPanelController.m
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 //  Created by Tjark Derlien on 03.12.04.
 //

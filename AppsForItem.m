@@ -1,6 +1,6 @@
 //
 //  AppsForItem.m
-//  Disk Inventory X new
+//  Disk Inventory Next
 //
 //  Created by Tjark Derlien on 20.01.06.
 //
@@ -122,12 +122,13 @@
 	if ( checkDefApp && [appURL isEqualToURL: [self defaultAppURL]] )
 		return NO;
 	
-	BOOL isDIX = [[appURL name] isEqualToString: @"Disk Inventory X.app"];
+	//filter out our own app; derived from the main bundle so this keeps working if the app is renamed
+	BOOL isSelf = [[appURL name] isEqualToString: [[[NSBundle mainBundle] bundleURL] lastPathComponent]];
 	BOOL isFinder = [[appURL name] isEqualToString: @"Finder.app"];
-	
+
 	//filter out the Finder (for simple folders, the Finder is returned by "LSGetApplicationForItem" and "LSCopyApplicationURLsForURL")
 	//it would be better to identify the Finder by it's bundle identifier, but then we would have to load it's bundle (?)
-	return !isDIX
+	return !isSelf
 			&& ( [appURL isFile]
 				 || [appURL isPackage] 
 				 || !isFinder );

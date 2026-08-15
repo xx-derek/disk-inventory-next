@@ -1,122 +1,111 @@
-# Disk Inventory X
+# Disk Inventory Next
 
-> **This is a fork.** The original Disk Inventory X was created by **Tjark Derlien** and is hosted at
-> [gitlab.com/tderlien/disk-inventory-x](https://gitlab.com/tderlien/disk-inventory-x)
-> (project homepage: [derlien.com](http://www.derlien.com/)).
-> All credit for the application belongs to the original author.
-
-Disk Inventory X is a disk usage utility for macOS. It scans a volume or folder and shows
-where your space went as a **treemap** — every file is a rectangle sized in proportion to
-the space it occupies and colored by file type — alongside a sortable outline view and a
-breakdown by file kind.
+A macOS disk usage visualizer. It scans a volume or folder and shows where your space went
+as a **treemap** — every file is a rectangle sized in proportion to the space it occupies
+and colored by file type — alongside a sortable outline view and a breakdown by file kind.
 
 ---
 
-## About this fork
+> ### Modification notice
+>
+> **Disk Inventory Next is a modified version of [Disk Inventory X](https://gitlab.com/tderlien/disk-inventory-x),
+> originally created by Tjark Derlien.** This project was renamed and modified starting
+> **15 August 2026**. It is an independent community fork and is **not affiliated with,
+> endorsed by, or supported by** the original author. Please direct issues with this
+> version here, not to the original project.
+>
+> Original project homepage: [derlien.com](http://www.derlien.com/) ·
+> Upstream source: [gitlab.com/tderlien/disk-inventory-x](https://gitlab.com/tderlien/disk-inventory-x)
 
-This repository is a fork of the upstream GitLab project, published on GitHub for easier
-discovery, issue tracking, and future modifications.
+## Why the fork
 
-**Current state:** this fork is at upstream commit
-[`4da1371`](https://gitlab.com/tderlien/disk-inventory-x/-/commit/4da1371b14f1158e2d923c95f645523b7c05c0bf)
-("macOS 12 compatibility, project ready for signing and notarization", 2022-03-16) and
-**contains no changes to the original source yet** — apart from this README. Any
-modifications made later will be listed below.
+The original was last updated in March 2022 and targets Intel Macs on older macOS
+releases. This fork exists to modernize it:
 
-### Changes from upstream
+- Support for current macOS versions
+- Interface updates
 
-_None yet._
+## Changes from the original
 
-<!--
-When you make changes, list them here so downstream users can see what differs, e.g.:
+| Date | Change |
+| --- | --- |
+| 2026-08-15 | Renamed from "Disk Inventory X" to "Disk Inventory Next"; bundle identifier changed from `com.derlien.DiskInventoryX` to `io.github.xxderek.DiskInventoryNext` |
+| 2026-08-15 | Own-app filter in `AppsForItem` now derives the app name from the running bundle instead of a hardcoded string, so it survives renames |
 
-- Apple Silicon (arm64) build support
-- Fixed <some bug> in FSItem
--->
-
-### Relationship to the original
-
-Because upstream lives on GitLab, GitHub does not show a native "forked from" link. The
-upstream history is preserved here in full: all 8 original commits and the `1.2`, `1.2b1`,
-and `1.3` tags.
-
-To pull in future upstream changes:
-
-```sh
-git remote add upstream https://gitlab.com/tderlien/disk-inventory-x.git
-git fetch upstream
-git merge upstream/master
-```
+_Functional changes to the application itself are still in progress; see "Why the fork" above._
 
 ## Features
 
-- **Treemap visualization** — file size mapped to rectangle area, with color coding by file kind
-- **Outline view** — a sortable, navigable file/folder tree with size columns
-- **File kind statistics** — see at a glance which types of file dominate a volume
-- **Finder integration** — open files, "Open with…", system services, and drag & drop to other apps
+- **Treemap visualization** — file size mapped to rectangle area, colored by file kind
+- **Outline view** — sortable, navigable file/folder tree with size columns
+- **File kind statistics** — see which types of file dominate a volume
+- **Finder integration** — open files, "Open with…", system services, drag & drop
 - **Move to Trash** directly from the app
-- **Dark mode** support (macOS 10.14+)
-- **Retina** rendering of the treemap at full resolution
+- **Dark mode** support
+- **Retina** treemap rendering at full resolution
 - Localized in **English, German, French, and Spanish**
 
 ## Requirements
 
-- **macOS 10.11 or later** (the Xcode project's deployment target; upstream release notes
-  for 1.2 recommend 10.13+)
+- **macOS 10.11 or later** (current deployment target; being revised as part of the
+  modernization work)
 - **Xcode** with the macOS SDK, to build from source
-
-The project version in the Xcode project is currently `1.4b2`. Upstream builds are
-Intel (x86_64); Apple Silicon Macs can run them under Rosetta 2.
 
 ## Building from source
 
-Clone the repository and build the Release configuration:
+> **Note:** the build currently requires two external frameworks that are not included in
+> this repository. See [Dependencies](#dependencies) below — a fresh clone will not build
+> without them.
 
 ```sh
-git clone https://github.com/xx-derek/disk-inventory-x.git
-cd disk-inventory-x
+git clone https://github.com/xx-derek/disk-inventory-next.git
+cd disk-inventory-next
 ./BuildRelease.sh
 ```
 
-`BuildRelease.sh` is a thin wrapper around:
+`BuildRelease.sh` wraps:
 
 ```sh
-xcodebuild -project "Disk Inventory X.xcodeproj" -configuration Release
+xcodebuild -project "Disk Inventory Next.xcodeproj" -configuration Release
 ```
 
-You can also just open `Disk Inventory X.xcodeproj` in Xcode and build the app target.
+You can also open `Disk Inventory Next.xcodeproj` in Xcode and build the app target.
 
-Note that the project is set up for code signing and notarization; for a local build you
-may need to adjust the signing team in the target's **Signing & Capabilities** settings.
+### Dependencies
+
+The project links against two frameworks that are neither vendored here nor fetched by any
+script. They resolve through the `FRAMEWORK_SEARCH_PATHS_OMNI` and
+`FRAMEWORK_SEARCH_PATHS_TREEMAP` build settings, which point outside the repository:
+
+| Dependency | Used for |
+| --- | --- |
+| OmniGroup frameworks (`OmniAppKit`, `OmniBase`, `OmniFoundation`) | Application and Foundation utilities |
+| `TreeMapView.framework` | The treemap rendering view |
+
+Both paths must be supplied and repointed before the project will link. Removing this
+external dependency is a goal of the modernization work.
 
 ### macOS privacy protections
 
-Modern macOS restricts access to certain folders (Desktop, Documents, Downloads, and
-others). Disk Inventory X handles these specially and cannot report on directories the
-system will not let it read. See `documentation/macOS privacy protected folders.txt` for
-details. Granting the app **Full Disk Access** in *System Settings → Privacy & Security*
-produces the most complete results.
+Modern macOS restricts access to Desktop, Documents, Downloads, and other locations. The
+app detects these before scanning and explains the prompt you'll see. Granting **Full Disk
+Access** in *System Settings → Privacy & Security* produces the most complete results.
+Background: `documentation/macOS privacy protected folders.txt`.
 
 ## Documentation
 
-Additional notes from the original author live in the [`documentation/`](documentation/)
-directory:
-
-| File | Contents |
-| --- | --- |
-| `release notes.txt` | Version history for upstream releases |
-| `known bugs.txt` | Known issues |
-| `feature suggestions.txt` | Ideas that were never implemented |
-| `macOS privacy protected folders.txt` | How the app deals with protected directories |
-| `memory usage using NSURL.txt` | Notes on memory behavior |
+Notes inherited from the original project live in [`documentation/`](documentation/).
+`release notes.txt` is the version history of the **original** Disk Inventory X releases
+and intentionally still refers to it by that name — it is a historical record.
 
 ## License
 
-Disk Inventory X is free software, licensed under the **GNU General Public License,
-version 3 or later**. The full license text is in [`COPYING`](COPYING).
+Free software under the **GNU General Public License, version 3 or later**. Full text in
+[`COPYING`](COPYING).
 
 ```
-Copyright (C) Tjark Derlien.
+Copyright (C) 2003-2022 Tjark Derlien.
+Copyright (C) 2026 Disk Inventory Next contributors.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -124,15 +113,17 @@ as published by the Free Software Foundation; either version 3
 of the License, or any later version.
 ```
 
-This program is distributed in the hope that it will be useful, but **without any
-warranty**; without even the implied warranty of merchantability or fitness for a
-particular purpose. See the GNU General Public License for more details.
+Distributed in the hope that it will be useful, but **without any warranty**; without even
+the implied warranty of merchantability or fitness for a particular purpose. See the GNU
+General Public License for more details.
+
+The name "Disk Inventory X" belongs to the original project. This fork uses a different
+name to avoid any implication of endorsement; the GPL grants copyright permissions only and
+conveys no trademark rights.
 
 ## Credits
 
-- **Tjark Derlien** — original author of Disk Inventory X
-- **Anton Repponen** — application icon (introduced in 1.2)
-- The app links against the **OmniGroup** frameworks (`OmniAppKit`, `OmniBase`,
-  `OmniFoundation`) and includes **CocoaTech** sources under `CocoaTech-Depreciated/`.
-- The treemap rendering lives in a separate `TreeMapView.framework`, split out by the
-  original author so it can be reused in other applications.
+- **Tjark Derlien** — original author of Disk Inventory X, and of essentially all the code here
+- **Anton Repponen** — application icon
+- Links against the **OmniGroup** frameworks; includes **CocoaTech** sources under `CocoaTech-Depreciated/`
+- Treemap rendering lives in a separate `TreeMapView.framework`, split out by the original author

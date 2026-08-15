@@ -1,6 +1,6 @@
 //
 //  FileTypeColors.h
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 //  Created by Tjark Derlien on Sun Oct 05 2003.
 //

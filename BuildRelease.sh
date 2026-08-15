@@ -1,3 +1,3 @@
 #!/bin/sh
 
-xcodebuild -project Disk\ Inventory\ X.xcodeproj -configuration Release
+xcodebuild -project "Disk Inventory Next.xcodeproj" -configuration Release

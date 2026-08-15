@@ -1,6 +1,6 @@
 //
 //  VolumeNameTransformer.m
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 //  Created by Tjark Derlien on 08.11.04.
 //

@@ -1,6 +1,6 @@
 //
 //  InfoPanelController.m
-//  Disk Inventory X
+//  Disk Inventory Next
 //
 //  Created by Tjark Derlien on 16.11.04.
 //
