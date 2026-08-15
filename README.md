@@ -47,6 +47,7 @@ releases. This fork exists to modernize it:
 | 2026-08-15 | Dropped the vendored CocoaTech pasteboard classes; `FSItem` promises its own data, so the Services menu now offers `public.file-url` like dragging does, and HTML and PDF are offered instead of being silently refused |
 | 2026-08-15 | Rebuilt the Info panel on `NSGridView`, removing the last vendored CocoaTech code; values are now selectable text, long paths wrap, and the panel follows dark mode |
 | 2026-08-15 | Replaced all 14 toolbar and preference icons with SF Symbols and deleted the bitmaps; deployment target raised from 10.13 to 11.0, which SF Symbols require |
+| 2026-08-15 | Moved the directory scan onto a background queue; the progress panel and Cancel button stay responsive instead of updating five times a second while the main thread walked the file system |
 | 2026-08-15 | Redesigned the settings window: pages are laid out in code so both align consistently, help text is properly secondary, Restore Defaults has a button, and the window is titled "Settings" on macOS 13 and later |
 | 2026-08-15 | Deleted twelve localized preference-page nibs; the German, Spanish and French translations moved into `Preferences.strings` |
 | 2026-08-15 | New application icon, replacing the original; all ten icon sizes are now supplied, including the 1024px one that was previously missing |

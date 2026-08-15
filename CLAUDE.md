@@ -174,10 +174,40 @@ cancellation works — it raises `FSItemLoadingCanceledException`. Scanning ther
 **exceptions for control flow**; `FSItemLoadingFailedException` signals an unreadable or
 ejected volume. Wrap tree walks accordingly.
 
-The scan is **synchronous on the main thread**, not backgrounded. Responsiveness comes from
-`FileSystemDoc fsItemEnteringFolder:` calling `[_progressController runEventLoop]` on every
-folder to pump events manually, then returning `![_progressController cancelPressed]`. Any
-work added to that callback runs once per directory and directly slows every scan.
+**The scan runs on a background queue** as of 2026-08-15; before that it was synchronous on
+the main thread, pumping the event loop from inside the directory walk every 0.2 seconds.
+`FileSystemDoc -_runScanBlockOffMainThread:` dispatches the walk and keeps the main thread
+in the progress panel's modal session until it finishes.
+
+What that means for anything touching the walk:
+
+- **The `FSItemDelegate` callbacks run on the scan queue.** They must not touch a view.
+  `-fsItemEnteringFolder:` records the path under `_scanLock` for the main thread to pick
+  up, and answers `![self _scanWasCancelled]`. The three option callbacks answer from
+  snapshots taken in `-_beginScan`, so the queue never reads document state the main thread
+  could be writing.
+- **All scans share one serial queue.** The walk touches process-wide state that is not
+  guarded — `FSItem`'s `g_kindNameDictionary`, the `g_fileCount`/`g_folderCount` counters —
+  so two documents opening at once must not walk simultaneously. This also matches the old
+  behaviour, where a second scan simply waited.
+- **The exception is carried back by hand.** The walk uses exceptions as ordinary control
+  flow, and one raised on the queue cannot be caught on the main thread; the block catches
+  it and `-_runScanBlockOffMainThread:` returns it to be re-raised.
+- **`refreshFileKindStatistics` stays on the main thread.** It posts KVO for
+  `kindStatistics`, which bound controls observe, and `-reserveColorsForLargestKinds`
+  mutates the `FileTypeColors` singleton other documents read while drawing. It is also
+  cheap next to the walk: measured over `/usr/share`, 20,179 items, the walk takes ~0.7 s
+  and the statistics pass 0.01 s.
+
+**This did not make scanning faster** and was not meant to. On a warm cache the times are
+the same within run-to-run variance (0.63–0.71 s before, 0.67 s median after). What changed
+is that the main thread is no longer doing file I/O, so the panel animates, Cancel responds
+at once, and the application stays usable — where it used to be frozen between pumps, which
+on slow or network volumes is most of the time.
+
+One measured trap: waking the main thread every 50 ms *and* redrawing the path label every
+time cost about 7% of scan time. The label is throttled to 0.1 s separately from the wake
+interval; keep those two numbers apart.
 
 Sizes are `unsigned long long` / `UInt64` throughout. Do not narrow them.
 

@@ -60,6 +60,17 @@
 	//these variables are used during the initial directory scan
 	LoadingPanelController *_progressController;
 	NSMutableArray *_directoryStack;
+
+	//Scan state. The walk runs on a background queue while the main thread
+	//keeps the progress panel alive, so anything both touch is guarded by
+	//_scanLock — except the three option snapshots, which are written before
+	//the queue starts and only read after that.
+	NSLock *_scanLock;
+	NSString *_scanCurrentPath;
+	BOOL _scanCancelled;
+	BOOL _scanIgnoreCreatorCode;
+	BOOL _scanLookIntoPackages;
+	BOOL _scanUsePhysicalFileSize;
 }
 
 - (BOOL) showPhysicalFileSize;

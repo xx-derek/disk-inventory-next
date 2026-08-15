@@ -14,7 +14,6 @@
 //
 
 #import "LoadingPanelController.h"
-#import "Timing.h"
 
 
 @implementation LoadingPanelController
@@ -47,7 +46,6 @@
 	
 	//start modal session for the progress window
 	_loadingPanelModalSession = [[NSApplication sharedApplication] beginModalSessionForWindow: _loadingPanel];
-	_lastEventLoopRun = 0;
 	
 	_cancelPressed = NO;
 	
@@ -84,7 +82,6 @@
 	//we don't have modal session if we show the panel as a sheet
 	_loadingPanelModalSession = 0;
 	
-	_lastEventLoopRun = 0;
 	
 	_cancelPressed = NO;
 	
@@ -143,7 +140,11 @@
 
 - (BOOL) cancelPressed
 {
-	return _cancelPressed;
+	//read from the scan queue, written on the main thread
+	@synchronized ( self )
+	{
+		return _cancelPressed;
+	}
 }
 
 - (void) startAnimation;
@@ -161,49 +162,37 @@
 	_message = msg;
 }
 
-- (void) runEventLoop
+- (BOOL) runModalSessionForInterval: (NSTimeInterval) seconds
 {
-	//we only let the UI update itself every 0.2 second, otherwise running
-	//the event loop eats over half of the total scan time!
-	uint64_t currentTime = getTime();
-	BOOL runEventLoop = _lastEventLoopRun == 0 || subtractTime( currentTime, _lastEventLoopRun ) > 0.2;
-
 	if ( _message != nil )
 	{
 		[_loadingTextField setStringValue: _message];
-		
-		//set message to nil so it won't be set a again in the NSTextField
-		[self setMessageText: nil];
-			
-		//if we don't run the event loop, just update the text field
-		if ( !runEventLoop )
-			[_loadingTextField displayIfNeeded];
+		_message = nil;
 	}
-	
-	if ( runEventLoop )
+
+	if ( _loadingPanelModalSession != 0 )
 	{
-		_lastEventLoopRun = currentTime;
-		
-		//give progress dialog some processor cycles
-		if ( _loadingPanelModalSession != 0 )
-		{
-			if ( [[NSApplication sharedApplication] runModalSession: _loadingPanelModalSession]
-																			!= NSModalResponseContinue )
-			{
-				NSAssert( NO, @"run loop stopped by unknown party" );
-			}
-		}
-		else
-		{
-			[[NSRunLoop currentRunLoop] runUntilDate: [NSDate date]];
-		}
+		if ( [[NSApplication sharedApplication] runModalSession: _loadingPanelModalSession]
+			 != NSModalResponseContinue )
+			return NO;
 	}
+
+	//-runModalSession: returns at once when there is nothing to do, so without
+	//this the caller's wait loop would spin a core doing nothing. Blocking in
+	//the run loop instead lets the panel animate and the Cancel button respond.
+	[[NSRunLoop currentRunLoop] runMode: NSModalPanelRunLoopMode
+							 beforeDate: [NSDate dateWithTimeIntervalSinceNow: seconds]];
+
+	return YES;
 }
 
 - (IBAction) cancel:(id)sender
 {
-	_cancelPressed = YES;
-	
+	@synchronized ( self )
+	{
+		_cancelPressed = YES;
+	}
+
 	[_loadingCancelButton setEnabled: NO];
 }
 
