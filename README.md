@@ -22,7 +22,10 @@ and colored by file type — alongside a sortable outline view and a breakdown b
 The original was last updated in March 2022 and targets Intel Macs on older macOS
 releases. This fork exists to modernize it:
 
-- Support for current macOS versions
+- **Runs natively on Apple silicon.** The original depended on Intel-only prebuilt
+  frameworks, so it could only run under Rosetta. Those are gone.
+- **Builds from a clean checkout** on a current Xcode, with no external frameworks to
+  supply first.
 - Interface updates
 
 ## Changes from the original
@@ -31,8 +34,15 @@ releases. This fork exists to modernize it:
 | --- | --- |
 | 2026-08-15 | Renamed from "Disk Inventory X" to "Disk Inventory Next"; bundle identifier changed from `com.derlien.DiskInventoryX` to `io.github.xxderek.DiskInventoryNext` |
 | 2026-08-15 | Own-app filter in `AppsForItem` now derives the app name from the running bundle instead of a hardcoded string, so it survives renames |
-
-_Functional changes to the application itself are still in progress; see "Why the fork" above._
+| 2026-08-15 | Replaced `TreeMapView.framework` with an independent GPL-3 treemap implementation in [`TreeMapView/`](TreeMapView) |
+| 2026-08-15 | Removed the OmniGroup frameworks entirely; the toolbar and preferences code they provided now lives in the app's own classes, and `OASplitView` gave way to a plain `NSSplitView` |
+| 2026-08-15 | Builds as a universal arm64 + x86_64 binary; deployment target raised from 10.11 to 10.13 |
+| 2026-08-15 | Fixed a preferences bug where "Restore Defaults" compared a 64-bit sheet response against a 32-bit constant and never matched |
+| 2026-08-15 | Fixed a crash opening the "Open With" menu, caused by a sort method that no longer existed |
+| 2026-08-15 | Fixed treemap clicks selecting nothing: the layout was converted into a bottom-up backing space, putting every cell outside the view, which also broke tooltips and the hover readout |
+| 2026-08-15 | Fixed a file's size being initialised from a pointer instead of the number it points at (masked, because sizes are recalculated before display) |
+| 2026-08-15 | Migrated the codebase from manual retain/release to ARC |
+| 2026-08-15 | Fixed a diagnostic that scanned a hex value over the string pointer holding it, then logged the result as an object |
 
 ## Features
 
@@ -47,15 +57,15 @@ _Functional changes to the application itself are still in progress; see "Why th
 
 ## Requirements
 
-- **macOS 10.11 or later** (current deployment target; being revised as part of the
-  modernization work)
+- **macOS 10.13 or later**
 - **Xcode** with the macOS SDK, to build from source
+
+Builds as a **universal binary**, running natively on both Apple silicon and Intel Macs.
 
 ## Building from source
 
-> **Note:** the build currently requires two external frameworks that are not included in
-> this repository. See [Dependencies](#dependencies) below — a fresh clone will not build
-> without them.
+A fresh clone builds with no setup — there are no external dependencies and nothing to
+fetch.
 
 ```sh
 git clone https://github.com/xx-derek/disk-inventory-next.git
@@ -71,19 +81,32 @@ xcodebuild -project "Disk Inventory Next.xcodeproj" -configuration Release
 
 You can also open `Disk Inventory Next.xcodeproj` in Xcode and build the app target.
 
+The project is set up to sign with this fork's developer team. To build on a machine
+without that certificate, sign ad-hoc instead:
+
+```sh
+xcodebuild -project "Disk Inventory Next.xcodeproj" -configuration Release \
+    CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
+    PROVISIONING_PROFILE_SPECIFIER=""
+```
+
+Use ad-hoc rather than disabling signing altogether: an unsigned binary will not run on
+Apple silicon.
+
 ### Dependencies
 
-The project links against two frameworks that are neither vendored here nor fetched by any
-script. They resolve through the `FRAMEWORK_SEARCH_PATHS_OMNI` and
-`FRAMEWORK_SEARCH_PATHS_TREEMAP` build settings, which point outside the repository:
+None. The app links only system frameworks.
 
-| Dependency | Used for |
+It previously required two sets of prebuilt frameworks — the OmniGroup frameworks
+(`OmniAppKit`, `OmniBase`, `OmniFoundation`) and `TreeMapView.framework` — which were not
+included here and were resolved through build settings pointing outside the repository.
+Both were Intel-only binaries without headers, so they made a native Apple silicon build
+impossible. They have been replaced by source in this repository:
+
+| Replaced | By |
 | --- | --- |
-| OmniGroup frameworks (`OmniAppKit`, `OmniBase`, `OmniFoundation`) | Application and Foundation utilities |
-| `TreeMapView.framework` | The treemap rendering view |
-
-Both paths must be supplied and repointed before the project will link. Removing this
-external dependency is a goal of the modernization work.
+| `TreeMapView.framework` | [`TreeMapView/`](TreeMapView) — an independent treemap implementation written for this fork |
+| OmniGroup frameworks | Nothing — the parts the app used were folded into its own classes, or replaced by the AppKit equivalents that have since appeared |
 
 ### macOS privacy protections
 
@@ -125,5 +148,6 @@ conveys no trademark rights.
 
 - **Tjark Derlien** — original author of Disk Inventory X, and of essentially all the code here
 - **Anton Repponen** — application icon
-- Links against the **OmniGroup** frameworks; includes **CocoaTech** sources under `CocoaTech-Depreciated/`
-- Treemap rendering lives in a separate `TreeMapView.framework`, split out by the original author
+- Includes **CocoaTech** sources under `CocoaTech-Depreciated/`
+- Treemap rendering under `TreeMapView/` was written for this fork and is GPL-3 like the
+  rest of the project
