@@ -576,6 +576,29 @@ receivers that predate `NSPasteboardTypeFileURL`. It is reached through
 `FSItemLegacyFilenamesPasteboardType()` so the deprecation is suppressed in exactly one
 place.
 
+## The donation panel
+
+`DonationPanelController` (`Source/Panels/`) is shown once at first launch, until "Don't
+show again" is ticked. It asks for two different things and **must not blur them**: support
+for this fork, which goes to a crypto address, and support for Tjark Derlien, whose website
+takes donations that do not reach the fork. The panel it replaced solicited under this app's
+name and quietly sent people to his site, which was fair to neither party.
+
+**The address exists once, as `kDonationAddress`.** The QR code is generated from that same
+constant at runtime with `CIQRCodeGenerator` rather than shipped as an image — a QR that
+disagreed with the address printed beside it would send someone's money somewhere neither
+party chose, and an image asset is exactly the kind of thing that gets left behind when a
+string changes. That is why `CoreImage.framework` is linked.
+
+Two layout details that are not arbitrary. The address has its **own full-width row**: in
+the column beside the QR there is not quite room for 42 monospaced characters and it wrapped
+mid-address, which is how a transcription error starts. And it is **selectable as well as
+copyable**, so someone who does not trust the button can select it by hand.
+
+Changing the address means changing one constant. Check it afterwards by decoding the QR
+out of the live view — a probe can pull the `NSImageView`'s image and run `CIDetector` over
+it, which is how this was verified.
+
 ## The Info panel
 
 `DIXFileInfoView` (`Source/Panels/`) is the scrolling title/value list. It used to be three

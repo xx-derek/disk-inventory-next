@@ -240,6 +240,20 @@ Notes inherited from the original project live in [`documentation/`](documentati
 `release notes.txt` is the version history of the **original** Disk Inventory X releases
 and intentionally still refers to it by that name — it is a historical record.
 
+## Supporting the project
+
+Disk Inventory Next accepts donations to this address on any EVM-compatible chain:
+
+```
+0xe56f2b8e59c96e2bcb7b4d9f636cb3badfdd5abc
+```
+
+The app shows the same address, with a QR code, in **Help → Support Disk Inventory Next**.
+
+The original **Disk Inventory X** by Tjark Derlien — most of the code this is built on —
+takes donations separately at [derlien.com](http://www.derlien.com). Those go to him and
+not to this fork.
+
 ## License
 
 Free software under the **GNU General Public License, version 3 or later**. Full text in

@@ -15,6 +15,7 @@
 //
 
 #import "MyDocumentController.h"
+#import "DonationPanelController.h"
 #import "DrivesPanelController.h"
 #import "Preferences.h"
 #import "PrefsPanelController.h"
@@ -162,15 +163,11 @@ BOOL g_EnableLogging;
 	[[PrefsPanelController sharedPreferenceController] showPreferencesPanel: self];
 }
 
+//Kept because the Help menu's "Disk Inventory X Website" item is wired to it in
+//the main menu nib. The donation panel has its own, clearly labelled button.
 - (IBAction) gotoHomepage: (id) sender
 {
 	[[NSWorkspace sharedWorkspace] openURL: [NSURL URLWithString: @"http://www.derlien.com"]];
-}
-
-- (IBAction) closeDonationPanel: (id) sender;
-{
-	[_donationPanel close]; //will release itself
-	_donationPanel = nil;
 }
 
 
@@ -229,18 +226,7 @@ static NSMenuItem* FindMenuItemWithAction( NSMenu *menu, SEL action )
 
 - (void) applicationDidFinishLaunching:(NSNotification *)notification
 {
-    //show donate message
-	if ( ![[NSUserDefaults standardUserDefaults] boolForKey: DontShowDonationMessage] )
-	{
-		//Under the old +loadNibNamed:owner: the nib's top-level objects were
-		//retained (and leaked) for us. The replacement hands them back
-		//autoreleased, so they have to be held or the panel is deallocated on
-		//the way out of this method.
-		NSArray *topLevelObjects = nil;
-		[[NSBundle mainBundle] loadNibNamed: @"DonationPanel" owner: self topLevelObjects: &topLevelObjects];
-		_nibTopLevelObjects = topLevelObjects;
-		[_donationPanel setWorksWhenModal: YES];
-	}
+	[[DonationPanelController sharedController] showPanelIfWanted];
 	
 //	DIXFinderCMInstaller *installer = [DIXFinderCMInstaller installer];
 //	if ( ![installer isInstalled] )
