@@ -52,8 +52,6 @@
 		FCCFB33C097FA44A009EA2B6 /* MainWindowToolbar.toolbar in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB32A097FA44A009EA2B6 /* MainWindowToolbar.toolbar */; };
 		FCCFB370097FA4C1009EA2B6 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB34D097FA4C1009EA2B6 /* Credits.rtf */; };
 		FCCFB371097FA4C1009EA2B6 /* DonationPanel.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB34F097FA4C1009EA2B6 /* DonationPanel.nib */; };
-		FCCFB372097FA4C1009EA2B6 /* FinderCMPreferencesPage.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB351097FA4C1009EA2B6 /* FinderCMPreferencesPage.nib */; };
-		FCCFB373097FA4C1009EA2B6 /* GeneralPreferencesPage.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB353097FA4C1009EA2B6 /* GeneralPreferencesPage.nib */; };
 		FCCFB37A097FA4C1009EA2B6 /* InfoPanel.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB35E097FA4C1009EA2B6 /* InfoPanel.nib */; };
 		FCCFB37B097FA4C1009EA2B6 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB360097FA4C1009EA2B6 /* InfoPlist.strings */; };
 		FCCFB37C097FA4C1009EA2B6 /* LoadingPanel.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB362097FA4C1009EA2B6 /* LoadingPanel.nib */; };
@@ -61,7 +59,6 @@
 		FCCFB37E097FA4C1009EA2B6 /* MainMenu.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB366097FA4C1009EA2B6 /* MainMenu.nib */; };
 		FCCFB37F097FA4C1009EA2B6 /* Preferences.strings in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB368097FA4C1009EA2B6 /* Preferences.strings */; };
 		FCCFB380097FA4C1009EA2B6 /* TreeMap.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB36A097FA4C1009EA2B6 /* TreeMap.nib */; };
-		FCCFB381097FA4C1009EA2B6 /* TreeMapPreferencesPage.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB36C097FA4C1009EA2B6 /* TreeMapPreferencesPage.nib */; };
 		FCCFB382097FA4C1009EA2B6 /* VolumesPanel.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB36E097FA4C1009EA2B6 /* VolumesPanel.nib */; };
 		FCD5DAFE09CDD4260051C1CF /* MainWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = FCD5DAFC09CDD4260051C1CF /* MainWindow.m */; };
 		FCFB17B621B876A400E3F8C4 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FCFB17B521B876A400E3F8C4 /* Images.xcassets */; };
@@ -73,6 +70,7 @@
 		DEC0DE000000000000000012 /* NSView-BackingCoordsHelpers.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC0DE000000000000000011 /* NSView-BackingCoordsHelpers.m */; };
 		DEC1DE000000000000000003 /* ToolbarWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC1DE000000000000000002 /* ToolbarWindowController.m */; };
 		DEC1DE000000000000000006 /* PrefsPageRecord.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC1DE000000000000000005 /* PrefsPageRecord.m */; };
+		DEC5DE000000000000000003 /* PrefsPageLayout.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC5DE000000000000000002 /* PrefsPageLayout.m */; };
 		DEC2DE000000000000000003 /* NSAlert-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC2DE000000000000000002 /* NSAlert-Extensions.m */; };
 		DEC4DE000000000000000003 /* NSImage-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC4DE000000000000000002 /* NSImage-Extensions.m */; };
 /* End PBXBuildFile section */
@@ -107,14 +105,9 @@
 		FC2B2B81277E43D10040ED6C /* en */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = en; path = en.lproj/MainMenu.nib; sourceTree = "<group>"; };
 		FC2B2B82277E43D10040ED6C /* en */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = en; path = en.lproj/TreeMap.nib; sourceTree = "<group>"; };
 		FC2B2B83277E43D10040ED6C /* en */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = en; path = en.lproj/VolumesPanel.nib; sourceTree = "<group>"; };
-		FC2B2B84277E43D10040ED6C /* en */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = en; path = en.lproj/FinderCMPreferencesPage.nib; sourceTree = "<group>"; };
-		FC2B2B85277E43D10040ED6C /* en */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = en; path = en.lproj/GeneralPreferencesPage.nib; sourceTree = "<group>"; };
 		FC2B2B86277E43D10040ED6C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Preferences.strings; sourceTree = "<group>"; };
-		FC2B2B87277E43D10040ED6C /* en */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = en; path = en.lproj/TreeMapPreferencesPage.nib; sourceTree = "<group>"; };
 		FC2C2CA0238C802600D04E20 /* memory usage using NSURL.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "memory usage using NSURL.txt"; path = "documentation/memory usage using NSURL.txt"; sourceTree = "<group>"; };
 		FC2C2CA1238C802600D04E20 /* macOS privacy protected folders.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "macOS privacy protected folders.txt"; path = "documentation/macOS privacy protected folders.txt"; sourceTree = "<group>"; };
-		FC2D7D7221FE4ABB004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/TreeMapPreferencesPage.nib; sourceTree = "<group>"; };
-		FC2D7D7321FE4ABB004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/GeneralPreferencesPage.nib; sourceTree = "<group>"; };
 		FC2D7D7421FE4ABB004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Preferences.strings; sourceTree = "<group>"; };
 		FC2D7D7521FE4ABB004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/DonationPanel.nib; sourceTree = "<group>"; };
 		FC2D7D7621FE4ABB004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/InfoPanel.nib; sourceTree = "<group>"; };
@@ -129,9 +122,6 @@
 		FC2DB78221AF4E1100F24C1E /* Disk Inventory Next.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Disk Inventory Next.entitlements"; sourceTree = "<group>"; };
 		FC33B458230C846F00133632 /* NSURL-Extensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSURL-Extensions.h"; sourceTree = "<group>"; };
 		FC33B459230C846F00133632 /* NSURL-Extensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSURL-Extensions.m"; sourceTree = "<group>"; };
-		FC42B8622202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/TreeMapPreferencesPage.nib; sourceTree = "<group>"; };
-		FC42B8632202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/GeneralPreferencesPage.nib; sourceTree = "<group>"; };
-		FC42B8642202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/FinderCMPreferencesPage.nib; sourceTree = "<group>"; };
 		FC42B8652202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Preferences.strings; sourceTree = "<group>"; };
 		FC42B8662202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/DonationPanel.nib; sourceTree = "<group>"; };
 		FC42B8672202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/InfoPanel.nib; sourceTree = "<group>"; };
@@ -145,9 +135,6 @@
 		FC42B86F2202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = folder; name = es; path = es.lproj/Help; sourceTree = "<group>"; };
 		FC4C4FF40981520A004CCA22 /* AppsForItem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppsForItem.h; sourceTree = "<group>"; };
 		FC4C4FF50981520A004CCA22 /* AppsForItem.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AppsForItem.m; sourceTree = "<group>"; };
-		FCA1D0BA2205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/TreeMapPreferencesPage.nib; sourceTree = "<group>"; };
-		FCA1D0BB2205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/GeneralPreferencesPage.nib; sourceTree = "<group>"; };
-		FCA1D0BC2205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/FinderCMPreferencesPage.nib; sourceTree = "<group>"; };
 		FCA1D0BD2205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Preferences.strings; sourceTree = "<group>"; };
 		FCA1D0BE2205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/DonationPanel.nib; sourceTree = "<group>"; };
 		FCA1D0BF2205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/InfoPanel.nib; sourceTree = "<group>"; };
@@ -232,7 +219,6 @@
 		FCD71DB50984141E00590D16 /* feature suggestions.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "feature suggestions.txt"; path = "documentation/feature suggestions.txt"; sourceTree = "<group>"; };
 		FCD71DB60984141E00590D16 /* known bugs.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "known bugs.txt"; path = "documentation/known bugs.txt"; sourceTree = "<group>"; };
 		FCD71DB70984141E00590D16 /* release notes.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "release notes.txt"; path = "documentation/release notes.txt"; sourceTree = "<group>"; };
-		FCEEFC0421FE5B6700E9785E /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/FinderCMPreferencesPage.nib; sourceTree = "<group>"; };
 		FCFB17B521B876A400E3F8C4 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Resources/Images.xcassets; sourceTree = "<group>"; };
 		DEC0DE000000000000000001 /* TreeMapView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "TreeMapView.h"; sourceTree = "<group>"; };
 		DEC0DE000000000000000002 /* TreeMapView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "TreeMapView.m"; sourceTree = "<group>"; };
@@ -250,6 +236,8 @@
 		DEC1DE000000000000000002 /* ToolbarWindowController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "ToolbarWindowController.m"; sourceTree = "<group>"; };
 		DEC1DE000000000000000004 /* PrefsPageRecord.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "PrefsPageRecord.h"; sourceTree = "<group>"; };
 		DEC1DE000000000000000005 /* PrefsPageRecord.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "PrefsPageRecord.m"; sourceTree = "<group>"; };
+		DEC5DE000000000000000001 /* PrefsPageLayout.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "PrefsPageLayout.h"; sourceTree = "<group>"; };
+		DEC5DE000000000000000002 /* PrefsPageLayout.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "PrefsPageLayout.m"; sourceTree = "<group>"; };
 		DEC2DE000000000000000001 /* NSAlert-Extensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSAlert-Extensions.h"; sourceTree = "<group>"; };
 		DEC2DE000000000000000002 /* NSAlert-Extensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSAlert-Extensions.m"; sourceTree = "<group>"; };
 		DEC4DE000000000000000001 /* NSImage-Extensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSImage-Extensions.h"; sourceTree = "<group>"; };
@@ -413,6 +401,8 @@
 				FCCFB2C6097FA42B009EA2B6 /* PrefsPageBase.m */,
 				DEC1DE000000000000000004 /* PrefsPageRecord.h */,
 				DEC1DE000000000000000005 /* PrefsPageRecord.m */,
+				DEC5DE000000000000000001 /* PrefsPageLayout.h */,
+				DEC5DE000000000000000002 /* PrefsPageLayout.m */,
 				FCCFB2C9097FA42B009EA2B6 /* GeneralPrefPage.h */,
 				FCCFB2CA097FA42B009EA2B6 /* GeneralPrefPage.m */,
 				FCCFB2C7097FA42B009EA2B6 /* TreeMapPrefPage.h */,
@@ -519,9 +509,6 @@
 		FCCFB336097FA44A009EA2B6 /* Preferences */ = {
 			isa = PBXGroup;
 			children = (
-				FCCFB36C097FA4C1009EA2B6 /* TreeMapPreferencesPage.nib */,
-				FCCFB353097FA4C1009EA2B6 /* GeneralPreferencesPage.nib */,
-				FCCFB351097FA4C1009EA2B6 /* FinderCMPreferencesPage.nib */,
 				FCCFB368097FA4C1009EA2B6 /* Preferences.strings */,
 			);
 			name = Preferences;
@@ -628,8 +615,6 @@
 				FC2C2CA3238C802600D04E20 /* macOS privacy protected folders.txt in Resources */,
 				FCCFB370097FA4C1009EA2B6 /* Credits.rtf in Resources */,
 				FCCFB371097FA4C1009EA2B6 /* DonationPanel.nib in Resources */,
-				FCCFB372097FA4C1009EA2B6 /* FinderCMPreferencesPage.nib in Resources */,
-				FCCFB373097FA4C1009EA2B6 /* GeneralPreferencesPage.nib in Resources */,
 				FCCFB37A097FA4C1009EA2B6 /* InfoPanel.nib in Resources */,
 				FCCFB37B097FA4C1009EA2B6 /* InfoPlist.strings in Resources */,
 				FCCFB37C097FA4C1009EA2B6 /* LoadingPanel.nib in Resources */,
@@ -637,7 +622,6 @@
 				FCCFB37E097FA4C1009EA2B6 /* MainMenu.nib in Resources */,
 				FCCFB37F097FA4C1009EA2B6 /* Preferences.strings in Resources */,
 				FCCFB380097FA4C1009EA2B6 /* TreeMap.nib in Resources */,
-				FCCFB381097FA4C1009EA2B6 /* TreeMapPreferencesPage.nib in Resources */,
 				FC2C2CA2238C802600D04E20 /* memory usage using NSURL.txt in Resources */,
 				FCCFB382097FA4C1009EA2B6 /* VolumesPanel.nib in Resources */,
 				FC4C4AC109802035004CCA22 /* Help in Resources */,
@@ -658,6 +642,7 @@
 				DEC4DE000000000000000003 /* NSImage-Extensions.m in Sources */,
 				DEC1DE000000000000000003 /* ToolbarWindowController.m in Sources */,
 				DEC1DE000000000000000006 /* PrefsPageRecord.m in Sources */,
+				DEC5DE000000000000000003 /* PrefsPageLayout.m in Sources */,
 				DEC0DE000000000000000003 /* TreeMapView.m in Sources */,
 				DEC0DE000000000000000006 /* TMVItem.m in Sources */,
 				DEC0DE000000000000000009 /* TMVCushionRenderer.m in Sources */,
@@ -740,28 +725,6 @@
 			name = DonationPanel.nib;
 			sourceTree = "<group>";
 		};
-		FCCFB351097FA4C1009EA2B6 /* FinderCMPreferencesPage.nib */ = {
-			isa = PBXVariantGroup;
-			children = (
-				FCEEFC0421FE5B6700E9785E /* de */,
-				FC42B8642202405A0080570A /* es */,
-				FCA1D0BC2205FF2D004E9468 /* fr */,
-				FC2B2B84277E43D10040ED6C /* en */,
-			);
-			name = FinderCMPreferencesPage.nib;
-			sourceTree = "<group>";
-		};
-		FCCFB353097FA4C1009EA2B6 /* GeneralPreferencesPage.nib */ = {
-			isa = PBXVariantGroup;
-			children = (
-				FC2D7D7321FE4ABB004D0614 /* de */,
-				FC42B8632202405A0080570A /* es */,
-				FCA1D0BB2205FF2D004E9468 /* fr */,
-				FC2B2B85277E43D10040ED6C /* en */,
-			);
-			name = GeneralPreferencesPage.nib;
-			sourceTree = "<group>";
-		};
 		FCCFB35E097FA4C1009EA2B6 /* InfoPanel.nib */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -837,17 +800,6 @@
 				FC2B2B82277E43D10040ED6C /* en */,
 			);
 			name = TreeMap.nib;
-			sourceTree = "<group>";
-		};
-		FCCFB36C097FA4C1009EA2B6 /* TreeMapPreferencesPage.nib */ = {
-			isa = PBXVariantGroup;
-			children = (
-				FC2D7D7221FE4ABB004D0614 /* de */,
-				FC42B8622202405A0080570A /* es */,
-				FCA1D0BA2205FF2D004E9468 /* fr */,
-				FC2B2B87277E43D10040ED6C /* en */,
-			);
-			name = TreeMapPreferencesPage.nib;
 			sourceTree = "<group>";
 		};
 		FCCFB36E097FA4C1009EA2B6 /* VolumesPanel.nib */ = {

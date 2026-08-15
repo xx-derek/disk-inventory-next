@@ -247,6 +247,24 @@ holds a `_viewOptions` dictionary of per-window display toggles, accessed throug
 `NSMutableDictionary(DocumentPreferences)` category. Adding a display toggle usually means
 touching both layers plus a `ViewOptionChangedNotification` post.
 
+**The settings pages are built in code, not in nibs.** A page overrides
+`-[PrefsPageBase buildControlBox]` and describes itself through `PrefsPageLayout`: a
+section label, then checkboxes, each optionally with explanatory text. Alignment is a
+property of the layout rather than of whoever last opened Interface Builder — which is how
+the two pages had drifted into different shapes, one of them with no label column at all.
+Adding a setting is one `-addCheckboxTitled:defaultsKey:help:` call plus its string in the
+four `Preferences.strings`, where it used to be eight nib bundles.
+
+`-buildControlBox` returning nil still falls back to loading the page record's nib, so a
+page needing something a grid of checkboxes cannot express is not locked out.
+
+Two things to know. Checkboxes bind to `NSUserDefaultsController`, which is what makes a
+change take effect immediately and what lets Restore Defaults show up without reloading
+the page. And **`PrefsPageLayout` must size its grid with `-setFrameSize:[grid fittingSize]`**
+before returning it: the panel sizes the window from `-[pageView frame]`, and a grid that
+has never been laid out still carries the frame it was created with — which produced a
+736-point window around 552 points of content.
+
 ### Prefix header
 
 `Source/App/Disk Inventory Next_Prefix.pch` is precompiled into every file and already
@@ -272,7 +290,10 @@ Background and localized strings: `documentation/macOS privacy protected folders
 Every interface lives in compiled `.nib` bundles under the `.lproj` directories. They are
 not text and cannot be edited or diffed with normal tools — open them in Interface Builder.
 Localizations: `de`, `en`, `es`, `fr` (`English.lproj` is a legacy leftover holding only
-Help index files). A UI change means updating the `.nib` in each of the four languages plus
+Help index files). Six nibs remain per language — `MainMenu`, `TreeMap`, `InfoPanel`,
+`LoadingPanel`, `VolumesPanel`, `DonationPanel`; the three preference-page nibs were
+deleted on 2026-08-15 when those pages moved into code, and their translations moved into
+`Preferences.strings`. A UI change means updating the `.nib` in each of the four languages plus
 `Localizable.strings`.
 
 To change nib text without Interface Builder, round-trip through `ibtool`:

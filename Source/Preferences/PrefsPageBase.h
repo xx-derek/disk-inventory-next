@@ -16,7 +16,7 @@
 
 #import <Cocoa/Cocoa.h>
 
-@class PrefsPageRecord;
+@class PrefsPageRecord, PrefsPageLayout;
 
 //Runs one page of the preferences window. A subclass is the File's Owner of its
 //own nib and connects the three outlets below; the controls themselves are
@@ -39,6 +39,7 @@
 
 	PrefsPageRecord *_pageRecord;
 	NSArray *_nibTopLevelObjects;
+	PrefsPageLayout *_layout;
 }
 
 - (id) initWithPageRecord: (PrefsPageRecord*) pageRecord;
@@ -46,7 +47,16 @@
 - (PrefsPageRecord*) pageRecord;
 - (NSString*) title;
 
-//the page's view, loading the nib on first use
+//Override to build the page in code; the default returns nil, which falls back
+//to loading the page record's nib. Both paths still exist because a page that
+//needs something a grid of checkboxes cannot express is better off in a nib.
+- (NSView*) buildControlBox;
+
+//Called by a subclass from -buildControlBox, so the base can take the keyboard
+//loop from the layout it built.
+- (void) setLayout: (PrefsPageLayout*) layout;
+
+//the page's view, built or loaded on first use
 - (NSView*) controlBox;
 
 //the control that should take focus when the page is shown, and the last one in

@@ -159,25 +159,6 @@ No data will be read.</string>
 		</dict>
 		<key>PrefsPanelController</key>
 		<dict>
-			<key>FinderCMPrefPage</key>
-			<dict>
-				<key>category</key>
-				<string>Basic</string>
-				<key>defaultsArray</key>
-				<array/>
-				<key>hidden</key>
-				<true/>
-				<key>identifier</key>
-				<string>FinderCMPrefPage</string>
-				<key>nib</key>
-				<string>FinderCMPreferencesPage</string>
-				<key>ordering</key>
-				<integer>20</integer>
-				<key>symbol</key>
-				<string>puzzlepiece</string>
-				<key>title</key>
-				<string>Finder Plugin</string>
-			</dict>
 			<key>GeneralPrefPage</key>
 			<dict>
 				<key>category</key>
@@ -195,8 +176,6 @@ No data will be read.</string>
 				</array>
 				<key>identifier</key>
 				<string>GeneralPrefPage</string>
-				<key>nib</key>
-				<string>GeneralPreferencesPage</string>
 				<key>ordering</key>
 				<integer>0</integer>
 				<key>symbol</key>
@@ -216,8 +195,6 @@ No data will be read.</string>
 				</array>
 				<key>identifier</key>
 				<string>TreeMapPrefPage</string>
-				<key>nib</key>
-				<string>TreeMapPreferencesPage</string>
 				<key>ordering</key>
 				<integer>10</integer>
 				<key>symbol</key>
