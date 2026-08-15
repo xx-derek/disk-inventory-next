@@ -1,0 +1,15 @@
+# All text in this repo is UTF-8. The files below are binary and must never be
+# treated as text — "Help idx" in particular has no extension and its Bud1
+# container looks text-ish to heuristics.
+
+*.nib/*     binary
+Help\ idx   binary
+
+*.png       binary
+*.jpg       binary
+*.tif       binary
+*.tiff      binary
+*.icns      binary
+
+# Xcode project file: text, but never merge it automatically
+*.pbxproj   -merge

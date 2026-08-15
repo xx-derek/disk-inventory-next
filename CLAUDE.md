@@ -187,12 +187,29 @@ Two places still say "Disk Inventory X" **on purpose** — do not rename them:
 - Tjark Derlien's copyright lines in every source header. GPL-3 §4 requires keeping them
   intact; add new copyright lines alongside, never in place of.
 
-Localized `.strings` files have **mixed encodings** — `utf-16le`, `utf-16be`, `us-ascii`,
-and `utf-8` coexist. Running `sed` across them corrupts the UTF-16 ones; convert, edit, and
-write back in the original encoding (and preserve the BOM). Also note `NSLocalizedString`
-keys are the English strings themselves, so changing a literal in a `.m` file requires the
-same change to the key **and** value in all four `Localizable.strings`, or translations
-silently fall back to the raw key.
+Note `NSLocalizedString` keys are the English strings themselves, so changing a literal in
+a `.m` file requires the same change to the key **and** value in all four
+`Localizable.strings`, or translations silently fall back to the raw key.
+
+## Encoding: everything text is UTF-8
+
+Normalized on 2026-08-15. Every text file in the repo is UTF-8 (most are pure ASCII), and
+all 89 `fileEncoding` entries in `project.pbxproj` are `4` (`NSUTF8StringEncoding`). Keep
+it that way — write new files as UTF-8 and do not reintroduce `fileEncoding = 30`
+(MacRoman), which is what 69 of them used to be.
+
+Two consequences worth knowing:
+
+- **`.strings` sources are UTF-8**, which Xcode auto-detects (they carry no `fileEncoding`
+  entry). `builtin-copyStrings` still re-encodes them to UTF-16 *in the built product* via
+  `--outputencoding UTF-16`, so runtime behavior is unchanged. Don't "fix" the source files
+  back to UTF-16.
+- **`sed` across the tree is now safe.** It previously failed with `illegal byte sequence`
+  on MacRoman files; if you still hit that, something non-UTF-8 has crept back in.
+
+Genuinely binary files must never be treated as text — `.gitattributes` marks them. The
+trap is `*/Help/Help idx`: an Apple Help Indexer `Bud1` container with no file extension
+that encoding heuristics will happily misread as text.
 
 ## Reference
 
