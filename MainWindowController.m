@@ -693,7 +693,7 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 	}
 	
 	//remove any supernumerary menu items (removed all items if is there is no app which can open this file)
-	unsigned removeMenuItemsFromIndex = ([apps defaultAppURL] != nil) ? [[apps additionalAppURLs] count] +2 : 0;
+	NSUInteger removeMenuItemsFromIndex = ([apps defaultAppURL] != nil) ? [[apps additionalAppURLs] count] +2 : 0;
 	
 	while ( ((unsigned) [_openWithSubMenu numberOfItems]) > removeMenuItemsFromIndex )
 		[_openWithSubMenu removeItemAtIndex: [_openWithSubMenu numberOfItems] -1];

@@ -32,7 +32,7 @@
 		FCCFB30E097FA42B009EA2B6 /* PrefsPageBase.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2C6097FA42B009EA2B6 /* PrefsPageBase.m */; };
 		FCCFB30F097FA42B009EA2B6 /* TreeMapPrefPage.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2C8097FA42B009EA2B6 /* TreeMapPrefPage.m */; };
 		FCCFB310097FA42B009EA2B6 /* GeneralPrefPage.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2CA097FA42B009EA2B6 /* GeneralPrefPage.m */; };
-		FCCFB312097FA42B009EA2B6 /* Timing.c in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2CE097FA42B009EA2B6 /* Timing.c */; };
+		FCCFB312097FA42B009EA2B6 /* Timing.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2CE097FA42B009EA2B6 /* Timing.m */; };
 		FCCFB313097FA42B009EA2B6 /* FileSizeFormatter.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2D1097FA42B009EA2B6 /* FileSizeFormatter.m */; };
 		FCCFB314097FA42B009EA2B6 /* FileSizeTransformer.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2D3097FA42B009EA2B6 /* FileSizeTransformer.m */; };
 		FCCFB315097FA42B009EA2B6 /* DIXFileInfoView.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2D6097FA42B009EA2B6 /* DIXFileInfoView.m */; };
@@ -211,7 +211,7 @@
 		FCCFB2C8097FA42B009EA2B6 /* TreeMapPrefPage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TreeMapPrefPage.m; sourceTree = "<group>"; };
 		FCCFB2C9097FA42B009EA2B6 /* GeneralPrefPage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GeneralPrefPage.h; sourceTree = "<group>"; };
 		FCCFB2CA097FA42B009EA2B6 /* GeneralPrefPage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneralPrefPage.m; sourceTree = "<group>"; };
-		FCCFB2CE097FA42B009EA2B6 /* Timing.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = Timing.c; sourceTree = "<group>"; };
+		FCCFB2CE097FA42B009EA2B6 /* Timing.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Timing.m; sourceTree = "<group>"; };
 		FCCFB2CF097FA42B009EA2B6 /* Timing.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Timing.h; sourceTree = "<group>"; };
 		FCCFB2D0097FA42B009EA2B6 /* FileSizeFormatter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FileSizeFormatter.h; sourceTree = "<group>"; };
 		FCCFB2D1097FA42B009EA2B6 /* FileSizeFormatter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FileSizeFormatter.m; sourceTree = "<group>"; };
@@ -491,7 +491,7 @@
 		FCCFB2CD097FA42B009EA2B6 /* Helper Classes */ = {
 			isa = PBXGroup;
 			children = (
-				FCCFB2CE097FA42B009EA2B6 /* Timing.c */,
+				FCCFB2CE097FA42B009EA2B6 /* Timing.m */,
 				FCCFB2CF097FA42B009EA2B6 /* Timing.h */,
 				FCCFB2D0097FA42B009EA2B6 /* FileSizeFormatter.h */,
 				FCCFB2D1097FA42B009EA2B6 /* FileSizeFormatter.m */,
@@ -676,7 +676,6 @@
 				8D15AC300486D014006FF6A4 /* Sources */,
 				8D15AC330486D014006FF6A4 /* Frameworks */,
 				FCED9ED9106ABB4D00667E44 /* CopyFiles */,
-				FC4C4C740980221D004CCA22 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -772,19 +771,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		FC4C4C740980221D004CCA22 /* ShellScript */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "if [ \"$BUILD_STYLE\" = \"Release\" ]\nthen\n\n# delete framework's header files\necho \"Deleting PrivateHeaders (files, dirs and links) from \\\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}\\\"...\"\n\nfind \"$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH\" -type d -name Headers -print0 | xargs -0 rm -rf\nfind \"$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH\" -type d -name PrivateHeaders -print0 | xargs -0 rm -rf\n\n# delete ad-hoc code signature (I have no Apple ID yet)\n#echo \"deleting ad-hoc code signature from \\\"${TARGET_BUILD_DIR}\\\"...\"\n\n#find \"$TARGET_BUILD_DIR\" -type d -name _CodeSignature -print0 | xargs -0 rm -rf\n\n\nfi\n";
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -812,7 +798,7 @@
 				FCCFB30E097FA42B009EA2B6 /* PrefsPageBase.m in Sources */,
 				FCCFB30F097FA42B009EA2B6 /* TreeMapPrefPage.m in Sources */,
 				FCCFB310097FA42B009EA2B6 /* GeneralPrefPage.m in Sources */,
-				FCCFB312097FA42B009EA2B6 /* Timing.c in Sources */,
+				FCCFB312097FA42B009EA2B6 /* Timing.m in Sources */,
 				FCCFB313097FA42B009EA2B6 /* FileSizeFormatter.m in Sources */,
 				FCCFB314097FA42B009EA2B6 /* FileSizeTransformer.m in Sources */,
 				FCCFB315097FA42B009EA2B6 /* DIXFileInfoView.m in Sources */,
@@ -1032,6 +1018,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = io.github.xxderek.DiskInventoryNext;
 				PRODUCT_NAME = "Disk Inventory Next";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = "$(ARCHS_STANDARD)";
 				CLANG_ENABLE_OBJC_ARC = YES;
 				OTHER_CFLAGS = "-fobjc-arc-exceptions";
@@ -1063,6 +1050,7 @@
 				MARKETING_VERSION = 1.4b2;
 				PRODUCT_BUNDLE_IDENTIFIER = io.github.xxderek.DiskInventoryNext;
 				PRODUCT_NAME = "Disk Inventory Next";
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = "$(ARCHS_STANDARD)";
 				CLANG_ENABLE_OBJC_ARC = YES;
 				OTHER_CFLAGS = "-fobjc-arc-exceptions";
@@ -1086,6 +1074,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				ONLY_ACTIVE_ARCH = NO;
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = "$(ARCHS_STANDARD)";
 				CLANG_ENABLE_OBJC_ARC = YES;
 				OTHER_CFLAGS = "-fobjc-arc-exceptions";
@@ -1107,6 +1096,7 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = "$(ARCHS_STANDARD)";
 				CLANG_ENABLE_OBJC_ARC = YES;
 				OTHER_CFLAGS = "-fobjc-arc-exceptions";

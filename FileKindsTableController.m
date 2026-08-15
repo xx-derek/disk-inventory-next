@@ -25,7 +25,7 @@
 
 @interface FileKindsTableController(Private)
 
-- (NSImage*) colorImageForRow: (int) row column: (NSTableColumn*) column;
+- (NSImage*) colorImageForRow: (NSInteger) row column: (NSTableColumn*) column;
 - (void) setTableViewFont;
 
 @end
@@ -83,7 +83,7 @@
 	//showing files for a kind is pointless if the list is hidden
 	[_windowController setSelectionListVisible: YES];
 	
-	int selectedRow = [_tableView selectedRow];
+	NSInteger selectedRow = [_tableView selectedRow];
 	NSAssert( selectedRow >= 0, @"kinds tableview should have a selection" );
 	
 	FileKindStatistic *kindStat = [(NSArray*)[_kindsTableArrayController arrangedObjects] objectAtIndex: selectedRow];
@@ -93,7 +93,7 @@
 #pragma mark --------NSTableView delegate methods-----------------
 
 //NSTableView delegate
-- (void) tableView: (NSTableView*) tableView willDisplayCell: (id) cell forTableColumn: (NSTableColumn*) tableColumn row: (int) row
+- (void) tableView: (NSTableView*) tableView willDisplayCell: (id) cell forTableColumn: (NSTableColumn*) tableColumn row: (NSInteger) row
 {
 	if ( [[tableColumn identifier] isEqualToString: @"color"] )
 		[cell setImage: [self colorImageForRow: row column: tableColumn]];
@@ -137,7 +137,7 @@
 @implementation FileKindsTableController(Private)
 
 //returns a cushion image for a given row in the tableview
-- (NSImage*) colorImageForRow: (int) row column: (NSTableColumn*) column
+- (NSImage*) colorImageForRow: (NSInteger) row column: (NSTableColumn*) column
 {
 	if ( _cushionImages == nil )
 		_cushionImages = [[NSMutableDictionary alloc] init];
