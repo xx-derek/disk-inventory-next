@@ -14,7 +14,6 @@
 //
 
 #import "LoadingPanelController.h"
-#import "Timing.h"
 
 
 @implementation LoadingPanelController
@@ -40,14 +39,17 @@
 	if ( !loadedNib )
 		NSAssert( NO, @"couldn't load LoadingPanel.nib" );
 	
+	//Deliberately not started here. Once the bar has begun its indeterminate
+	//animation inside a modal session, -setIndeterminate:NO does not reliably
+	//stop it drawing: -isIndeterminate answers NO while the barber pole carries
+	//on over the top of the value. -setProgressFraction: starts the animation
+	//only when it knows there is no estimate to show.
 	[_loadingProgressIndicator setUsesThreadedAnimation: NO];
-    [_loadingProgressIndicator startAnimation: self];
 	
 	[_loadingPanel display];
 	
 	//start modal session for the progress window
 	_loadingPanelModalSession = [[NSApplication sharedApplication] beginModalSessionForWindow: _loadingPanel];
-	_lastEventLoopRun = 0;
 	
 	_cancelPressed = NO;
 	
@@ -78,13 +80,12 @@
 	
 	[_loadingPanel setWorksWhenModal: YES];
 	
+	//see -init: the animation is started by -setProgressFraction:, not here
 	[_loadingProgressIndicator setUsesThreadedAnimation: NO];
-    [_loadingProgressIndicator startAnimation: self];
 	
 	//we don't have modal session if we show the panel as a sheet
 	_loadingPanelModalSession = 0;
 	
-	_lastEventLoopRun = 0;
 	
 	_cancelPressed = NO;
 	
@@ -106,6 +107,7 @@
 		[_loadingPanel close]; //we own it through _nibTopLevelObjects, not AppKit
 		
 		_loadingPanel = nil;
+		_percentageField = nil;
 		_loadingProgressIndicator = nil;
 		_loadingTextField = nil;
 		_loadingCancelButton = nil;
@@ -131,6 +133,7 @@
 	[_loadingPanel close]; //we own it through _nibTopLevelObjects, not AppKit
 	
 	_loadingPanel = nil;
+	_percentageField = nil;
     _loadingProgressIndicator = nil;
 	_loadingTextField = nil;
 	_loadingCancelButton = nil;
@@ -143,7 +146,66 @@
 
 - (BOOL) cancelPressed
 {
-	return _cancelPressed;
+	//read from the scan queue, written on the main thread
+	@synchronized ( self )
+	{
+		return _cancelPressed;
+	}
+}
+
+//The nib has no room reserved for this and there are four of them, so the label
+//is made here. It sits in the gap between the progress bar and the Cancel
+//button, left of the button.
+- (void) _ensurePercentageField
+{
+	if ( _percentageField != nil || _loadingProgressIndicator == nil )
+		return;
+
+	const NSRect barFrame = [_loadingProgressIndicator frame];
+
+	_percentageField = [NSTextField labelWithString: @""];
+	[_percentageField setFont: [NSFont systemFontOfSize: [NSFont smallSystemFontSize]]];
+	[_percentageField setTextColor: [NSColor secondaryLabelColor]];
+	[_percentageField setFrame: NSMakeRect( NSMinX(barFrame), NSMinY(barFrame) - 24.0, 160.0, 17.0 )];
+	[_percentageField setAutoresizingMask: NSViewMaxXMargin | NSViewMaxYMargin];
+
+	[[_loadingPanel contentView] addSubview: _percentageField];
+}
+
+- (void) setProgressFraction: (double) fraction
+{
+	[self _ensurePercentageField];
+
+	if ( fraction < 0.0 )
+	{
+		//No estimate: the barber's pole. The indicator starts out indeterminate
+		//from the nib but stopped, so -startAnimation: has to be sent whether or
+		//not this is a transition — it is idempotent once running.
+		if ( ![_loadingProgressIndicator isIndeterminate] )
+			[_loadingProgressIndicator setIndeterminate: YES];
+
+		[_loadingProgressIndicator startAnimation: nil];
+
+		[_percentageField setStringValue: @""];
+		return;
+	}
+
+	if ( [_loadingProgressIndicator isIndeterminate] )
+	{
+		[_loadingProgressIndicator stopAnimation: nil];
+		[_loadingProgressIndicator setIndeterminate: NO];
+		[_loadingProgressIndicator setMinValue: 0.0];
+		[_loadingProgressIndicator setMaxValue: 100.0];
+	}
+
+	//Held below 100 until the scan actually finishes. The total is an estimate,
+	//and a bar that sits full while the disk is still rattling reads as a hang.
+	double percent = fraction * 100.0;
+	if ( percent > 99.0 )
+		percent = 99.0;
+
+	[_loadingProgressIndicator setDoubleValue: percent];
+	[_percentageField setStringValue: [NSString stringWithFormat: @"%.0f%%", percent]];
 }
 
 - (void) startAnimation;
@@ -161,49 +223,37 @@
 	_message = msg;
 }
 
-- (void) runEventLoop
+- (BOOL) runModalSessionForInterval: (NSTimeInterval) seconds
 {
-	//we only let the UI update itself every 0.2 second, otherwise running
-	//the event loop eats over half of the total scan time!
-	uint64_t currentTime = getTime();
-	BOOL runEventLoop = _lastEventLoopRun == 0 || subtractTime( currentTime, _lastEventLoopRun ) > 0.2;
-
 	if ( _message != nil )
 	{
 		[_loadingTextField setStringValue: _message];
-		
-		//set message to nil so it won't be set a again in the NSTextField
-		[self setMessageText: nil];
-			
-		//if we don't run the event loop, just update the text field
-		if ( !runEventLoop )
-			[_loadingTextField displayIfNeeded];
+		_message = nil;
 	}
-	
-	if ( runEventLoop )
+
+	if ( _loadingPanelModalSession != 0 )
 	{
-		_lastEventLoopRun = currentTime;
-		
-		//give progress dialog some processor cycles
-		if ( _loadingPanelModalSession != 0 )
-		{
-			if ( [[NSApplication sharedApplication] runModalSession: _loadingPanelModalSession]
-																			!= NSModalResponseContinue )
-			{
-				NSAssert( NO, @"run loop stopped by unknown party" );
-			}
-		}
-		else
-		{
-			[[NSRunLoop currentRunLoop] runUntilDate: [NSDate date]];
-		}
+		if ( [[NSApplication sharedApplication] runModalSession: _loadingPanelModalSession]
+			 != NSModalResponseContinue )
+			return NO;
 	}
+
+	//-runModalSession: returns at once when there is nothing to do, so without
+	//this the caller's wait loop would spin a core doing nothing. Blocking in
+	//the run loop instead lets the panel animate and the Cancel button respond.
+	[[NSRunLoop currentRunLoop] runMode: NSModalPanelRunLoopMode
+							 beforeDate: [NSDate dateWithTimeIntervalSinceNow: seconds]];
+
+	return YES;
 }
 
 - (IBAction) cancel:(id)sender
 {
-	_cancelPressed = YES;
-	
+	@synchronized ( self )
+	{
+		_cancelPressed = YES;
+	}
+
 	[_loadingCancelButton setEnabled: NO];
 }
 

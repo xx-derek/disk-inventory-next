@@ -15,6 +15,8 @@
 //
 
 #import "FileSystemDoc.h"
+#import <sys/param.h>
+#import <sys/mount.h>
 #import "NSAlert-Extensions.h"
 #import "NSURL-Extensions.h"
 #import "MainWindowController.h"
@@ -124,6 +126,20 @@ NSString *CollectFileKindStatisticsCanceledException = @"CollectFileKindStatisti
 
 //============ interface FileSystemDoc(Private) ==========================================================
 
+//the scan helpers live in the main @implementation, so they are declared here
+//rather than in the (Private) category below
+@interface FileSystemDoc()
++ (dispatch_queue_t) _scanQueue;
++ (NSUInteger) _estimatedItemCountForURL: (NSURL*) url;
++ (void) _rememberItemCount: (NSUInteger) count forURL: (NSURL*) url;
+- (NSException*) _runScanBlockOffMainThread: (void (^)(void)) work estimatingFrom: (NSURL*) rootURL;
+- (void) _setScanCurrentPath: (NSString*) path;
+- (NSString*) _takeScanCurrentPath;
+- (BOOL) _scanWasCancelled;
+- (void) _cancelScan;
+- (void) _beginScan;
+@end
+
 @interface FileSystemDoc(Private)
 
 - (void) addItemToFileKindStatistic: (FSItem*) item includingChilds: (BOOL) includingChilds;
@@ -227,7 +243,6 @@ NSString *OldItem = @"OldItem";
         g_fileCount = g_folderCount = 0;
         
 		_progressController = [[LoadingPanelController alloc] init];
-		[_progressController startAnimation];	
 		
 		uint64_t startTime = getTime();
 		
@@ -241,8 +256,23 @@ NSString *OldItem = @"OldItem";
 		}
 		
 		[_rootItem setDelegate: self];
-		
-        [_rootItem loadChildren];
+
+		//Only the walk goes on the queue. The statistics pass stays on the main
+		//thread: it posts KVO for "kindStatistics", which bound controls in any
+		//open document observe, and -reserveColorsForLargestKinds mutates the
+		//FileTypeColors singleton those documents read while drawing. It is a
+		//second traversal of a tree already in memory, so it costs a fraction of
+		//the walk it follows.
+		FSItem *rootItem = _rootItem;
+		NSException *scanException = [self _runScanBlockOffMainThread: ^{
+			[rootItem loadChildren];
+		} estimatingFrom: [rootItem fileURL]];
+
+		//what this path really holds, for the next scan of it to divide by
+		[[self class] _rememberItemCount: g_fileCount + g_folderCount forURL: [rootItem fileURL]];
+
+		if ( scanException != nil )
+			[scanException raise];
         
  		uint64_t doneLoadingTime = getTime();
 		LOG (@"loading time:  %.2f seconds", subtractTime(doneLoadingTime, startTime));
@@ -255,9 +285,9 @@ NSString *OldItem = @"OldItem";
 		//ok, now we've got an FSItem for every file and directory in the given folder
 		//[_progressController setMessageText: NSLocalizedString( @"Classifying Files", @"")];
 				
-		//collect sizes and file count of all file kinds 
+		//collect sizes and file count of all file kinds
 		[self refreshFileKindStatistics];
-		
+
 		uint64_t doneFileKindStatsTime = getTime();
 		LOG (@"file kind statistics time:  %.2f seconds", subtractTime(doneFileKindStatsTime, doneLoadingTime));
 		
@@ -562,13 +592,29 @@ NSString *OldItem = @"OldItem";
 		{
 			//NSWindow *window = [[[self windowControllers] objectAtIndex: 0] window];
 			_progressController = [[LoadingPanelController alloc] init];
-			[_progressController startAnimation];
 		}
 		
 		refreshedItem = [[FSItem alloc] initWithPath: [item path]];
 		[refreshedItem setDelegate: self];
 		if ( [refreshedItem isFolder] )
-			 [refreshedItem loadChildren];
+		{
+			//Only worth a queue when there is a panel to keep alive; without one
+			//there is nothing for the main thread to do while it waits, and a
+			//small refresh finishes before a queue hop would have paid for
+			//itself.
+			if ( _progressController != nil )
+			{
+				FSItem *itemToLoad = refreshedItem;
+				NSException *scanException = [self _runScanBlockOffMainThread: ^{
+					[itemToLoad loadChildren];
+				} estimatingFrom: [itemToLoad fileURL]];
+
+				if ( scanException != nil )
+					[scanException raise];
+			}
+			else
+				[refreshedItem loadChildren];
+		}
 		
 		_progressController = nil;
 	NS_HANDLER
@@ -823,8 +869,238 @@ NSString *OldItem = @"OldItem";
 	[self didChangeValueForKey: @"kindStatistics"];
 }
 
+#pragma mark ----------------------running a scan off the main thread---------------
+
+//Where the item count of each completed scan is remembered, so the next scan of
+//the same path has a real number to divide by.
+static NSString * const ScannedItemCountsKey = @"ScannedItemCounts";
+
+//How many file system objects the walk is likely to visit under this URL, or 0
+//if there is nothing to base a guess on.
++ (NSUInteger) _estimatedItemCountForURL: (NSURL*) url
+{
+	NSString *path = [url path];
+
+	//What the walk actually found here last time is the best estimate available,
+	//and it corrects itself on every scan.
+	NSDictionary *counts = [[NSUserDefaults standardUserDefaults] dictionaryForKey: ScannedItemCountsKey];
+	NSNumber *remembered = [counts objectForKey: path];
+
+	if ( [remembered unsignedIntegerValue] > 0 )
+		return [remembered unsignedIntegerValue];
+
+	//Failing that, a whole volume can be estimated from the file system itself:
+	//statfs reports how many inodes are in use, which is close to the number of
+	//objects the walk will visit. It answers for the *volume* though, so it is
+	//no use for a folder inside one — asked about /usr/share it reports the
+	//boot volume's 458,726 against the 20,180 actually there.
+	if ( [url isVolume] )
+	{
+		struct statfs fs;
+
+		if ( statfs( [url fileSystemRepresentation], &fs ) == 0 && fs.f_files >= fs.f_ffree )
+			return (NSUInteger) ( fs.f_files - fs.f_ffree );
+	}
+
+	return 0;
+}
+
++ (void) _rememberItemCount: (NSUInteger) count forURL: (NSURL*) url
+{
+	if ( count == 0 || [url path] == nil )
+		return;
+
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+	NSMutableDictionary *counts = [[defaults dictionaryForKey: ScannedItemCountsKey] mutableCopy];
+
+	if ( counts == nil )
+		counts = [NSMutableDictionary dictionary];
+
+	//Drop paths that are gone, so this cannot grow without bound over the years.
+	//A handful of stat calls once per scan is nothing next to the scan itself.
+	for ( NSString *knownPath in [counts allKeys] )
+	{
+		if ( ![[NSFileManager defaultManager] fileExistsAtPath: knownPath] )
+			[counts removeObjectForKey: knownPath];
+	}
+
+	[counts setObject: [NSNumber numberWithUnsignedInteger: count] forKey: [url path]];
+
+	[defaults setObject: counts forKey: ScannedItemCountsKey];
+}
+
+- (void) _beginScan
+{
+	if ( _scanLock == nil )
+		_scanLock = [[NSLock alloc] init];
+
+	[_scanLock lock];
+	_scanCancelled = NO;
+	_scanCurrentPath = nil;
+	_scanItemsDone = 0;
+	[_scanLock unlock];
+
+	//read once, here, so the scan queue never touches the document's options
+	_scanIgnoreCreatorCode   = [self ignoreCreatorCode];
+	_scanLookIntoPackages    = [self showPackageContents];
+	_scanUsePhysicalFileSize = [self showPhysicalFileSize];
+}
+
+- (void) _setScanCurrentPath: (NSString*) path
+{
+	[_scanLock lock];
+	_scanCurrentPath = [path copy];
+	[_scanLock unlock];
+}
+
+- (NSString*) _takeScanCurrentPath
+{
+	[_scanLock lock];
+	NSString *path = _scanCurrentPath;
+	_scanCurrentPath = nil;
+	[_scanLock unlock];
+
+	return path;
+}
+
+- (BOOL) _scanWasCancelled
+{
+	[_scanLock lock];
+	const BOOL cancelled = _scanCancelled;
+	[_scanLock unlock];
+
+	return cancelled;
+}
+
+- (void) _cancelScan
+{
+	[_scanLock lock];
+	_scanCancelled = YES;
+	[_scanLock unlock];
+}
+
+//Runs "work" on a background queue and keeps the main thread in the progress
+//panel until it finishes, returning whatever exception the work raised.
+//
+//The tree is built entirely on the queue and only reaches the main thread once
+//this returns, so nothing is shared with the views while it is being built.
+//What the main thread does meanwhile is run the panel: that is the whole point,
+//since it used to be doing the file system walk and squeezing the interface in
+//every 0.2 seconds.
+//
+//The exception has to be carried across by hand. Raising it on the queue and
+//catching it on the main thread is not a thing that can happen, and this walk
+//uses exceptions as ordinary control flow — cancelling raises one.
+//Every scan in the application runs on this one queue, so two documents opening
+//at once cannot be walking trees simultaneously. That matters because the walk
+//touches process-wide state that is not guarded: FSItem's g_kindNameDictionary
+//cache, and the g_fileCount/g_folderCount counters. Serialising also keeps the
+//behaviour the old main-thread scan had, where a second scan simply waited.
++ (dispatch_queue_t) _scanQueue
+{
+	static dispatch_queue_t queue = nil;
+	static dispatch_once_t once;
+
+	dispatch_once( &once, ^{
+		queue = dispatch_queue_create( "io.github.xxderek.DiskInventoryNext.scan",
+									   dispatch_queue_attr_make_with_qos_class(
+										   DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0 ) );
+	});
+
+	return queue;
+}
+
+- (NSException*) _runScanBlockOffMainThread: (void (^)(void)) work
+							 estimatingFrom: (NSURL*) rootURL
+{
+	NSAssert( [NSThread isMainThread], @"a scan must be started from the main thread" );
+
+	[self _beginScan];
+
+	_scanEstimatedTotal = ( rootURL != nil ) ? [[self class] _estimatedItemCountForURL: rootURL] : 0;
+	[_progressController setProgressFraction: ( _scanEstimatedTotal > 0 ) ? 0.0 : -1.0];
+
+	__block NSException *caught = nil;
+	__block BOOL finished = NO;
+
+	dispatch_async( [[self class] _scanQueue], ^{
+		@autoreleasepool
+		{
+			@try
+			{
+				work();
+			}
+			@catch ( NSException *exception )
+			{
+				caught = exception;
+			}
+
+			//back on the main thread, so the flag is written where it is read
+			dispatch_async( dispatch_get_main_queue(), ^{ finished = YES; } );
+		}
+	});
+
+	//How often the path label is refreshed, as against how often the main thread
+	//wakes. Waking often is what makes Cancel feel immediate; redrawing the
+	//label that often is just work, and measurably slowed the scan when the two
+	//were the same number.
+	const NSTimeInterval messageInterval = 0.1;
+	uint64_t lastMessageTime = 0;
+
+	while ( !finished )
+	{
+		@autoreleasepool
+		{
+			uint64_t now = getTime();
+			if ( lastMessageTime == 0 || subtractTime( now, lastMessageTime ) >= messageInterval )
+			{
+				NSString *path = [self _takeScanCurrentPath];
+				if ( path != nil )
+					[_progressController setMessageText: path];
+
+				[_scanLock lock];
+				const NSUInteger done = _scanItemsDone;
+				[_scanLock unlock];
+
+				[_progressController setProgressFraction:
+					( _scanEstimatedTotal > 0 ) ? (double) done / (double) _scanEstimatedTotal : -1.0];
+
+				lastMessageTime = now;
+			}
+
+			if ( ![_progressController runModalSessionForInterval: 0.05] )
+			{
+				//the session ended under us; stop the walk rather than waiting
+				//out a scan whose panel has gone
+				[self _cancelScan];
+				break;
+			}
+
+			if ( [_progressController cancelPressed] )
+				[self _cancelScan];
+		}
+	}
+
+	//the queue may still be unwinding after a cancel; wait for it, or the tree
+	//would be torn down underneath it
+	while ( !finished )
+	{
+		@autoreleasepool
+		{
+			[[NSRunLoop currentRunLoop] runMode: NSDefaultRunLoopMode
+									 beforeDate: [NSDate dateWithTimeIntervalSinceNow: 0.02]];
+		}
+	}
+
+	return caught;
+}
+
 #pragma mark ----------------------FSItem delegates-----------------------------------
 
+//Called for every folder, on the scan queue. It must not touch the progress
+//panel or any other view: it records the path for the main thread to pick up
+//and answers whether to keep going. This used to pump the event loop from here,
+//which is what made the scan and the interface take turns on one thread.
 - (BOOL) fsItemEnteringFolder: (FSItem*) item
 {
 	//if we don't show the progress panel, we don't need to do anything
@@ -845,12 +1121,18 @@ NSString *OldItem = @"OldItem";
 			parentItem = [parentItem parent];
 		
 		if ( parentItem == nil )
-			[_progressController setMessageText: [item displayPath]];
+			[self _setScanCurrentPath: [item displayPath]];
 	}
 
-	[_progressController runEventLoop];
-	
-	return ![_progressController cancelPressed];
+	//g_fileCount and g_folderCount are incremented as each FSItem is created,
+	//on this same thread, so reading them here needs no synchronising — only
+	//publishing the total to the main thread does. Folder granularity is plenty
+	//for a progress bar: a 20,000-item scan passes through here ~900 times.
+	[_scanLock lock];
+	_scanItemsDone = g_fileCount + g_folderCount;
+	[_scanLock unlock];
+
+	return ![self _scanWasCancelled];
 }
 
 - (BOOL) fsItemExittingFolder: (FSItem*) item
@@ -865,19 +1147,22 @@ NSString *OldItem = @"OldItem";
 	return YES;
 }
 
+//These three are asked once per file, from the scan queue. They answer from a
+//snapshot taken before the scan started rather than reading the document's view
+//options live, so the queue never reads state the main thread could be writing.
 - (BOOL) fsItemShouldIgnoreCreatorCode: (FSItem*) item
 {
-	return [self ignoreCreatorCode];
+	return _scanIgnoreCreatorCode;
 }
 
 - (BOOL) fsItemShouldLookIntoPackages: (FSItem*) item
 {
-	return [self showPackageContents];
+	return _scanLookIntoPackages;
 }
 
 - (BOOL) fsItemShouldUsePhysicalFileSize: (FSItem*) item
 {
-	return [self showPhysicalFileSize];
+	return _scanUsePhysicalFileSize;
 }
 
 #pragma mark --------KVO-----------------

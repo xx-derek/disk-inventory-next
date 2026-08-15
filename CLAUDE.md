@@ -174,10 +174,70 @@ cancellation works — it raises `FSItemLoadingCanceledException`. Scanning ther
 **exceptions for control flow**; `FSItemLoadingFailedException` signals an unreadable or
 ejected volume. Wrap tree walks accordingly.
 
-The scan is **synchronous on the main thread**, not backgrounded. Responsiveness comes from
-`FileSystemDoc fsItemEnteringFolder:` calling `[_progressController runEventLoop]` on every
-folder to pump events manually, then returning `![_progressController cancelPressed]`. Any
-work added to that callback runs once per directory and directly slows every scan.
+**The scan runs on a background queue** as of 2026-08-15; before that it was synchronous on
+the main thread, pumping the event loop from inside the directory walk every 0.2 seconds.
+`FileSystemDoc -_runScanBlockOffMainThread:` dispatches the walk and keeps the main thread
+in the progress panel's modal session until it finishes.
+
+What that means for anything touching the walk:
+
+- **The `FSItemDelegate` callbacks run on the scan queue.** They must not touch a view.
+  `-fsItemEnteringFolder:` records the path under `_scanLock` for the main thread to pick
+  up, and answers `![self _scanWasCancelled]`. The three option callbacks answer from
+  snapshots taken in `-_beginScan`, so the queue never reads document state the main thread
+  could be writing.
+- **All scans share one serial queue.** The walk touches process-wide state that is not
+  guarded — `FSItem`'s `g_kindNameDictionary`, the `g_fileCount`/`g_folderCount` counters —
+  so two documents opening at once must not walk simultaneously. This also matches the old
+  behaviour, where a second scan simply waited.
+- **The exception is carried back by hand.** The walk uses exceptions as ordinary control
+  flow, and one raised on the queue cannot be caught on the main thread; the block catches
+  it and `-_runScanBlockOffMainThread:` returns it to be re-raised.
+- **`refreshFileKindStatistics` stays on the main thread.** It posts KVO for
+  `kindStatistics`, which bound controls observe, and `-reserveColorsForLargestKinds`
+  mutates the `FileTypeColors` singleton other documents read while drawing. It is also
+  cheap next to the walk: measured over `/usr/share`, 20,179 items, the walk takes ~0.7 s
+  and the statistics pass 0.01 s.
+
+**This did not make scanning faster** and was not meant to. On a warm cache the times are
+the same within run-to-run variance (0.63–0.71 s before, 0.67 s median after). What changed
+is that the main thread is no longer doing file I/O, so the panel animates, Cancel responds
+at once, and the application stays usable — where it used to be frozen between pumps, which
+on slow or network volumes is most of the time.
+
+One measured trap: waking the main thread every 50 ms *and* redrawing the path label every
+time cost about 7% of scan time. The label is throttled to 0.1 s separately from the wake
+interval; keep those two numbers apart.
+
+### Estimating scan progress
+
+A directory walk has no total to divide by, so the panel gets one of two things:
+
+- **What the last scan of this exact path found.** Every completed scan writes its item
+  count to the `ScannedItemCounts` user default, keyed by path, and the next scan of that
+  path divides by it. Exact by construction and self-correcting. It is internal state, not
+  a setting, so it is deliberately not in `Info.plist`'s `Registrations`; entries for paths
+  that no longer exist are pruned when it is written, so it cannot grow without bound.
+- **`statfs` for a whole volume**, where `f_files - f_ffree` is the number of inodes in use
+  and close to what the walk will visit. It answers for the *volume*, so it is no use for a
+  folder inside one — asked about `/usr/share` it reports the boot volume's 458,726 against
+  the 20,180 actually there. Hence the `isVolume` test.
+
+With neither, the bar stays indeterminate and the percentage is blank rather than showing
+a number that would be made up. The percentage is held at 99% until the scan really ends,
+because the total is an estimate and a full bar over a still-running scan reads as a hang.
+
+Counting is done in `-fsItemEnteringFolder:` by reading `g_fileCount + g_folderCount`,
+which the walk increments on that same thread — so no synchronising is needed to read them,
+only to publish the total. Folder granularity is plenty: a 20,000-item scan passes through
+there about 900 times.
+
+**Do not start the progress indicator's indeterminate animation unless you mean it.** Once
+that animation is running inside a modal session, `-setIndeterminate:NO` does not reliably
+stop it drawing: `-isIndeterminate` answers `NO` while the barber pole carries on over the
+top of the value, so the bar and the percentage disagree — the label read 91% while the bar
+showed a sliver at the far right. The panel therefore starts the indicator stopped, and
+`-setProgressFraction:` animates it only in the no-estimate case.
 
 Sizes are `unsigned long long` / `UInt64` throughout. Do not narrow them.
 
