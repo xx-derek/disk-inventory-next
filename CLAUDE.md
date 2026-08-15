@@ -212,11 +212,25 @@ ibtool --generate-strings-file /tmp/x.strings en.lproj/MainMenu.nib   # extract
 ibtool --strings-file /tmp/x.strings --write /tmp/new.nib en.lproj/MainMenu.nib
 ```
 
-This recompiles `keyedobjects.nib` with the current Xcode toolchain. Two consequences seen
-during the rename: the archive shrinks (modern compiler, benign), and per-OS variants like
-`keyedobjects-101300.nib` are **not** regenerated — current `ibtool` no longer emits them
-even with `--minimum-deployment-target`. AppKit falls back to `keyedobjects.nib`, so this
-is safe.
+This recompiles `keyedobjects.nib` with the current Xcode toolchain, and the archive shrinks
+(modern compiler, benign).
+
+> **A per-OS variant beats the file you just edited.** Some `.nib` bundles also contain
+> `keyedobjects-101300.nib`. AppKit **prefers** that variant on macOS 10.13 and later, so
+> editing `keyedobjects.nib` alone changes nothing at runtime — and current `ibtool` cannot
+> regenerate the variant, even with `--minimum-deployment-target`. An earlier version of
+> this file claimed AppKit falls back to `keyedobjects.nib`; that is wrong, and it cost a
+> debugging session. Delete the variant so the edited nib is the only one:
+>
+> ```sh
+> find . -name "keyedobjects-*.nib" -not -path "./build/*"
+> ```
+>
+> Only `en.lproj` and `fr.lproj/TreeMap.nib` ever had one, and both are now gone. The
+> symptom is nasty: `de` and `es` pick up the edit while `en` and `fr` silently do not, so
+> the app behaves differently per language. Worse, an edit can appear to work for the wrong
+> reason — removing the `OASplitView` class made the stale nib fall back to `NSSplitView`
+> because the custom class no longer existed, which looked exactly like success.
 
 ### Editing a nib without Interface Builder
 

@@ -100,7 +100,14 @@ static const NSTimeInterval TMVZoomStepInterval = 1.0 / 60.0;
 
 	//the view redraws, and tears us down once -hasFinished says so
 	if ( _delegate != nil && [_delegate respondsToSelector: _delegateSelector] )
-		[_delegate performSelector: _delegateSelector withObject: self];
+	{
+		//called through the IMP rather than -performSelector:, which ARC warns
+		//about because it cannot know the selector's memory semantics
+		void (*notify)( id, SEL, id ) = (void (*)( id, SEL, id ))
+			[_delegate methodForSelector: _delegateSelector];
+
+		notify( _delegate, _delegateSelector, self );
+	}
 }
 
 //An NSTimer retains its target, so a running zoom keeps the receiver alive.

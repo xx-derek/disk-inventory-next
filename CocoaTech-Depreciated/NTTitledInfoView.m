@@ -197,7 +197,7 @@
 
 - (void)reset;
 {
-    int i, cnt;
+    NSInteger i, cnt;
     NTFastTextView* view;
 
     cnt = [_titleViews count];
@@ -227,7 +227,7 @@
 
 - (void)createViews;
 {
-    int i, cnt = [_pairs count];
+    NSInteger i, cnt = [_pairs count];
 
     for (i=0;i<cnt;i++)
     {
@@ -254,7 +254,7 @@
 
 - (void)positionViews;
 {        
-    int i,cnt=[_titleViews count];
+    NSInteger i,cnt=[_titleViews count];
     
     if (cnt)
     {
@@ -319,7 +319,7 @@
         NSRect viewRect;
         
         // draw lines
-        int i, cnt = [_infoViews count];
+        NSInteger i, cnt = [_infoViews count];
         for (i=0;i<cnt;i++)
         {
             viewRect = [[_infoViews objectAtIndex:i] frame];
@@ -384,7 +384,7 @@
 {
     NSRect bounds = [self bounds];
     NSRect viewRect = bounds;
-    int i, cnt;
+    NSInteger i, cnt;
     
     NSColor *whiteLineColor = [[NSColor whiteColor] colorWithAlphaComponent:.7];
     if (@available(macOS 10.14, *))

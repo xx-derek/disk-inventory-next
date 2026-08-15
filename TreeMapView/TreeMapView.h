@@ -85,7 +85,7 @@ typedef TMVItem* TMVCellId;
 @interface NSObject(TreeMapViewDataSource)
 
 //"item" is nil for the root of the tree
-- (unsigned) treeMapView: (TreeMapView*) view numberOfChildrenOfItem: (id) item;
+- (NSUInteger) treeMapView: (TreeMapView*) view numberOfChildrenOfItem: (id) item;
 - (id) treeMapView: (TreeMapView*) view child: (NSUInteger) index ofItem: (id) item;
 - (BOOL) treeMapView: (TreeMapView*) view isNode: (id) item;
 

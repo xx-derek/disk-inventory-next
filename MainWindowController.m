@@ -117,25 +117,18 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 
 #pragma mark -----------------side panes-----------------------
 
-//Takes the two views the nib built inside the drawers and installs them as
-//collapsible split-view panes instead: statistics to the left of the outline and
-//treemap, selection list below them, which is where the drawers used to slide
-//out from. Done here rather than in the nib so the four localized nibs do not
-//have to be restructured.
+//Installs the two loose views the nib supplies as collapsible split-view panes:
+//statistics to the left of the outline and treemap, selection list below them,
+//which is where the drawers they replaced used to slide out from. The split
+//views are built here rather than in the nib because four localized copies of a
+//nested split layout would be four chances to get it subtly different.
 - (void) buildSidePanes
 {
 	NSView *contentView = [[self window] contentView];
 
-	_kindStatisticsPane = [_kindsDrawer contentView];
-	_selectionListPane = [_selectionListDrawer contentView];
-
-	//the drawers keep their content views alive, so take them away first
-	[_kindsDrawer setContentView: nil];
-	[_selectionListDrawer setContentView: nil];
-
 	if ( _kindStatisticsPane == nil || _selectionListPane == nil )
 	{
-		NSLog( @"side panes could not be built: the nib did not supply their content views" );
+		NSLog( @"side panes could not be built: the nib did not supply their views" );
 		return;
 	}
 
@@ -700,7 +693,7 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 	}
 	
 	//remove any supernumerary menu items (removed all items if is there is no app which can open this file)
-	unsigned removeMenuItemsFromIndex = ([apps defaultAppURL] != nil) ? [[apps additionalAppURLs] count] +2 : 0;
+	NSUInteger removeMenuItemsFromIndex = ([apps defaultAppURL] != nil) ? [[apps additionalAppURLs] count] +2 : 0;
 	
 	while ( ((unsigned) [_openWithSubMenu numberOfItems]) > removeMenuItemsFromIndex )
 		[_openWithSubMenu removeItemAtIndex: [_openWithSubMenu numberOfItems] -1];

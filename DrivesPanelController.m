@@ -280,7 +280,7 @@
 
 #pragma mark --------NSTableView delegates-----------------
 
-- (void) tableView:(NSTableView *) tableView willDisplayCell:(id) cell forTableColumn:(NSTableColumn *) tableColumn row:(int) row
+- (void) tableView:(NSTableView *) tableView willDisplayCell:(id) cell forTableColumn:(NSTableColumn *) tableColumn row:(NSInteger) row
 {
 	if ( [[tableColumn identifier] isEqualToString: @"usagePercent"] )
 	{
@@ -290,7 +290,7 @@
 		if ( [progrInd superview] != tableView )
 			[tableView addSubview: progrInd];
 		
-		int colIndex = [tableView columnWithIdentifier: [tableColumn identifier]];
+		NSInteger colIndex = [tableView columnWithIdentifier: [tableColumn identifier]];
 		NSRect cellRect = [tableView frameOfCellAtColumn: colIndex row: row];
 		
 		const float progrIndThickness = NSProgressIndicatorPreferredLargeThickness; 

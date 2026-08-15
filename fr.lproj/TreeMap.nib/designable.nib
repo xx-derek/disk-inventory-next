@@ -9,9 +9,9 @@
         <customObject id="-2" userLabel="File's Owner" customClass="MainWindowController">
             <connections>
                 <outlet property="_filesOutlineView" destination="65" id="124"/>
-                <outlet property="_kindsDrawer" destination="21" id="102"/>
+                <outlet property="_kindStatisticsPane" destination="24" id="102"/>
                 <outlet property="_openWithSubMenu" destination="uNZ-XD-ZCi" id="9fn-Gu-sOD"/>
-                <outlet property="_selectionListDrawer" destination="137" id="149"/>
+                <outlet property="_selectionListPane" destination="138" id="149"/>
                 <outlet property="_splitter" destination="95" id="116"/>
                 <outlet property="_treeMapView" destination="30" id="125"/>
                 <outlet property="window" destination="22" id="28"/>
@@ -19,15 +19,6 @@
         </customObject>
         <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
-        <drawer preferredEdge="minX" trailingOffset="15" id="21">
-            <size key="contentSize" width="330" height="346"/>
-            <size key="minContentSize" width="20" height="50"/>
-            <size key="maxContentSize" width="1000" height="400"/>
-            <connections>
-                <outlet property="contentView" destination="24" id="26"/>
-                <outlet property="parentWindow" destination="22" id="25"/>
-            </connections>
-        </drawer>
         <window title="Window" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" frameAutosaveName="MainWindow" animationBehavior="default" id="22" userLabel="Parent Window">
             <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
@@ -328,15 +319,6 @@
             </items>
             <point key="canvasLocation" x="69" y="-211"/>
         </menu>
-        <drawer preferredEdge="minY" trailingOffset="15" id="137" userLabel="SelectionListDrawer">
-            <size key="contentSize" width="541" height="200"/>
-            <size key="minContentSize" width="50" height="30"/>
-            <size key="maxContentSize" width="600" height="1000"/>
-            <connections>
-                <outlet property="contentView" destination="138" id="139"/>
-                <outlet property="parentWindow" destination="22" id="150"/>
-            </connections>
-        </drawer>
         <customView id="138" userLabel="SelectionListContentView">
             <rect key="frame" x="0.0" y="0.0" width="456" height="167"/>
             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
