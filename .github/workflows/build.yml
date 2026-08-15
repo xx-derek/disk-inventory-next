@@ -1,0 +1,76 @@
+name: Build
+
+# Every push and pull request builds the app and holds it to the invariant the
+# project claims: a clean checkout builds with no setup, and with no warnings.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          echo "SDK: $(xcrun --show-sdk-version)"
+
+      # DEVELOPMENT_TEAM is set in the project to the fork owner's team, and no
+      # certificate for it exists on a runner. Ad-hoc rather than unsigned:
+      # an unsigned binary will not execute on Apple silicon, so the artifact
+      # could not even be smoke-tested.
+      - name: Build (Release)
+        run: |
+          set -o pipefail
+          xcodebuild -project "Disk Inventory Next.xcodeproj" \
+                     -configuration Release \
+                     -destination 'generic/platform=macOS' \
+                     CODE_SIGN_IDENTITY="-" \
+                     CODE_SIGN_STYLE=Manual \
+                     DEVELOPMENT_TEAM="" \
+                     PROVISIONING_PROFILE_SPECIFIER="" \
+                     build 2>&1 | tee /tmp/build.log
+
+      - name: Fail on warnings
+        run: |
+          count=$(grep -cE '(^| )warning:' /tmp/build.log || true)
+          echo "warnings: $count"
+          if [ "$count" -ne 0 ]; then
+            grep -E '(^| )warning:' /tmp/build.log | sort -u
+            echo "::error::the build is expected to be warning-free"
+            exit 1
+          fi
+
+      - name: Check the product
+        run: |
+          APP="build/Release/Disk Inventory Next.app"
+          BIN="$APP/Contents/MacOS/Disk Inventory Next"
+          test -d "$APP" || { echo "::error::no .app was produced"; exit 1; }
+
+          archs=$(lipo -archs "$BIN")
+          echo "architectures: $archs"
+          for want in arm64 x86_64; do
+            case " $archs " in
+              *" $want "*) ;;
+              *) echo "::error::$want missing from the binary"; exit 1 ;;
+            esac
+          done
+
+          # the deployment target the project claims
+          vtool -show-build "$BIN" | grep -m1 minos
+
+          # the app icon must have survived the asset catalog
+          test -f "$APP/Contents/Resources/Assets.car" || { echo "::error::no Assets.car"; exit 1; }
+
+      - name: Upload unsigned build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Disk-Inventory-Next-unsigned
+          path: build/Release/Disk Inventory Next.app
+          retention-days: 14

@@ -1,0 +1,212 @@
+name: Release
+
+# Builds a universal .app, signs and notarizes it if the secrets are present,
+# and attaches it to a GitHub release.
+#
+# One artifact, universal. The binary is under a megabyte of a 3.3 MB bundle —
+# the icon and the four localizations are most of it — so thinning to a single
+# architecture saves about 200 KB on a 2 MB download. Not worth splitting the
+# release in two, and a thin build would break for anyone moving their apps to a
+# new Mac with Migration Assistant.
+#
+# Secrets. With none of these set the workflow still runs and produces an ad-hoc
+# signed build, which is useful for testing but which Gatekeeper will refuse on
+# another Mac. For a real release, set:
+#
+#   MACOS_CERTIFICATE_P12       base64 of a "Developer ID Application" .p12
+#   MACOS_CERTIFICATE_PASSWORD  the password that .p12 was exported with
+#   MACOS_TEAM_ID               the 10-character team identifier
+#   NOTARY_KEY_P8               base64 of an App Store Connect API key (.p8)
+#   NOTARY_KEY_ID               that key's ID
+#   NOTARY_ISSUER_ID            the issuer UUID from App Store Connect
+#
+#   base64 -i cert.p12 | pbcopy      # to produce the two base64 values
+#
+# An API key is used rather than an Apple ID and app-specific password because
+# it does not involve two-factor prompts.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build and release (e.g. v1.4b2)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Work out the version
+        id: version
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          marketing=$(xcodebuild -project "Disk Inventory Next.xcodeproj" \
+                                 -configuration Release -showBuildSettings 2>/dev/null \
+                      | awk -F' = ' '/ MARKETING_VERSION /{print $2; exit}')
+          echo "marketing=$marketing" >> "$GITHUB_OUTPUT"
+          echo "tag $tag, MARKETING_VERSION $marketing"
+
+          # A mismatch is worth saying out loud: the version shown in the About
+          # box comes from the project, not from the tag.
+          if [ "${tag#v}" != "$marketing" ]; then
+            echo "::warning::tag ${tag#v} does not match MARKETING_VERSION $marketing"
+          fi
+
+      - name: Import the signing certificate
+        id: signing
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+        run: |
+          if [ -z "$CERT_P12" ]; then
+            echo "::warning::no signing certificate; building ad-hoc signed, which Gatekeeper will refuse elsewhere"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password=$(uuidgen)
+
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 900 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+                          -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+          # lets codesign use the key without an interactive prompt
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+                                          -s -k "$password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+
+          identity=$(security find-identity -v -p codesigning "$keychain" \
+                     | awk -F'"' '/Developer ID Application/{print $2; exit}')
+
+          if [ -z "$identity" ]; then
+            echo "::error::the .p12 contains no Developer ID Application identity"
+            exit 1
+          fi
+
+          echo "signing as: $identity"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
+          echo "team=$TEAM_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          set -o pipefail
+          if [ "${{ steps.signing.outputs.signed }}" = "true" ]; then
+            xcodebuild -project "Disk Inventory Next.xcodeproj" \
+                       -configuration Release \
+                       -destination 'generic/platform=macOS' \
+                       CODE_SIGN_STYLE=Manual \
+                       CODE_SIGN_IDENTITY="${{ steps.signing.outputs.identity }}" \
+                       DEVELOPMENT_TEAM="${{ steps.signing.outputs.team }}" \
+                       PROVISIONING_PROFILE_SPECIFIER="" \
+                       OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime" \
+                       build 2>&1 | tee /tmp/build.log
+          else
+            xcodebuild -project "Disk Inventory Next.xcodeproj" \
+                       -configuration Release \
+                       -destination 'generic/platform=macOS' \
+                       CODE_SIGN_IDENTITY="-" \
+                       CODE_SIGN_STYLE=Manual \
+                       DEVELOPMENT_TEAM="" \
+                       PROVISIONING_PROFILE_SPECIFIER="" \
+                       build 2>&1 | tee /tmp/build.log
+          fi
+
+          warnings=$(grep -cE '(^| )warning:' /tmp/build.log || true)
+          echo "warnings: $warnings"
+
+      - name: Check the product
+        run: |
+          APP="build/Release/Disk Inventory Next.app"
+          BIN="$APP/Contents/MacOS/Disk Inventory Next"
+
+          archs=$(lipo -archs "$BIN")
+          echo "architectures: $archs"
+          for want in arm64 x86_64; do
+            case " $archs " in
+              *" $want "*) ;;
+              *) echo "::error::$want missing — the release must be universal"; exit 1 ;;
+            esac
+          done
+
+          codesign --verify --deep --strict --verbose=2 "$APP"
+
+      - name: Notarize
+        if: steps.signing.outputs.signed == 'true'
+        env:
+          KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          APP="build/Release/Disk Inventory Next.app"
+
+          if [ -z "$KEY_P8" ]; then
+            echo "::warning::signed but not notarized; Gatekeeper will still warn on first launch"
+            exit 0
+          fi
+
+          echo "$KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+
+          # notarytool takes a zip, and it has to be made with ditto so the
+          # bundle's symlinks and extended attributes survive the round trip
+          ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/notarize.zip"
+
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+                --key "$RUNNER_TEMP/notary.p8" \
+                --key-id "$KEY_ID" \
+                --issuer "$ISSUER_ID" \
+                --wait --timeout 30m
+
+          rm -f "$RUNNER_TEMP/notary.p8"
+
+          # Stapling puts the ticket inside the bundle, so the app opens even on
+          # a Mac that cannot reach Apple to check.
+          xcrun stapler staple "$APP"
+          xcrun stapler validate "$APP"
+
+      - name: Package
+        id: package
+        run: |
+          APP="build/Release/Disk Inventory Next.app"
+          name="DiskInventoryNext-${{ steps.version.outputs.tag }}-universal.zip"
+
+          ditto -c -k --keepParent "$APP" "$name"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+          echo "### Artifact" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| | |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| file | \`$name\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| size | $(du -h "$name" | cut -f1) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| architectures | $(lipo -archs "$APP/Contents/MacOS/Disk Inventory Next") |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| signed | ${{ steps.signing.outputs.signed }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| sha256 | \`$(shasum -a 256 "$name" | cut -d' ' -f1)\` |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          draft: true
+          generate_release_notes: true
+          files: ${{ steps.package.outputs.name }}

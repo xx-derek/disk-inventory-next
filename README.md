@@ -158,6 +158,50 @@ None — the app links only system frameworks. See
 [No external dependencies](#no-external-dependencies) for what used to be required and
 where it went.
 
+### Releases
+
+Two workflows under [`.github/workflows/`](.github/workflows):
+
+- **Build** runs on every push and pull request. It builds Release with ad-hoc signing,
+  **fails if the build produces any warning**, and checks the product is universal.
+- **Release** runs on a `v*` tag, or on demand. It builds, signs, notarizes, staples and
+  attaches a single universal `.zip` to a draft GitHub release.
+
+```sh
+git tag v1.4b2 && git push github v1.4b2
+```
+
+The release is created as a **draft** so the artifact can be checked before it is public.
+
+Releases are **one universal binary**, not one per architecture. The executable is under a
+megabyte of a 3.3 MB bundle — the icon and the four localizations are most of it — so
+thinning to a single architecture saves about 200 KB on a 2 MB download. That is not worth
+asking people which Mac they have, and a thin build would break for anyone moving their
+apps to a new machine with Migration Assistant.
+
+#### Signing secrets
+
+Without these the release workflow still runs, but produces an ad-hoc signed build that
+Gatekeeper will refuse on anyone else's Mac. For a real release, set them in the
+repository's Actions secrets:
+
+| Secret | What |
+| --- | --- |
+| `MACOS_CERTIFICATE_P12` | base64 of a "Developer ID Application" `.p12` |
+| `MACOS_CERTIFICATE_PASSWORD` | the password it was exported with |
+| `MACOS_TEAM_ID` | the 10-character team identifier |
+| `NOTARY_KEY_P8` | base64 of an App Store Connect API key (`.p8`) |
+| `NOTARY_KEY_ID` | that key's ID |
+| `NOTARY_ISSUER_ID` | the issuer UUID from App Store Connect |
+
+```sh
+base64 -i DeveloperID.p12 | pbcopy      # and likewise for the .p8
+```
+
+An API key is used rather than an Apple ID and app-specific password because it does not
+involve two-factor prompts. Signing and notarization have **not been exercised yet** — every
+build so far has been ad-hoc — so expect the first tagged run to need a correction or two.
+
 ### macOS privacy protections
 
 Modern macOS restricts access to Desktop, Documents, Downloads, and other locations. The
