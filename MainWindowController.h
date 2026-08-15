@@ -7,15 +7,12 @@
 
 @interface MainWindowController : ToolbarWindowController <NSSplitViewDelegate>
 {
-    //The nib still builds these, but only as containers: their content views are
-    //re-parented into split views at load time and the drawers themselves are
-    //never opened. Typed id so no deprecated NSDrawer symbol appears in code.
-    IBOutlet id _kindsDrawer;
-    IBOutlet id _selectionListDrawer;
+    //Connected straight from the nib. These were the two drawers' content views
+    //until the drawers were removed; they are now installed as collapsible
+    //split-view panes at window load.
+    IBOutlet NSView *_kindStatisticsPane;
+    IBOutlet NSView *_selectionListPane;
 
-    //the panes that replaced them, and the split views holding them
-    NSView *_kindStatisticsPane;
-    NSView *_selectionListPane;
     NSSplitView *_kindStatisticsSplitView;
     NSSplitView *_selectionListSplitView;
 	IBOutlet NSSplitView *_splitter;
