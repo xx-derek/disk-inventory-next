@@ -75,8 +75,8 @@ sourceOperationMaskForDraggingContext: (NSDraggingContext) context
     id delegate = [self delegate];
 
 	//forward to our delegate, if possible
-	if ( [delegate  respondsToSelector:@selector(draggingSourceOperationMaskForLocal:)] )
-		return [delegate draggingSourceOperationMaskForLocal: isLocal];
+	if ( [delegate  respondsToSelector:@selector(dragOperationMaskForLocalDestination:)] )
+		return [delegate dragOperationMaskForLocalDestination: isLocal];
 	else
 		return [super draggingSession: session sourceOperationMaskForDraggingContext: context];
 }

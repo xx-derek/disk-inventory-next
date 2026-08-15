@@ -28,8 +28,12 @@
 - (NSMenu*) outlineView: (NSOutlineView *) outlineView menuForTableColumn: (NSTableColumn*) column item: (id) item;
 	//delegate will be asked what menu to show (if not implemented by delegate [self menu] is used)
 
-//- (NSDragOperation) draggingSourceOperationMaskForLocal:(BOOL)isLocal;
-	//ask the delegate which drag operations are supported (if TableView is the dragging source);
-	//as this selector is already part of NSDraggingSource category, we don't need to re-declare it here
+- (NSDragOperation) dragOperationMaskForLocalDestination:(BOOL)isLocal;
+	//ask the delegate which drag operations are supported (if OutlineView is the dragging source)
+	//
+	//This used to be spelled -draggingSourceOperationMaskForLocal:, which came
+	//from NSDraggingSource and so did not need declaring here. That method was
+	//deprecated in 10.7, so the name is now the app's own and has to be
+	//declared.
 @end
 

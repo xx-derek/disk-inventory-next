@@ -76,7 +76,16 @@ BOOL g_EnableLogging;
 
 - (void) openDocumentWithContentsOfFile: (NSString*) fileName
 {
-	[self openDocumentWithContentsOfFile: fileName display: [self shouldCreateUI]];
+	//-openDocumentWithContentsOfFile:display: and -shouldCreateUI were both
+	//deprecated in 10.4; the URL form reports failure through the completion
+	//handler rather than returning a document.
+	[self openDocumentWithContentsOfURL: [NSURL fileURLWithPath: fileName]
+								display: YES
+					  completionHandler: ^( NSDocument *document, BOOL alreadyOpen, NSError *error )
+	{
+		if ( document == nil && error != nil )
+			LOG( @"could not open '%@': %@", fileName, [error localizedDescription] );
+	}];
 }
 
 - (BOOL) applicationShouldOpenUntitledFile: (NSApplication*) sender
@@ -111,7 +120,7 @@ BOOL g_EnableLogging;
 	
 	for ( NSURL *dir in fileNames )
 	{
-		[self openDocumentWithContentsOfFile: [dir path] display: YES];
+		[self openDocumentWithContentsOfFile: [dir path]];
 	}
 }
 
@@ -185,7 +194,13 @@ BOOL g_EnableLogging;
     //show donate message
 	if ( ![[NSUserDefaults standardUserDefaults] boolForKey: DontShowDonationMessage] )
 	{
-		[NSBundle loadNibNamed: @"DonationPanel" owner:self];
+		//Under the old +loadNibNamed:owner: the nib's top-level objects were
+		//retained (and leaked) for us. The replacement hands them back
+		//autoreleased, so they have to be held or the panel is deallocated on
+		//the way out of this method.
+		NSArray *topLevelObjects = nil;
+		[[NSBundle mainBundle] loadNibNamed: @"DonationPanel" owner: self topLevelObjects: &topLevelObjects];
+		_nibTopLevelObjects = topLevelObjects;
 		[_donationPanel setWorksWhenModal: YES];
 	}
 	

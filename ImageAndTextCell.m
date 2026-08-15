@@ -172,19 +172,17 @@
         imageFrame.origin.x += IMAGE_OFFSET;
         imageFrame.size = imageSize;
 
-        if ([controlView isFlipped])
-            imageFrame.origin.y += ceil((cellFrame.size.height + imageFrame.size.height) / 2);
-        else
-            imageFrame.origin.y += ceil((cellFrame.size.height - imageFrame.size.height) / 2);
+        //One offset for both cases now: -compositeToPoint: ignored the view's
+        //flippedness, which is why the flipped branch had to push the origin
+        //past the centre. -drawInRect:...respectFlipped: handles it.
+        imageFrame.origin.y += ceil((cellFrame.size.height - imageFrame.size.height) / 2);
 
-       //[_image drawInRect: imageFrame
-       //          fromRect: NSZeroRect/*entire image*/
-       //         operation: NSCompositeSourceOver
-       //          fraction: 1.0/*opaque*/
-       //    respectFlipped: YES
-       //             hints: nil];
-       
-       [_image compositeToPoint:imageFrame.origin operation:NSCompositeSourceOver];
+        [_image drawInRect: imageFrame
+                  fromRect: NSZeroRect/*entire image*/
+                 operation: NSCompositingOperationSourceOver
+                  fraction: 1.0/*opaque*/
+            respectFlipped: YES
+                     hints: nil];
     }
     
     NSString *truncatedString = [ImageAndTextCell stringByTruncatingToWidth: NSWidth(cellFrame)

@@ -5,7 +5,7 @@
 #import <TreeMapView/TreeMapView.h>
 #import "ToolbarWindowController.h"
 
-@interface MainWindowController : ToolbarWindowController
+@interface MainWindowController : ToolbarWindowController <NSSplitViewDelegate>
 {
     //The nib still builds these, but only as containers: their content views are
     //re-parented into split views at load time and the drawers themselves are

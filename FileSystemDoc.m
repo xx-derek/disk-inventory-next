@@ -15,6 +15,7 @@
 //
 
 #import "FileSystemDoc.h"
+#import "NSAlert-Extensions.h"
 #import "NSURL-Extensions.h"
 #import "MainWindowController.h"
 #import "DrivesPanelController.h"
@@ -542,13 +543,9 @@ NSString *OldItem = @"OldItem";
         NSString *msg = [NSString stringWithFormat: @"\"%@\" does not exist any more.", [[self rootItem] displayPath]];
         NSString *subMsg = NSLocalizedString( @"The folder will remain visible in Disk Inventory Next, but the files cannot be accessed (e.g. shown in the Finder).",@"");
         
-        NSBeginInformationalAlertSheet( msg,
-                                       NSLocalizedString(@"OK",@""),
-                                       nil, nil,
-                                       [[[self windowControllers] objectAtIndex: 0] window],
-                                       nil, NULL, NULL, nil,
-                                       @"%@",
-                                       subMsg );
+        [NSAlert showInformationalSheetWithMessage: msg
+                                       explanation: subMsg
+                                         forWindow: [[[self windowControllers] objectAtIndex: 0] window]];
 
 		return;
 	}
@@ -586,13 +583,9 @@ NSString *OldItem = @"OldItem";
 		else
 		{
 			//error
-            NSBeginInformationalAlertSheet( NSLocalizedString( @"The folder's content could not be loaded.", @""),
-                                           NSLocalizedString(@"OK",@""),
-                                           nil, nil,
-                                           [[[self windowControllers] objectAtIndex: 0] window],
-                                           nil, NULL, NULL, nil,
-                                           @"%@",
-                                           [localException reason] );
+            [NSAlert showInformationalSheetWithMessage: NSLocalizedString( @"The folder's content could not be loaded.", @"")
+                                          explanation: [localException reason]
+                                            forWindow: [[[self windowControllers] objectAtIndex: 0] window]];
 
 		}
 		NS_VOIDRETURN;

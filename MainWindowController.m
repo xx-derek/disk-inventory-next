@@ -15,6 +15,7 @@
 //
 
 #import "MainWindowController.h"
+#import "NSAlert-Extensions.h"
 
 NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibilityChanged";
 #import "InfoPanelController.h"
@@ -26,7 +27,7 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 #import "NSURL-Extensions.h"
 
 @interface MainWindowController(Private)
-- (void) moveToTrashSheetDidDismiss: (NSWindow*) sheet returnCode: (int) returnCode contextInfo: (void*) contextInfo;
+- (void) moveItemToTrash: (FSItem*) selectedItem;
 @end
 
 @implementation MainWindowController
@@ -86,7 +87,7 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 	poofEffectPoint = [view convertPoint: poofEffectPoint toView: nil];
 	
 	//convert window to screen coords
-	poofEffectPoint = [[view window] convertBaseToScreen: poofEffectPoint];
+	poofEffectPoint = [[view window] convertPointToScreen: poofEffectPoint];
 	
 	NSSize size = NSMakeSize(NSWidth(rect), NSHeight(rect));
 	
@@ -352,24 +353,28 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 		NSString *msg = [NSString stringWithFormat: NSLocalizedString(@"The item \"%@\" could not be moved to the trash.",@""),
 													[selectedItem displayName]];
 
-		NSBeginAlertSheet( msg,
-                          NSLocalizedString(@"No",@""),
-                          NSLocalizedString(@"Yes",@""),
-						  nil,
-						  [self window],
-						  self,
-						  nil,
-						  @selector(moveToTrashSheetDidDismiss: returnCode: contextInfo:),
-						  //unowned: the document holds the selection for as long as the
-						  //sheet is up, so nothing else has to keep it alive
-						  (__bridge void*) selectedItem,
-						  @"%@", NSLocalizedString(@"Would you like to delete it immediately?",@""));
+		NSAlert *alert = [[NSAlert alloc] init];
+
+		[alert setMessageText: msg];
+		[alert setInformativeText: NSLocalizedString(@"Would you like to delete it immediately?",@"")];
+
+		//"No" is added first, so it is the rightmost and default button: this
+		//sheet guards deleting a file outright, and the return key must not do
+		//that. NSBeginAlertSheet's first button title had the same role, and its
+		//"Yes" was the alternate button the old callback tested for.
+		[alert addButtonWithTitle: NSLocalizedString(@"No",@"")];
+		[alert addButtonWithTitle: NSLocalizedString(@"Yes",@"")];
+
+		[alert beginSheetModalForWindow: [self window]
+					  completionHandler: ^( NSModalResponse returnCode )
+		{
+			if ( returnCode == NSAlertSecondButtonReturn )
+				[self moveItemToTrash: selectedItem];
+		}];
 	}
 	else
 	{
-		[self moveToTrashSheetDidDismiss: nil
-							  returnCode: NSAlertAlternateReturn
-							 contextInfo: (__bridge void*) selectedItem];
+		[self moveItemToTrash: selectedItem];
 	}
 }
 
@@ -454,7 +459,7 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 	uint64_t doneTime = getTime();
 	
 	NSString *msg = [NSString stringWithFormat: @"rendering %u times took %.2f seconds", count, subtractTime(doneTime, startTime)];
-	NSBeginInformationalAlertSheet( msg, nil, nil, nil, [_splitter window], nil, nil, nil, nil, @"" );
+	[NSAlert showInformationalSheetWithMessage: msg explanation: nil forWindow: [_splitter window]];
 }
 
 - (IBAction) performLayoutBenchmark:(id)sender
@@ -468,7 +473,7 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 	uint64_t doneTime = getTime();
 	
 	NSString *msg = [NSString stringWithFormat: @"layout calculation %u times took %.2f seconds", count, subtractTime(doneTime, startTime)];
-	NSBeginInformationalAlertSheet( msg, nil, nil, nil, [_splitter window], nil, nil, nil, nil, @"" );
+	[NSAlert showInformationalSheetWithMessage: msg explanation: nil forWindow: [_splitter window]];
 }
 
 #pragma mark -----------------edit menu-----------------------
@@ -738,16 +743,13 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 
 @implementation MainWindowController(Private)
 
-- (void) moveToTrashSheetDidDismiss: (NSWindow *) sheet
-						 returnCode: (int) returnCode
-						contextInfo: (void*) contextInfo
+//Was -moveToTrashSheetDidDismiss:returnCode:contextInfo:. The confirmation is
+//now an NSAlert completion handler, which can capture the item directly, so the
+//return code and the bridged void* context are both gone.
+- (void) moveItemToTrash: (FSItem*) selectedItem
 {
-	if ( returnCode != NSAlertAlternateReturn )
-		return;
-	
 	FileSystemDoc *doc = [self document];
-	FSItem *selectedItem = (__bridge FSItem*) contextInfo;
-	
+
 	NSParameterAssert(	selectedItem != nil
 						&& selectedItem != [doc zoomedItem] 
 						&& ![selectedItem isSpecialItem] );
@@ -780,13 +782,7 @@ constrainMaxCoordinate: (CGFloat) proposedMax
         NSString *msg = [NSString stringWithFormat: NSLocalizedString(@"\"%@\" cannot be moved to the trash by Disk Inventory Next.",@""), [selectedItem displayName] ];
         NSString *subMsg = error.localizedFailureReason; //NSLocalizedString( @"Maybe you do not have sufficient access privileges.", @"" );
         
-        NSBeginInformationalAlertSheet( msg,
-                                       NSLocalizedString(@"OK",@""),
-                                       nil, nil,
-                                       [self window],
-                                       nil, NULL, NULL, nil,
-                                       @"%@",
-                                       subMsg );
+        [NSAlert showInformationalSheetWithMessage: msg explanation: subMsg forWindow: [self window]];
  	}
 }
 

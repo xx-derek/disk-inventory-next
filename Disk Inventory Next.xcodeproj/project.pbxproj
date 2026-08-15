@@ -93,6 +93,7 @@
 		DEC1DE000000000000000003 /* ToolbarWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC1DE000000000000000002 /* ToolbarWindowController.m */; };
 		DEC1DE000000000000000006 /* PrefsPageRecord.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC1DE000000000000000005 /* PrefsPageRecord.m */; };
 		DEC1DE000000000000000009 /* NTPasteboardHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC1DE000000000000000008 /* NTPasteboardHelper.m */; };
+		DEC2DE000000000000000003 /* NSAlert-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC2DE000000000000000002 /* NSAlert-Extensions.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -295,6 +296,8 @@
 		DEC1DE000000000000000005 /* PrefsPageRecord.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "PrefsPageRecord.m"; sourceTree = "<group>"; };
 		DEC1DE000000000000000007 /* NTPasteboardHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NTPasteboardHelper.h"; sourceTree = "<group>"; };
 		DEC1DE000000000000000008 /* NTPasteboardHelper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NTPasteboardHelper.m"; sourceTree = "<group>"; };
+		DEC2DE000000000000000001 /* NSAlert-Extensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSAlert-Extensions.h"; sourceTree = "<group>"; };
+		DEC2DE000000000000000002 /* NSAlert-Extensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSAlert-Extensions.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -443,6 +446,8 @@
 		FCCFB2AB097FA42B009EA2B6 /* AppKit Extension */ = {
 			isa = PBXGroup;
 			children = (
+				DEC2DE000000000000000001 /* NSAlert-Extensions.h */,
+				DEC2DE000000000000000002 /* NSAlert-Extensions.m */,
 				FCCFB2AC097FA42B009EA2B6 /* DIXTableView.h */,
 				FCCFB2AD097FA42B009EA2B6 /* DIXTableView.m */,
 				FCCFB2AE097FA42B009EA2B6 /* DIXOutlineView.h */,
@@ -787,6 +792,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DEC2DE000000000000000003 /* NSAlert-Extensions.m in Sources */,
 				DEC1DE000000000000000003 /* ToolbarWindowController.m in Sources */,
 				DEC1DE000000000000000006 /* PrefsPageRecord.m in Sources */,
 				DEC1DE000000000000000009 /* NTPasteboardHelper.m in Sources */,

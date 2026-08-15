@@ -78,7 +78,20 @@
 	[self rebuildVolumesArray];
 	
 	//load Nib with volume panel
-    if ( ![NSBundle loadNibNamed: @"VolumesPanel" owner: self] )
+	//Under the old +loadNibNamed:owner: the nib's top-level objects were
+	//retained (and leaked) for us. The replacement hands them back
+	//autoreleased, so they have to be held or the panel is deallocated on
+	//the way out of this method.
+    NSArray *topLevelObjects = nil;
+    const BOOL loadedNib = [[NSBundle mainBundle] loadNibNamed: @"VolumesPanel" owner: self topLevelObjects: &topLevelObjects];
+    _nibTopLevelObjects = topLevelObjects;
+    //This panel's nib does not set "release when closed", so AppKit defaults it
+    //to YES and releases the panel itself on -close. That used to be balanced
+    //by +loadNibNamed:owner: leaking the nib's top-level objects. Now that
+    //_nibTopLevelObjects owns them properly, AppKit's release is one too many
+    //and the app crashes tearing the window down.
+    [_volumesPanel setReleasedWhenClosed: NO];
+    if ( !loadedNib )
 	{
 		self = nil;
 	}

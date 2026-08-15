@@ -112,9 +112,9 @@
     
     // set small scrollbars
     if ([scrollView verticalScroller])
-        [[scrollView verticalScroller] setControlSize:NSSmallControlSize];
+        [[scrollView verticalScroller] setControlSize:NSControlSizeSmall];
     if ([scrollView horizontalScroller])
-        [[scrollView horizontalScroller] setControlSize:NSSmallControlSize];
+        [[scrollView horizontalScroller] setControlSize:NSControlSizeSmall];
     
     contentRect = [scrollView bounds];
     contentRect.size = [scrollView contentSize];
@@ -421,18 +421,17 @@
 
     // get mode bits
     // [NSFileManager attributesOfItemAtPath:error:] provides the permission bits ([NSFileAttributes filePosixPermissions]),
-    // but not the complete mode bits; so use the carbon functions instead ...
-    
-    FSRef ref;
-    if ( FSPathMakeRef((const UInt8*)[URL fileSystemRepresentation], &ref, nil) != noErr )
+    // but not the complete mode bits, which is what the file-type tests below need.
+    // lstat gives both, and replaces the Carbon FSGetCatalogInfo this used to call.
+    // lstat rather than stat so that a symlink reports as one, which is what the
+    // S_ISLNK branch below has always been written for.
+
+    struct stat fileInfo;
+    if ( lstat( [URL fileSystemRepresentation], &fileInfo ) != 0 )
         return perm;
-    
-    FSCatalogInfo catalogInfo;
-    if ( FSGetCatalogInfo(&ref, kFSCatInfoPermissions, &catalogInfo, NULL, NULL, NULL) != noErr )
-        return perm;
-    
-    UInt16 modeBits = catalogInfo.permissions.mode;
-    UInt16 permBits = (modeBits & ACCESSPERMS);
+
+    mode_t modeBits = fileInfo.st_mode;
+    mode_t permBits = (modeBits & ACCESSPERMS);
     
     if (S_ISDIR(modeBits))
         perm = [perm stringByAppendingString:@"d"];

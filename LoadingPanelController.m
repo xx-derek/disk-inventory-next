@@ -24,7 +24,20 @@
 	self = [super init];
 	
     //load Nib with progress panel
-	if ( ![NSBundle loadNibNamed: @"LoadingPanel" owner: self] )
+	//Under the old +loadNibNamed:owner: the nib's top-level objects were
+	//retained (and leaked) for us. The replacement hands them back
+	//autoreleased, so they have to be held or the panel is deallocated on
+	//the way out of this method.
+	NSArray *topLevelObjects = nil;
+	const BOOL loadedNib = [[NSBundle mainBundle] loadNibNamed: @"LoadingPanel" owner: self topLevelObjects: &topLevelObjects];
+	_nibTopLevelObjects = topLevelObjects;
+	//This panel's nib does not set "release when closed", so AppKit defaults it
+	//to YES and releases the panel itself on -close. That used to be balanced
+	//by +loadNibNamed:owner: leaking the nib's top-level objects. Now that
+	//_nibTopLevelObjects owns them properly, AppKit's release is one too many
+	//and the app crashes tearing the window down.
+	[_loadingPanel setReleasedWhenClosed: NO];
+	if ( !loadedNib )
 		NSAssert( NO, @"couldn't load LoadingPanel.nib" );
 	
 	[_loadingProgressIndicator setUsesThreadedAnimation: NO];
@@ -46,14 +59,22 @@
 	self = [super init];
 	
     //load Nib with progress panel
-	if ( ![NSBundle loadNibNamed: @"LoadingPanel" owner: self] )
+	NSArray *topLevelObjects = nil;
+	const BOOL loadedNib = [[NSBundle mainBundle] loadNibNamed: @"LoadingPanel" owner: self topLevelObjects: &topLevelObjects];
+	_nibTopLevelObjects = topLevelObjects;
+	//This panel's nib does not set "release when closed", so AppKit defaults it
+	//to YES and releases the panel itself on -close. That used to be balanced
+	//by +loadNibNamed:owner: leaking the nib's top-level objects. Now that
+	//_nibTopLevelObjects owns them properly, AppKit's release is one too many
+	//and the app crashes tearing the window down.
+	[_loadingPanel setReleasedWhenClosed: NO];
+	if ( !loadedNib )
 		NSAssert( NO, @"couldn't load LoadingPanel.nib" );
 	
-	[NSApp beginSheet: _loadingPanel
-	   modalForWindow: window
-		modalDelegate: self
-	   didEndSelector: nil
-		  contextInfo: NULL];
+	//-beginSheet:modalForWindow:modalDelegate:didEndSelector:contextInfo: was
+	//deprecated in 10.10; nothing was ever passed for the delegate callback, so
+	//the completion handler is nil too.
+	[window beginSheet: _loadingPanel completionHandler: nil];
 	
 	[_loadingPanel setWorksWhenModal: YES];
 	
@@ -81,8 +102,8 @@
 {
 	if ( [_loadingPanel isSheet] )
 	{
-		[NSApp endSheet: _loadingPanel];
-		[_loadingPanel close]; //will be released (panel has style "release when close")
+		[[_loadingPanel sheetParent] endSheet: _loadingPanel];
+		[_loadingPanel close]; //we own it through _nibTopLevelObjects, not AppKit
 		
 		_loadingPanel = nil;
 		_loadingProgressIndicator = nil;
@@ -107,7 +128,7 @@
 	//the sender asked us not to end the modal session (maybe because sender has run into an exception)
 	_loadingPanelModalSession = 0;
 	
-	[_loadingPanel close]; //will be released (panel has style "release when close")
+	[_loadingPanel close]; //we own it through _nibTopLevelObjects, not AppKit
 	
 	_loadingPanel = nil;
     _loadingProgressIndicator = nil;
@@ -167,7 +188,7 @@
 		if ( _loadingPanelModalSession != 0 )
 		{
 			if ( [[NSApplication sharedApplication] runModalSession: _loadingPanelModalSession]
-																			!= NSRunContinuesResponse )
+																			!= NSModalResponseContinue )
 			{
 				NSAssert( NO, @"run loop stopped by unknown party" );
 			}

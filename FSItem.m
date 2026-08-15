@@ -840,7 +840,7 @@ static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newCh
 	{
 		if ([uti isEqualToString:(__bridge NSString*)kUTTypeFlatRTFD])
 		{
-			NSFileWrapper *tempRTFDData = [[NSFileWrapper alloc] initWithPath:path];
+			NSFileWrapper *tempRTFDData = [[NSFileWrapper alloc] initWithURL:[NSURL fileURLWithPath:path] options:0 error:NULL];
 			[pboard setData:[tempRTFDData serializedRepresentation] forType:NSRTFDPboardType];
 		}
 	}

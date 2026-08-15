@@ -18,6 +18,8 @@
 
 @interface DrivesPanelController : NSObject
 {
+	//holds the top-level objects of the nib this controller loads
+	NSArray *_nibTopLevelObjects;
 	NSMutableArray *_volumes;
 	NSMutableArray *_progressIndicators;
 	IBOutlet NSTableView* _volumesTableView;

@@ -82,7 +82,7 @@
 	if ( attribs == nil )
 	{
 		NSMutableParagraphStyle *rightAlignStyle = [[NSParagraphStyle defaultParagraphStyle] mutableCopy];
-		[rightAlignStyle setAlignment: NSRightTextAlignment];
+		[rightAlignStyle setAlignment: NSTextAlignmentRight];
 		
 		NSFont *font = [NSFont boldSystemFontOfSize: [NSFont smallSystemFontSize]];
 		attribs = [[NSDictionary alloc] initWithObjectsAndKeys: font, NSFontAttributeName, rightAlignStyle, NSParagraphStyleAttributeName, nil];
@@ -99,7 +99,7 @@
 	if ( attribs == nil )
 	{
 		NSMutableParagraphStyle *rightAlignStyle = [[NSParagraphStyle defaultParagraphStyle] mutableCopy];
-		[rightAlignStyle setAlignment: NSRightTextAlignment];
+		[rightAlignStyle setAlignment: NSTextAlignmentRight];
 		
 		NSFont *font = [NSFont systemFontOfSize: [NSFont smallSystemFontSize]];
 		attribs = [[NSDictionary alloc] initWithObjectsAndKeys: font, NSFontAttributeName, rightAlignStyle, NSParagraphStyleAttributeName, nil];

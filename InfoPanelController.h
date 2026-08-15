@@ -20,6 +20,8 @@
 
 @interface InfoPanelController : NSObject
 {
+	//holds the top-level objects of the nib this controller loads
+	NSArray *_nibTopLevelObjects;
 	IBOutlet DIXFileInfoView *_infoView;
 	IBOutlet NSWindow* _infoPanel;
 	IBOutlet NSTextField* _displayNameTextField;

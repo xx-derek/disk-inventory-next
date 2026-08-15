@@ -18,6 +18,8 @@
 
 @interface LoadingPanelController : NSObject
 {
+	//holds the top-level objects of the nib this controller loads
+	NSArray *_nibTopLevelObjects;
 	NSModalSession _loadingPanelModalSession;
 	uint64_t _lastEventLoopRun;
 	BOOL _cancelPressed;

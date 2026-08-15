@@ -161,7 +161,7 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
 	return _contextMenu;
 }
 
-- (NSDragOperation) draggingSourceOperationMaskForLocal:(BOOL)isLocal
+- (NSDragOperation) dragOperationMaskForLocalDestination:(BOOL)isLocal
 {
 	//this selector is normally sent to the view itself, but DIXOutlineView forwards this decision to
 	//it's delagate (like it should be)

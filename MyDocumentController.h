@@ -20,6 +20,8 @@
 @interface MyDocumentController : NSDocumentController
 {
 	IBOutlet NSMenu* _zoomStackMenu;
+	//holds the top-level objects of the nib this controller loads
+	NSArray *_nibTopLevelObjects;
 	IBOutlet NSPanel* _donationPanel;
 }
 
