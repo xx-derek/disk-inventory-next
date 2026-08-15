@@ -4,60 +4,61 @@
       "idiom": "mac",
       "size": "16x16",
       "scale": "1x",
-      "filename": "DIXIcon 16@1.png"
+      "filename": "AppIcon-16.png"
     },
     {
       "idiom": "mac",
       "size": "16x16",
       "scale": "2x",
-      "filename": "DIXIcon 16@2.png"
+      "filename": "AppIcon-32.png"
     },
     {
       "idiom": "mac",
       "size": "32x32",
       "scale": "1x",
-      "filename": "DIXIcon 32@1.png"
+      "filename": "AppIcon-32.png"
     },
     {
       "idiom": "mac",
       "size": "32x32",
       "scale": "2x",
-      "filename": "DIXIcon 32@2.png"
+      "filename": "AppIcon-64.png"
     },
     {
       "idiom": "mac",
       "size": "128x128",
       "scale": "1x",
-      "filename": "DIXIcon 128@1.png"
+      "filename": "AppIcon-128.png"
     },
     {
       "idiom": "mac",
       "size": "128x128",
       "scale": "2x",
-      "filename": "DIXIcon 128@2.png"
+      "filename": "AppIcon-256.png"
     },
     {
       "idiom": "mac",
       "size": "256x256",
       "scale": "1x",
-      "filename": "DIXIcon 256@1.png"
+      "filename": "AppIcon-256.png"
     },
     {
       "idiom": "mac",
       "size": "256x256",
       "scale": "2x",
-      "filename": "DIXIcon 256@2.png"
+      "filename": "AppIcon-512.png"
     },
     {
       "idiom": "mac",
       "size": "512x512",
       "scale": "1x",
-      "filename": "DIXIcon 512@1.png"
+      "filename": "AppIcon-512.png"
     },
     {
       "idiom": "mac",
       "size": "512x512",
-      "scale": "2x"
+      "scale": "2x",
+      "filename": "AppIcon-1024.png"
     }
   ],
   "info": {

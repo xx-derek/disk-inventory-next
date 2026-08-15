@@ -420,10 +420,20 @@ Adding a toolbar item means adding a `symbolName`, and checking the symbol exist
 SF Symbols 2** — the app targets macOS 11, and the symbol set grows every release, so a
 name that resolves on a current Mac may be missing on the oldest supported one.
 
-`Resources/Images.xcassets/AppIcon.appiconset` is the app icon. Nine of its ten slots are
-filled; **512×512@2x (1024px) is empty because no artwork that large exists** — the
-largest original is 512px. macOS scales the 512 up for it. If higher-resolution artwork
-ever turns up, that is the slot to fill.
+`Resources/Images.xcassets/AppIcon.appiconset` is the app icon. All ten slots are filled,
+1024px included, as of 2026-08-15 — the earlier artwork topped out at 512 and left that
+slot empty. Three pixel sizes serve two slots each (32, 256, 512), and the catalog is
+happy to name the same file twice rather than carry duplicates.
+
+`Resources/AppIcon-master.png` is the 1280px source, kept in the repo but deliberately
+**not** added to the Xcode project, so it is not copied into the bundle. It is there so
+the sizes can be regenerated; the previous icon had no such master, which is exactly why
+the 1024 slot sat empty.
+
+macOS reads the icon from `Assets.car` via `CFBundleIconName`. `AppIcon.icns` is a
+compatibility copy and `iconutil` only ever extracts four sizes from it — that is normal
+and not a sign the catalog is short. To check what the system actually shows, ask
+`-[NSWorkspace iconForFile:]` for the built `.app`.
 
 ## The sidebar toggle
 
