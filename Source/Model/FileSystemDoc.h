@@ -67,6 +67,8 @@
 	//the queue starts and only read after that.
 	NSLock *_scanLock;
 	NSString *_scanCurrentPath;
+	NSUInteger _scanItemsDone;
+	NSUInteger _scanEstimatedTotal;   //0 when there is nothing to estimate from
 	BOOL _scanCancelled;
 	BOOL _scanIgnoreCreatorCode;
 	BOOL _scanLookIntoPackages;

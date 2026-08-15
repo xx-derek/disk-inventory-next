@@ -15,6 +15,8 @@
 //
 
 #import "FileSystemDoc.h"
+#import <sys/param.h>
+#import <sys/mount.h>
 #import "NSAlert-Extensions.h"
 #import "NSURL-Extensions.h"
 #import "MainWindowController.h"
@@ -128,7 +130,9 @@ NSString *CollectFileKindStatisticsCanceledException = @"CollectFileKindStatisti
 //rather than in the (Private) category below
 @interface FileSystemDoc()
 + (dispatch_queue_t) _scanQueue;
-- (NSException*) _runScanBlockOffMainThread: (void (^)(void)) work;
++ (NSUInteger) _estimatedItemCountForURL: (NSURL*) url;
++ (void) _rememberItemCount: (NSUInteger) count forURL: (NSURL*) url;
+- (NSException*) _runScanBlockOffMainThread: (void (^)(void)) work estimatingFrom: (NSURL*) rootURL;
 - (void) _setScanCurrentPath: (NSString*) path;
 - (NSString*) _takeScanCurrentPath;
 - (BOOL) _scanWasCancelled;
@@ -239,7 +243,6 @@ NSString *OldItem = @"OldItem";
         g_fileCount = g_folderCount = 0;
         
 		_progressController = [[LoadingPanelController alloc] init];
-		[_progressController startAnimation];	
 		
 		uint64_t startTime = getTime();
 		
@@ -263,7 +266,10 @@ NSString *OldItem = @"OldItem";
 		FSItem *rootItem = _rootItem;
 		NSException *scanException = [self _runScanBlockOffMainThread: ^{
 			[rootItem loadChildren];
-		}];
+		} estimatingFrom: [rootItem fileURL]];
+
+		//what this path really holds, for the next scan of it to divide by
+		[[self class] _rememberItemCount: g_fileCount + g_folderCount forURL: [rootItem fileURL]];
 
 		if ( scanException != nil )
 			[scanException raise];
@@ -586,7 +592,6 @@ NSString *OldItem = @"OldItem";
 		{
 			//NSWindow *window = [[[self windowControllers] objectAtIndex: 0] window];
 			_progressController = [[LoadingPanelController alloc] init];
-			[_progressController startAnimation];
 		}
 		
 		refreshedItem = [[FSItem alloc] initWithPath: [item path]];
@@ -602,7 +607,7 @@ NSString *OldItem = @"OldItem";
 				FSItem *itemToLoad = refreshedItem;
 				NSException *scanException = [self _runScanBlockOffMainThread: ^{
 					[itemToLoad loadChildren];
-				}];
+				} estimatingFrom: [itemToLoad fileURL]];
 
 				if ( scanException != nil )
 					[scanException raise];
@@ -866,6 +871,64 @@ NSString *OldItem = @"OldItem";
 
 #pragma mark ----------------------running a scan off the main thread---------------
 
+//Where the item count of each completed scan is remembered, so the next scan of
+//the same path has a real number to divide by.
+static NSString * const ScannedItemCountsKey = @"ScannedItemCounts";
+
+//How many file system objects the walk is likely to visit under this URL, or 0
+//if there is nothing to base a guess on.
++ (NSUInteger) _estimatedItemCountForURL: (NSURL*) url
+{
+	NSString *path = [url path];
+
+	//What the walk actually found here last time is the best estimate available,
+	//and it corrects itself on every scan.
+	NSDictionary *counts = [[NSUserDefaults standardUserDefaults] dictionaryForKey: ScannedItemCountsKey];
+	NSNumber *remembered = [counts objectForKey: path];
+
+	if ( [remembered unsignedIntegerValue] > 0 )
+		return [remembered unsignedIntegerValue];
+
+	//Failing that, a whole volume can be estimated from the file system itself:
+	//statfs reports how many inodes are in use, which is close to the number of
+	//objects the walk will visit. It answers for the *volume* though, so it is
+	//no use for a folder inside one — asked about /usr/share it reports the
+	//boot volume's 458,726 against the 20,180 actually there.
+	if ( [url isVolume] )
+	{
+		struct statfs fs;
+
+		if ( statfs( [url fileSystemRepresentation], &fs ) == 0 && fs.f_files >= fs.f_ffree )
+			return (NSUInteger) ( fs.f_files - fs.f_ffree );
+	}
+
+	return 0;
+}
+
++ (void) _rememberItemCount: (NSUInteger) count forURL: (NSURL*) url
+{
+	if ( count == 0 || [url path] == nil )
+		return;
+
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+	NSMutableDictionary *counts = [[defaults dictionaryForKey: ScannedItemCountsKey] mutableCopy];
+
+	if ( counts == nil )
+		counts = [NSMutableDictionary dictionary];
+
+	//Drop paths that are gone, so this cannot grow without bound over the years.
+	//A handful of stat calls once per scan is nothing next to the scan itself.
+	for ( NSString *knownPath in [counts allKeys] )
+	{
+		if ( ![[NSFileManager defaultManager] fileExistsAtPath: knownPath] )
+			[counts removeObjectForKey: knownPath];
+	}
+
+	[counts setObject: [NSNumber numberWithUnsignedInteger: count] forKey: [url path]];
+
+	[defaults setObject: counts forKey: ScannedItemCountsKey];
+}
+
 - (void) _beginScan
 {
 	if ( _scanLock == nil )
@@ -874,6 +937,7 @@ NSString *OldItem = @"OldItem";
 	[_scanLock lock];
 	_scanCancelled = NO;
 	_scanCurrentPath = nil;
+	_scanItemsDone = 0;
 	[_scanLock unlock];
 
 	//read once, here, so the scan queue never touches the document's options
@@ -947,10 +1011,14 @@ NSString *OldItem = @"OldItem";
 }
 
 - (NSException*) _runScanBlockOffMainThread: (void (^)(void)) work
+							 estimatingFrom: (NSURL*) rootURL
 {
 	NSAssert( [NSThread isMainThread], @"a scan must be started from the main thread" );
 
 	[self _beginScan];
+
+	_scanEstimatedTotal = ( rootURL != nil ) ? [[self class] _estimatedItemCountForURL: rootURL] : 0;
+	[_progressController setProgressFraction: ( _scanEstimatedTotal > 0 ) ? 0.0 : -1.0];
 
 	__block NSException *caught = nil;
 	__block BOOL finished = NO;
@@ -988,10 +1056,16 @@ NSString *OldItem = @"OldItem";
 			{
 				NSString *path = [self _takeScanCurrentPath];
 				if ( path != nil )
-				{
 					[_progressController setMessageText: path];
-					lastMessageTime = now;
-				}
+
+				[_scanLock lock];
+				const NSUInteger done = _scanItemsDone;
+				[_scanLock unlock];
+
+				[_progressController setProgressFraction:
+					( _scanEstimatedTotal > 0 ) ? (double) done / (double) _scanEstimatedTotal : -1.0];
+
+				lastMessageTime = now;
 			}
 
 			if ( ![_progressController runModalSessionForInterval: 0.05] )
@@ -1049,6 +1123,14 @@ NSString *OldItem = @"OldItem";
 		if ( parentItem == nil )
 			[self _setScanCurrentPath: [item displayPath]];
 	}
+
+	//g_fileCount and g_folderCount are incremented as each FSItem is created,
+	//on this same thread, so reading them here needs no synchronising — only
+	//publishing the total to the main thread does. Folder granularity is plenty
+	//for a progress bar: a 20,000-item scan passes through here ~900 times.
+	[_scanLock lock];
+	_scanItemsDone = g_fileCount + g_folderCount;
+	[_scanLock unlock];
 
 	return ![self _scanWasCancelled];
 }

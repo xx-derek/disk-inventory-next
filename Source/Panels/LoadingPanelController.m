@@ -39,8 +39,12 @@
 	if ( !loadedNib )
 		NSAssert( NO, @"couldn't load LoadingPanel.nib" );
 	
+	//Deliberately not started here. Once the bar has begun its indeterminate
+	//animation inside a modal session, -setIndeterminate:NO does not reliably
+	//stop it drawing: -isIndeterminate answers NO while the barber pole carries
+	//on over the top of the value. -setProgressFraction: starts the animation
+	//only when it knows there is no estimate to show.
 	[_loadingProgressIndicator setUsesThreadedAnimation: NO];
-    [_loadingProgressIndicator startAnimation: self];
 	
 	[_loadingPanel display];
 	
@@ -76,8 +80,8 @@
 	
 	[_loadingPanel setWorksWhenModal: YES];
 	
+	//see -init: the animation is started by -setProgressFraction:, not here
 	[_loadingProgressIndicator setUsesThreadedAnimation: NO];
-    [_loadingProgressIndicator startAnimation: self];
 	
 	//we don't have modal session if we show the panel as a sheet
 	_loadingPanelModalSession = 0;
@@ -103,6 +107,7 @@
 		[_loadingPanel close]; //we own it through _nibTopLevelObjects, not AppKit
 		
 		_loadingPanel = nil;
+		_percentageField = nil;
 		_loadingProgressIndicator = nil;
 		_loadingTextField = nil;
 		_loadingCancelButton = nil;
@@ -128,6 +133,7 @@
 	[_loadingPanel close]; //we own it through _nibTopLevelObjects, not AppKit
 	
 	_loadingPanel = nil;
+	_percentageField = nil;
     _loadingProgressIndicator = nil;
 	_loadingTextField = nil;
 	_loadingCancelButton = nil;
@@ -145,6 +151,61 @@
 	{
 		return _cancelPressed;
 	}
+}
+
+//The nib has no room reserved for this and there are four of them, so the label
+//is made here. It sits in the gap between the progress bar and the Cancel
+//button, left of the button.
+- (void) _ensurePercentageField
+{
+	if ( _percentageField != nil || _loadingProgressIndicator == nil )
+		return;
+
+	const NSRect barFrame = [_loadingProgressIndicator frame];
+
+	_percentageField = [NSTextField labelWithString: @""];
+	[_percentageField setFont: [NSFont systemFontOfSize: [NSFont smallSystemFontSize]]];
+	[_percentageField setTextColor: [NSColor secondaryLabelColor]];
+	[_percentageField setFrame: NSMakeRect( NSMinX(barFrame), NSMinY(barFrame) - 24.0, 160.0, 17.0 )];
+	[_percentageField setAutoresizingMask: NSViewMaxXMargin | NSViewMaxYMargin];
+
+	[[_loadingPanel contentView] addSubview: _percentageField];
+}
+
+- (void) setProgressFraction: (double) fraction
+{
+	[self _ensurePercentageField];
+
+	if ( fraction < 0.0 )
+	{
+		//No estimate: the barber's pole. The indicator starts out indeterminate
+		//from the nib but stopped, so -startAnimation: has to be sent whether or
+		//not this is a transition — it is idempotent once running.
+		if ( ![_loadingProgressIndicator isIndeterminate] )
+			[_loadingProgressIndicator setIndeterminate: YES];
+
+		[_loadingProgressIndicator startAnimation: nil];
+
+		[_percentageField setStringValue: @""];
+		return;
+	}
+
+	if ( [_loadingProgressIndicator isIndeterminate] )
+	{
+		[_loadingProgressIndicator stopAnimation: nil];
+		[_loadingProgressIndicator setIndeterminate: NO];
+		[_loadingProgressIndicator setMinValue: 0.0];
+		[_loadingProgressIndicator setMaxValue: 100.0];
+	}
+
+	//Held below 100 until the scan actually finishes. The total is an estimate,
+	//and a bar that sits full while the disk is still rattling reads as a hang.
+	double percent = fraction * 100.0;
+	if ( percent > 99.0 )
+		percent = 99.0;
+
+	[_loadingProgressIndicator setDoubleValue: percent];
+	[_percentageField setStringValue: [NSString stringWithFormat: @"%.0f%%", percent]];
 }
 
 - (void) startAnimation;

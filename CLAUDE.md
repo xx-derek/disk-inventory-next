@@ -209,6 +209,36 @@ One measured trap: waking the main thread every 50 ms *and* redrawing the path l
 time cost about 7% of scan time. The label is throttled to 0.1 s separately from the wake
 interval; keep those two numbers apart.
 
+### Estimating scan progress
+
+A directory walk has no total to divide by, so the panel gets one of two things:
+
+- **What the last scan of this exact path found.** Every completed scan writes its item
+  count to the `ScannedItemCounts` user default, keyed by path, and the next scan of that
+  path divides by it. Exact by construction and self-correcting. It is internal state, not
+  a setting, so it is deliberately not in `Info.plist`'s `Registrations`; entries for paths
+  that no longer exist are pruned when it is written, so it cannot grow without bound.
+- **`statfs` for a whole volume**, where `f_files - f_ffree` is the number of inodes in use
+  and close to what the walk will visit. It answers for the *volume*, so it is no use for a
+  folder inside one — asked about `/usr/share` it reports the boot volume's 458,726 against
+  the 20,180 actually there. Hence the `isVolume` test.
+
+With neither, the bar stays indeterminate and the percentage is blank rather than showing
+a number that would be made up. The percentage is held at 99% until the scan really ends,
+because the total is an estimate and a full bar over a still-running scan reads as a hang.
+
+Counting is done in `-fsItemEnteringFolder:` by reading `g_fileCount + g_folderCount`,
+which the walk increments on that same thread — so no synchronising is needed to read them,
+only to publish the total. Folder granularity is plenty: a 20,000-item scan passes through
+there about 900 times.
+
+**Do not start the progress indicator's indeterminate animation unless you mean it.** Once
+that animation is running inside a modal session, `-setIndeterminate:NO` does not reliably
+stop it drawing: `-isIndeterminate` answers `NO` while the barber pole carries on over the
+top of the value, so the bar and the percentage disagree — the label read 91% while the bar
+showed a sliver at the far right. The panel therefore starts the indicator stopped, and
+`-setProgressFraction:` animates it only in the no-estimate case.
+
 Sizes are `unsigned long long` / `UInt64` throughout. Do not narrow them.
 
 ### Aggregation and lookup

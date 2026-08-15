@@ -27,6 +27,9 @@
     IBOutlet NSPanel* _loadingPanel;
     IBOutlet NSProgressIndicator* _loadingProgressIndicator;
     IBOutlet NSButton* _loadingCancelButton;
+
+	//added in code rather than to four localized nibs
+	NSTextField *_percentageField;
 }
 
 - (id) init; //will start modal session immediately
@@ -43,6 +46,11 @@
 
 - (void) startAnimation;
 - (void) stopAnimation;
+
+//Progress as a fraction from 0 to 1, or a negative number when there is no
+//estimate to go on, which leaves the bar indeterminate and the percentage
+//blank. Main thread only.
+- (void) setProgressFraction: (double) fraction;
 
 //Shown the next time the panel gets a chance to draw. Main thread only.
 - (void) setMessageText: (NSString*) msg;
