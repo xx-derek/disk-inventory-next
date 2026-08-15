@@ -191,7 +191,16 @@ jobs:
           name="DiskInventoryNext-${{ steps.version.outputs.tag }}-universal.zip"
 
           ditto -c -k --keepParent "$APP" "$name"
+
+          # A sidecar in shasum's own format, so it can be checked with
+          # `shasum -a 256 -c` rather than compared by eye against a web page.
+          # The filename inside it is bare, so the check works from whatever
+          # directory the two files were downloaded into.
+          shasum -a 256 "$name" > "$name.sha256"
+          cat "$name.sha256"
+
           echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "checksum=$name.sha256" >> "$GITHUB_OUTPUT"
 
           echo "### Artifact" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -235,8 +244,18 @@ jobs:
             echo
             echo "Universal (arm64 + x86_64), macOS 11 or later."
             echo
+            echo "### Verifying the download"
+            echo
+            echo "Download \`$name.sha256\` alongside the zip and run:"
+            echo
+            echo '```sh'
+            echo "shasum -a 256 -c $name.sha256"
             echo '```'
-            echo "sha256  $(shasum -a 256 "$name" | cut -d' ' -f1)"
+            echo
+            echo "It should print \`$name: OK\`. The hash is:"
+            echo
+            echo '```'
+            echo "$(shasum -a 256 "$name" | cut -d' ' -f1)"
             echo '```'
           } > /tmp/release-notes.md
           cat /tmp/release-notes.md
@@ -248,4 +267,6 @@ jobs:
           draft: true
           generate_release_notes: true
           body_path: /tmp/release-notes.md
-          files: ${{ steps.package.outputs.name }}
+          files: |
+            ${{ steps.package.outputs.name }}
+            ${{ steps.package.outputs.checksum }}

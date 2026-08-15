@@ -22,6 +22,13 @@ and colored by file type — alongside a sortable outline view and a breakdown b
 **[Download the latest release](https://github.com/xx-derek/disk-inventory-next/releases/latest)**
 — a universal build for macOS 11 or later. Unzip it and drag it to Applications.
 
+Each release also carries a `.sha256` file beside the zip, so the download can be checked
+rather than trusted:
+
+```sh
+shasum -a 256 -c DiskInventoryNext-v1.0.0-universal.zip.sha256
+```
+
 Then run this once, or macOS will refuse to open it:
 
 ```sh
