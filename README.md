@@ -197,6 +197,9 @@ git tag v1.0 && git push github v1.0
 ```
 
 The release is created as a **draft** so the artifact can be checked before it is public.
+Work through [`.github/RELEASE_CHECKLIST.md`](.github/RELEASE_CHECKLIST.md) before
+publishing it — most of this fork's interface was verified programmatically, which says
+nothing about whether a click lands where it looks.
 
 Releases are **one universal binary**, not one per architecture. The executable is under a
 megabyte of a 3.3 MB bundle — the icon and the four localizations are most of it — so
