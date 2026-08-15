@@ -167,7 +167,12 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
 	//it's delagate (like it should be)
 	
 	//drag&drop within the application is not supported
-	return isLocal ? NSDragOperationNone : (NSDragOperationLink | NSDragOperationCopy );
+	//
+	//Copy only, not Link: offering Link makes the Finder create an alias rather
+	//than a copy, which is almost never what is wanted from a file listing. The
+	//other two drag sources in this app already commented Link out for the same
+	//reason; the outline view was simply missed.
+	return isLocal ? NSDragOperationNone : NSDragOperationCopy;
 }
 
 #pragma mark --------NSOutlineView notifications-----------------
