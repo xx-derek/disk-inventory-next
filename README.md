@@ -17,6 +17,31 @@ and colored by file type — alongside a sortable outline view and a breakdown b
 > Original project homepage: [derlien.com](http://www.derlien.com/) ·
 > Upstream source: [gitlab.com/tderlien/disk-inventory-x](https://gitlab.com/tderlien/disk-inventory-x)
 
+## Download
+
+**[Download the latest release](https://github.com/xx-derek/disk-inventory-next/releases/latest)**
+— a universal build for macOS 11 or later. Unzip it and drag it to Applications.
+
+Then run this once, or macOS will refuse to open it:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/Disk Inventory Next.app"
+```
+
+Releases are **not signed with a Developer ID and not notarized**, because both require a
+paid Apple Developer Program membership. The app is ad-hoc signed, which is what lets it
+execute on Apple silicon, but Gatekeeper will not accept that for anything downloaded
+through a browser — it is the quarantine attribute the command above removes, not the app,
+that macOS objects to.
+
+Without the Terminal: try to open it, let macOS refuse, then go to **System Settings →
+Privacy & Security**, find the message about the blocked app near the bottom, and choose
+**Open Anyway**.
+
+**Or [build it yourself](#building-from-source)** — a locally built app is never
+quarantined, so none of this applies, and this project builds from a clean checkout with
+nothing to install first.
+
 ## Why the fork
 
 The original was last released in March 2022 and had drifted far enough from current macOS
@@ -120,27 +145,6 @@ match the current layout.
 - **Xcode** with the macOS SDK, to build from source
 
 Builds as a **universal binary**, running natively on both Apple silicon and Intel Macs.
-
-## Installing
-
-**Releases are not signed with a Developer ID and are not notarized**, because both require
-a paid Apple Developer Program membership. macOS will therefore refuse to open the app the
-first time, since anything downloaded through a browser is marked with a quarantine
-attribute and Gatekeeper will not approve an ad-hoc signature.
-
-The app itself is fine — it is ad-hoc signed, which is what lets it execute on Apple
-silicon at all. Clearing the quarantine mark is what lets macOS open it:
-
-```sh
-xattr -dr com.apple.quarantine "/Applications/Disk Inventory Next.app"
-```
-
-Or, without the Terminal: try to open it, let macOS refuse, then go to
-**System Settings → Privacy & Security**, find the message about the blocked app near the
-bottom, and choose **Open Anyway**.
-
-**Or build it yourself** — see below. A locally built app is never quarantined, so none of
-this applies, and this project builds from a clean checkout with nothing to install first.
 
 ## Building from source
 
