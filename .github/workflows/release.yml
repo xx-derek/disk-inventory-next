@@ -203,10 +203,49 @@ jobs:
           echo "| signed | ${{ steps.signing.outputs.signed }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| sha256 | \`$(shasum -a 256 "$name" | cut -d' ' -f1)\` |" >> "$GITHUB_STEP_SUMMARY"
 
+      # Whoever downloads this will hit Gatekeeper before they hit the README,
+      # so the instructions go in the release itself.
+      - name: Write the release notes
+        run: |
+          name="${{ steps.package.outputs.name }}"
+          {
+            if [ "${{ steps.signing.outputs.signed }}" = "true" ]; then
+              echo "Signed and notarized. Download, unzip, drag to Applications."
+            else
+              cat <<'NOTE'
+          ### Installing
+
+          This build is **not signed with a Developer ID and not notarized**, so macOS will
+          refuse to open it the first time: anything downloaded through a browser is marked
+          with a quarantine attribute, and Gatekeeper will not approve an ad-hoc signature.
+
+          Clear the mark and it opens:
+
+          ```sh
+          xattr -dr com.apple.quarantine "/Applications/Disk Inventory Next.app"
+          ```
+
+          Or try to open it, let macOS refuse, then go to **System Settings → Privacy &
+          Security** and choose **Open Anyway**.
+
+          Building from source avoids this entirely — a locally built app is never
+          quarantined.
+          NOTE
+            fi
+            echo
+            echo "Universal (arm64 + x86_64), macOS 11 or later."
+            echo
+            echo '```'
+            echo "sha256  $(shasum -a 256 "$name" | cut -d' ' -f1)"
+            echo '```'
+          } > /tmp/release-notes.md
+          cat /tmp/release-notes.md
+
       - name: Publish the release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           draft: true
           generate_release_notes: true
+          body_path: /tmp/release-notes.md
           files: ${{ steps.package.outputs.name }}

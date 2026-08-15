@@ -121,6 +121,27 @@ match the current layout.
 
 Builds as a **universal binary**, running natively on both Apple silicon and Intel Macs.
 
+## Installing
+
+**Releases are not signed with a Developer ID and are not notarized**, because both require
+a paid Apple Developer Program membership. macOS will therefore refuse to open the app the
+first time, since anything downloaded through a browser is marked with a quarantine
+attribute and Gatekeeper will not approve an ad-hoc signature.
+
+The app itself is fine — it is ad-hoc signed, which is what lets it execute on Apple
+silicon at all. Clearing the quarantine mark is what lets macOS open it:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/Disk Inventory Next.app"
+```
+
+Or, without the Terminal: try to open it, let macOS refuse, then go to
+**System Settings → Privacy & Security**, find the message about the blocked app near the
+bottom, and choose **Open Anyway**.
+
+**Or build it yourself** — see below. A locally built app is never quarantined, so none of
+this applies, and this project builds from a clean checkout with nothing to install first.
+
 ## Building from source
 
 A fresh clone builds with no setup — there are no external dependencies and nothing to
