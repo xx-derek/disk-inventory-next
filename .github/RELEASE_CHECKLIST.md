@@ -37,7 +37,7 @@ Each item says how confident we already are:
   - [ ] "Copy Address" copies the same string; paste it somewhere and compare
   - [ ] "Support the Original Author…" opens derlien.com
   - [ ] "Don't show again" sticks across a relaunch
-- [ ] **About box**: version reads 1.0 (1), the credits scroll, the copyright is legible
+- [ ] **About box**: version reads 1.0.0 (1), the credits scroll, the copyright is legible
       and mentions both holders. *(probe only)*
 - [ ] Volumes panel lists your drives with correct sizes and usage bars.
 
@@ -149,7 +149,7 @@ Run with `AppleLanguages`, e.g.
 
 - [ ] **Credit the app icon's author.** It arrived as a zip and nobody is named for it.
       The README still credits Anton Repponen for the original icon it replaced.
-- [ ] **Confirm 1.0 is the version you want.** It is a judgment call — a clean start for a
+- [ ] **Confirm 1.0.0 is the version you want.** It is a judgment call — a clean start for a
       renamed product rather than continuing Derlien's 1.4.
 - [ ] Two inherited bugs are still open in `documentation/known bugs.txt`: unreadable
       directories report size 0, and a focus-ring artefact when resizing the split.
