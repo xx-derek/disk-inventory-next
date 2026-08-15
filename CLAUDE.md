@@ -190,7 +190,25 @@ index — the header notes SearchKit was tried and abandoned as too slow, so don
 "modernize" it back.
 
 `FileTypeColors` assigns treemap colors per kind, reserving distinct colors for the
-largest kinds.
+largest kinds. Kinds past the twelve-colour palette get a light grey ramp.
+
+**The palette and the cushion shading are one design, not two.** Cushion shading darkens
+each cell towards its rim, so a base colour is the *brightest* that cell will ever be. The
+saturated primaries this started with — pure blue, pure red — therefore ran from full
+intensity at the centre to near-black at the edge, which is what made the treemap read as
+glowing blobs rather than as curved tiles. The palette is now twelve light, low-saturation
+hues around a mean component of 0.8, and the shading constants in `TMVCushionRenderer`
+were moved to match: `Ia` (the unlit floor) from 0.10 to 0.55, and `TMVMaxColorBrightness`
+(the cap on a base colour) from 0.6 to 0.85.
+
+Changing one without the other undoes it. A darker `Ia` brings the rims back; a lower
+brightness cap dims the pastels to mud. `Ia + Is` must stay at 1.0 — that is what
+guarantees a pixel cannot exceed its base colour, and the render went from 81 clipped
+pixels to none.
+
+The two synthetic cells are deliberately neutral so they read as "not a file kind":
+free space is the lightest thing on the map, other space a mid grey (set in
+`TreeMapViewController treeMapView:willDisplayItem:withRenderer:`, not in the palette).
 
 ### Controllers
 

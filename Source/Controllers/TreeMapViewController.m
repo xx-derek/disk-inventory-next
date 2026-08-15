@@ -173,14 +173,16 @@
 		case FileFolderItem:
 			color = [[[self document] fileTypeColors] colorForItem: fsItem];
 			break;
+		//The two synthetic cells are deliberately neutral, so they read as "not a
+		//file kind" against a palette that is entirely coloured. Free space is
+		//the lightest thing on the map; other space is a mid grey. It used to be
+		//0.2, which was fine beside saturated primaries but is a black hole in
+		//amongst pastels.
 		case FreeSpaceItem:
-			color = [NSColor colorWithCalibratedWhite: 1 alpha: 1];
-			//color = [NSColor colorWithCalibratedRed: 0 green: 0 blue: 0 alpha: 1];
-			color = [TMVCushionRenderer normalizeColor: color];
+			color = [TMVCushionRenderer normalizeColor: [NSColor colorWithCalibratedWhite: 1.0 alpha: 1.0]];
 			break;
 		case OtherSpaceItem:
-			color = [NSColor colorWithCalibratedRed: 0.2 green: 0.2 blue: 0.2 alpha: 1];
-			color = [TMVCushionRenderer normalizeColor: color];
+			color = [TMVCushionRenderer normalizeColor: [NSColor colorWithCalibratedWhite: 0.5 alpha: 1.0]];
 			break;
 	}
 	

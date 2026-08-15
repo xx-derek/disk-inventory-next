@@ -21,15 +21,22 @@ static const double Lx = -0.09759;
 static const double Ly = -0.19518;
 static const double Lz =  0.97590;
 
-//ambient and diffuse contributions; they sum to 1 so a fully lit pixel reaches
-//exactly the cell's base color
-static const double Ia = 0.10;
-static const double Is = 0.90;
+//Ambient and diffuse contributions. They sum to 1, so a fully lit pixel reaches
+//exactly the cell's base color and nothing can clip.
+//
+//Ia is the floor: it is what a pixel gets where the cushion turns away from the
+//light. At the 0.10 this started with, the rim of every cell fell to a tenth of
+//its colour - practically black - and the contrast against the lit centre read
+//as a glow rather than as a curved surface. 0.55 keeps the shading that makes
+//nesting legible while leaving the whole map light.
+static const double Ia = 0.55;
+static const double Is = 0.45;
 
-//Cushion colors are multiplied by a brightness of up to 1/Ia, so the base color
-//has to stay dim enough to leave headroom before it clips. Colors brighter than
-//this (summed over all three components) get scaled down by +normalizeColor:.
-static const double TMVMaxColorBrightness = 0.6;
+//Ceiling on a base colour's mean component, applied by +normalizeColor:.
+//Nothing can clip - the brightest a pixel gets is Ia + Is = 1 times the base
+//colour - so this only decides how light a cell is allowed to be. It was 0.6,
+//which dimmed any pale colour back to a muddy mid-tone.
+static const double TMVMaxColorBrightness = 0.85;
 
 static NSColor *g_defaultCushionColor = nil;
 
