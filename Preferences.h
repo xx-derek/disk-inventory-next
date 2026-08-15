@@ -10,6 +10,9 @@
 #import <Cocoa/Cocoa.h>
 
 //keys for preference values
+//top-level Info.plist key holding the factory defaults and the preference page list
+extern NSString *AppRegistrationsKey;
+
 extern NSString *ShowPackageContents;
 extern NSString *ShowFreeSpace;
 extern NSString *ShowOtherSpace;

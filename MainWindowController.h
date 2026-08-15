@@ -3,14 +3,13 @@
 #import <Cocoa/Cocoa.h>
 #import "FileSystemDoc.h"
 #import <TreeMapView/TreeMapView.h>
-#import "OAToolbarWindowControllerEx.h"
-#import <OmniAppKit/OASplitView.h>
+#import "ToolbarWindowController.h"
 
-@interface MainWindowController : OAToolbarWindowControllerEx
+@interface MainWindowController : ToolbarWindowController
 {
     IBOutlet NSDrawer *_kindsDrawer;
     IBOutlet NSDrawer *_selectionListDrawer;
-	IBOutlet OASplitView *_splitter;
+	IBOutlet NSSplitView *_splitter;
 	IBOutlet NSOutlineView *_filesOutlineView;
 	IBOutlet TreeMapView *_treeMapView;
 	IBOutlet NSMenu *_openWithSubMenu;
@@ -23,6 +22,7 @@
 - (NSDrawer*) kindStatisticsDrawer;
 - (NSDrawer*) selectionListDrawer;
 
+- (IBAction) copy:(id)sender;
 - (IBAction) openFile:(id)sender;
 - (IBAction) toggleFileKindsDrawer:(id)sender;
 - (IBAction) toggleSelectionListDrawer:(id)sender;

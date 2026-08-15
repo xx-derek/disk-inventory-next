@@ -17,7 +17,6 @@
 #import "FilesOutlineViewController.h"
 #import "FSItem.h"
 #import "FSItem-Utilities.h"
-#import <OmniAppKit/NSTableView-OAExtensions.h>
 #import "MainWindowController.h"
 #import "Preferences.h"
 
@@ -63,13 +62,13 @@
     [[_outlineView outlineTableColumn] setDataCell: [ImageAndTextCell cell]];
 	
 	//set FileSizeFormatter for the size column
-	FileSizeFormatter *sizeFormatter = [[[FileSizeFormatter alloc] init] autorelease];
+	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
 	[[[_outlineView tableColumnWithIdentifier: @"size"] dataCell] setFormatter: sizeFormatter];
         
 	[[NSUserDefaultsController sharedUserDefaultsController] addObserver: self
 															  forKeyPath: [@"values." stringByAppendingString: UseSmallFontInFilesView]
 																 options: 0
-																 context: UseSmallFontInFilesView];
+																 context: (__bridge void*) UseSmallFontInFilesView];
 	
 	[doc addObserver: self forKeyPath: DocKeySelectedItem options: 0 context: nil];
 	
@@ -79,10 +78,6 @@
     [self reloadData];
 }
 
-- (void) dealloc
-{
-    [super dealloc];
-}
 
 - (FileSystemDoc*) document
 {
@@ -172,7 +167,12 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
 	//it's delagate (like it should be)
 	
 	//drag&drop within the application is not supported
-	return isLocal ? NSDragOperationNone : (NSDragOperationLink | NSDragOperationCopy );
+	//
+	//Copy only, not Link: offering Link makes the Finder create an alias rather
+	//than a copy, which is almost never what is wanted from a file listing. The
+	//other two drag sources in this app already commented Link out for the same
+	//reason; the outline view was simply missed.
+	return isLocal ? NSDragOperationNone : NSDragOperationCopy;
 }
 
 #pragma mark --------NSOutlineView notifications-----------------
@@ -245,7 +245,7 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
 						change:(NSDictionary*)change
 					   context:(void*)context
 {
-	if ( context == UseSmallFontInFilesView )
+	if ( context == (__bridge void*) UseSmallFontInFilesView )
 	{
 		[self setOutlineViewFont];
 	}
@@ -315,7 +315,10 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
 	
 	NSFont *font = [NSFont systemFontOfSize: fontSize];
 	
-	[_outlineView setFont: font];
+	//NSTableView has no font of its own; it lives on each column's data cell
+	for ( NSTableColumn *column in [_outlineView tableColumns] )
+		[[column dataCell] setFont: font];
+	[_outlineView setNeedsDisplay: YES];
 	
 	[_outlineView setRowHeight: fontSize +4];
 }

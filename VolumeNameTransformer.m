@@ -25,7 +25,7 @@
 
 + (id) transformer
 {
-	return [[[VolumeNameTransformer alloc] init] autorelease];
+	return [[VolumeNameTransformer alloc] init];
 }
 
 - (id)transformedValue:(id)value 
@@ -48,17 +48,16 @@
     if ( volumeType != nil )
     {
         //add line break to string
-        [attribString appendAttributedString: [[[NSAttributedString alloc] initWithString: @"\n "] autorelease]];
+        [attribString appendAttributedString: [[NSAttributedString alloc] initWithString: @"\n "]];
 
         NSAttributedString *volumeTypeString = [[NSAttributedString alloc] initWithString: volumeType
                                                                                attributes: [VolumeNameTransformer volumeTypeAttributes]];
 	
         //add volume format as second line
         [attribString appendAttributedString: volumeTypeString];
-        [volumeTypeString release];
     }
     
-	return [attribString autorelease];
+	return attribString;
 }
 
 + (NSDictionary*) volumeTitleAttributes

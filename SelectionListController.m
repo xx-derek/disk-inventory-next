@@ -16,7 +16,6 @@
 #import "SelectionListController.h"
 #import "FileSystemDoc.h"
 #import "FileKindsPopupController.h"
-#import <OmniFoundation/NSString-OFExtensions.h>
 #import "Timing.h"
 
 @interface SelectionListController(Privat)
@@ -54,13 +53,6 @@
 	[[_searchField cell] setSearchMenuTemplate:[[_searchField cell] searchMenuTemplate]];
 }
 
-- (void) dealloc
-{
-	[_serachString release];
-	[_indexes release];
-	
-	[super dealloc];
-}
 
 - (FileSystemDoc*) document
 {
@@ -69,7 +61,7 @@
 
 - (NSArray*) arrangeObjects: (NSArray*) objects
 {
-	if ( ![NSString isEmptyString: [self searchString]] )
+	if ( [[self searchString] length] > 0 )
 		objects = [self filterItems: objects];
 
 	return [super arrangeObjects: objects];
@@ -125,7 +117,6 @@
 {
     if (_serachString != newSearchString)
 	{
-        [_serachString autorelease];
         _serachString = [newSearchString copy];
     }
 }
@@ -153,28 +144,28 @@
 - (IBAction) searchInAll: (id) sender
 {
 	_indexToSearch = FSItemIndexAll;
-	if ( ![NSString isEmptyString: [self searchString]] )
+	if ( [[self searchString] length] > 0 )
 		[self rearrangeObjects];
 }
 
 - (IBAction) searchInNames: (id) sender
 {
 	_indexToSearch = FSItemIndexName;
-	if ( ![NSString isEmptyString: [self searchString]] )
+	if ( [[self searchString] length] > 0 )
 		[self rearrangeObjects];
 }
 
 - (IBAction) searchInKindNames: (id) sender
 {
 	_indexToSearch = FSItemIndexKind;
-	if ( ![NSString isEmptyString: [self searchString]] )
+	if ( [[self searchString] length] > 0 )
 		[self rearrangeObjects];
 }
 
 - (IBAction) searchInPaths: (id) sender
 {
 	_indexToSearch = FSItemIndexPath;
-	if ( ![NSString isEmptyString: [self searchString]] )
+	if ( [[self searchString] length] > 0 )
 		[self rearrangeObjects];
 }
 
@@ -231,7 +222,7 @@
 		NSDictionary *kindStatistics = [kindStatistic isAllFileKindsItem] ? [[self document] kindStatistics] :
 										[NSDictionary dictionaryWithObject: [[self document] kindStatisticForKind: [kindStatistic kindName]]
 																	forKey: [kindStatistic kindName]];
-		index = [[[FSItemIndex alloc] initWithKindStatistics: kindStatistics] autorelease];
+		index = [[FSItemIndex alloc] initWithKindStatistics: kindStatistics];
 		[_indexes setObject: index forKey: indexKey];
 		
 		BOOL startStopPogrInd = ([items count] > 5000) && ![self progressAnimationIsRunning];

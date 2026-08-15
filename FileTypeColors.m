@@ -69,13 +69,6 @@
 	[_colors removeAllObjects];
 }
 
-- (void) dealloc
-{
-    [_predefinedColors release];
-    [_colors release];
-
-    [super dealloc];
-}
 
 - (NSColor *) colorForItem: (FSItem*) item
 {

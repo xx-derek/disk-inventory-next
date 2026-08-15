@@ -5,7 +5,8 @@
 //  Created by Tjark Derlien on 29.11.04.
 //
 //  Copyright (C) 2004 Tjark Derlien.
-//  
+//  Copyright (C) 2026 Disk Inventory Next contributors.
+//
 //  This program is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU General Public License
 //  as published by the Free Software Foundation; either version 3
@@ -14,55 +15,125 @@
 //
 
 #import "PrefsPageBase.h"
-#import <OmniFoundation/OFNull.h>
+#import "PrefsPageRecord.h"
+
+//Equality that treats nil as a value in its own right. Plain -isEqual: cannot:
+//sending it to nil answers NO, so two absent values would compare as different.
+static BOOL ValuesDiffer( id valueA, id valueB )
+{
+	if ( valueA == valueB )
+		return NO;
+
+	if ( valueA == nil || valueB == nil )
+		return YES;
+
+	return ![valueA isEqual: valueB];
+}
 
 @implementation PrefsPageBase
 
-- (void)restoreDefaultsNoPrompt;
+- (id) initWithPageRecord: (PrefsPageRecord*) pageRecord
 {
-    [super restoreDefaultsNoPrompt];
-#pragma warning "code diabled"
-    /*
-	//the preferences shown in each page must be declared in info.plist proberly!
-	NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
-	
-    unsigned int preferenceIndex = [preferences count];
-    while (preferenceIndex--)
-	{
-        NSString *aKey = [[preferences objectAtIndex: preferenceIndex] key];
-		
-		//removeObjectForKey isn't Key-Value-Observing (KVO) compliant,
-		//so make sure all observers get notified
-		[prefs willChangeValueForKey: aKey];
-		[prefs removeObjectForKey: aKey];
-		[prefs didChangeValueForKey: aKey];
-	}
-     */
+	self = [super init];
+	if ( self == nil )
+		return nil;
+
+	_pageRecord = pageRecord;
+
+	return self;
 }
 
-- (BOOL)haveAnyDefaultsChanged;
+
+- (PrefsPageRecord*) pageRecord
 {
-    return [super haveAnyDefaultsChanged];
-#pragma warning "code diabled"
-/*
-    //the preferences shown in each page and their default values must be declared in info.plist proberly!
- 	NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
-	NSDictionary *defaultValues = [prefs volatileDomainForName: NSRegistrationDomain];
-	
-    unsigned int preferenceIndex = [preferences count];
-    while (preferenceIndex--)
+	return _pageRecord;
+}
+
+- (NSString*) title
+{
+	return [_pageRecord title];
+}
+
+- (NSView*) controlBox
+{
+	if ( controlBox != nil )
+		return controlBox;
+
+	NSString *nibName = [_pageRecord nibName];
+	if ( nibName == nil )
+		return nil;
+
+	NSArray *topLevelObjects = nil;
+
+	if ( ![[NSBundle mainBundle] loadNibNamed: nibName owner: self topLevelObjects: &topLevelObjects] )
 	{
-        NSString *key = [[preferences objectAtIndex: preferenceIndex] key];
-		
-		id defValue = [defaultValues objectForKey: key];
-		id prefValue = [prefs objectForKey: key];
-		
-		if ( OFNOTEQUAL( prefValue, defValue ) )
+		NSLog( @"preference page '%@' could not load its nib '%@'", [_pageRecord identifier], nibName );
+		return nil;
+	}
+
+	//The nib's top-level objects come back autoreleased, and nothing else holds
+	//the page's view, so the page has to keep them itself.
+	_nibTopLevelObjects = topLevelObjects;
+
+	if ( controlBox == nil )
+		NSLog( @"preference page '%@' loaded '%@' but its controlBox outlet is not connected",
+			   [_pageRecord identifier], nibName );
+
+	return controlBox;
+}
+
+- (NSView*) initialFirstResponder
+{
+	//loading the nib is what connects it
+	[self controlBox];
+
+	return initialFirstResponder;
+}
+
+- (NSView*) lastKeyView
+{
+	[self controlBox];
+
+	return lastKeyView;
+}
+
+#pragma mark --------defaults-----------------
+
+//The preferences shown in each page are declared in Info.plist, under
+//Registrations, and that list is what these two work from.
+
+- (void) restoreDefaultsNoPrompt
+{
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+
+	for ( NSString *key in [_pageRecord defaultsArray] )
+	{
+		//removeObjectForKey: is not key-value observing compliant, so bound
+		//controls have to be told by hand
+		[defaults willChangeValueForKey: key];
+		[defaults removeObjectForKey: key];
+		[defaults didChangeValueForKey: key];
+	}
+}
+
+- (BOOL) haveAnyDefaultsChanged
+{
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+	NSDictionary *registeredDefaults = [defaults volatileDomainForName: NSRegistrationDomain];
+
+	for ( NSString *key in [_pageRecord defaultsArray] )
+	{
+		if ( ValuesDiffer( [defaults objectForKey: key], [registeredDefaults objectForKey: key] ) )
 			return YES;
 	}
-	
+
 	return NO;
- */
+}
+
+- (void) valuesHaveChanged
+{
+	//Nothing to do: the pages drive their controls through bindings to
+	//NSUserDefaultsController, which picks the new values up on its own.
 }
 
 @end

@@ -75,7 +75,6 @@
 	if ( _loadingPanel != nil )
 		[self close];
 	
-	[super dealloc];
 }
 
 - (void) close
@@ -92,7 +91,7 @@
 	}
 	else
 	{
-		OBPRECONDITION( _loadingPanelModalSession != 0 );
+		NSAssert( _loadingPanelModalSession != 0, @"no modal session is running" );
 		[[NSApplication sharedApplication] endModalSession: _loadingPanelModalSession];
 		_loadingPanelModalSession = 0;
 		
@@ -103,7 +102,7 @@
 - (void) closeNoModalEnd
 {
 	//this only works if we startet a modal session for a panel (no sheet)
-	OBPRECONDITION( ![_loadingPanel isSheet] );
+	NSAssert( ![_loadingPanel isSheet], @"the loading panel is already a sheet" );
 	
 	//the sender asked us not to end the modal session (maybe because sender has run into an exception)
 	_loadingPanelModalSession = 0;
@@ -138,8 +137,6 @@
 
 - (void) setMessageText: (NSString*) msg
 {
-	[msg retain];
-	[_message release];
 	_message = msg;
 }
 

@@ -13,7 +13,6 @@
 //
 
 #import "FileKindsTableController.h"
-#import <OmniAppKit/NSTableView-OAExtensions.h>
 #import <TreeMapView/TMVCushionRenderer.h>
 #import <TreeMapView/NSBitmapImageRep-CreationExtensions.h>
 #import "Preferences.h"
@@ -56,11 +55,11 @@
 	[sharedDefsController addObserver: self
 						   forKeyPath: [@"values." stringByAppendingString: UseSmallFontInKindStatistic]
 							  options: 0
-							  context: UseSmallFontInKindStatistic];
+							  context: (__bridge void*) UseSmallFontInKindStatistic];
 	[sharedDefsController addObserver: self
 						   forKeyPath: [@"values." stringByAppendingString: ShareKindColors]
 							  options: 0
-							  context: ShareKindColors];
+							  context: (__bridge void*) ShareKindColors];
 	
 	[_kindsTableArrayController addObserver: self forKeyPath: @"arrangedObjects" options: 0 context: nil];
 	
@@ -73,12 +72,6 @@
 	[_kindsTableArrayController setSortDescriptors: initialSortDescriptors];
 }
 
-- (void) dealloc
-{    
-    [_cushionImages release];
-
-    [super dealloc];
-}
 
 - (FileSystemDoc*) document
 {
@@ -124,11 +117,10 @@
 {
 	LOG( @"FileKindsTableColumn.observeValueForKeyPath: keyPath: %@, change dict:%@", keyPath, change );
 	
-	if ( context == UseSmallFontInKindStatistic )
+	if ( context == (__bridge void*) UseSmallFontInKindStatistic )
 		[self setTableViewFont];
-	else if ( context == ShareKindColors )
+	else if ( context == (__bridge void*) ShareKindColors )
 	{
-		[_cushionImages release];
 		_cushionImages = nil;
 		
 		[_tableView setNeedsDisplay: YES];
@@ -175,11 +167,9 @@
 		[cushionRenderer addRidgeByHeightFactor: 0.5];
 		[cushionRenderer renderCushionInBitmap: bitmap];
 		
-		[cushionRenderer release];
 		
 		//put an image with the cushion in the _cushionImages array for the next time this row is about to be drawn
 		image = [bitmap suitableImageForView: _tableView];
-		[bitmap release];
 		
 		[_cushionImages setObject: image forKey: [kindStatistic kindName]];
 	}
@@ -197,7 +187,10 @@
 	
 	NSFont *font = [NSFont systemFontOfSize: fontSize];
 
-	[_tableView setFont: font];
+	//NSTableView has no font of its own; it lives on each column's data cell
+	for ( NSTableColumn *column in [_tableView tableColumns] )
+		[[column dataCell] setFont: font];
+	[_tableView setNeedsDisplay: YES];
 	
 	[_tableView setRowHeight: fontSize +4];
 }

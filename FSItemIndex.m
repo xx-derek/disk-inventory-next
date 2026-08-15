@@ -14,7 +14,6 @@
 //
 
 #import "FSItemIndex.h"
-#import <OmniFoundation/NSString-OFExtensions.h>
 
 @interface NSMutableDictionary(Indexing)
 - (void) addObject: (id) object forTerm: (id) term; 
@@ -30,7 +29,6 @@
 	{
 		objects = [[NSMutableArray alloc] initWithObjects: &object count: 1];
 		[self setObject: objects forKey: term];
-		[objects release];
 	}
 	else
 		[objects addObject: object];
@@ -58,7 +56,7 @@
 	
 	_displayNameIndex = [[NSMutableDictionary alloc] init];
 	_displayFolderIndex = [[NSMutableDictionary alloc] init];
-	_kindStatistics = [kindStatistics retain];
+	_kindStatistics = kindStatistics;
 	
 /*	_indexedItems = [[NSMutableDictionary alloc] init];
 	
@@ -80,16 +78,11 @@
 
 - (void) dealloc
 {
-	[_kindStatistics release];
-	[_displayNameIndex release];
-	[_displayFolderIndex release];
 	
 /*	CFRelease( _searchGroupAll );	
 	CFRelease( _displayNameIndex );
 	CFRelease( _kindNameIndex );
-	[_indexedItems release];
 */	
-	[super dealloc];
 }
 
 - (void) addItem: (FSItem*) item
@@ -105,7 +98,6 @@
     SKDocumentRef aDocument = SKDocumentCreate ( (CFStringRef) @"data", //document scheme
 												 NULL,					//parent document
 												 (CFStringRef) key );  //document name
-	[key release];
 	
     // add the document to the indexes
     if ( !SKIndexAddDocumentWithText( _displayNameIndex, // a reference ot the index added to 
@@ -132,26 +124,24 @@
 
 - (void) addItemsFromArray: (NSArray*) items
 {
-	unsigned int i = [items count];
-	
-	NSAutoreleasePool *localPool = (i > 200) ? [[NSAutoreleasePool alloc] init] : nil;
-	
-	unsigned poolLoopCount = 0;
-	
-	while ( i-- )
+	//Adding an item makes temporary objects, and a scan hands over hundreds of
+	//thousands at once, so the pool is drained periodically to keep peak memory
+	//flat rather than growing with the whole batch.
+	NSUInteger remaining = [items count];
+
+	while ( remaining > 0 )
 	{
-		[self addItem: [items objectAtIndex: i]];
-		
-		poolLoopCount++;
-		if ( poolLoopCount > 200 )
+		@autoreleasepool
 		{
-			poolLoopCount = 0;
-			[localPool release];
-			localPool = [[NSAutoreleasePool alloc] init];
+			const NSUInteger chunk = MIN( (NSUInteger) 200, remaining );
+
+			for ( NSUInteger n = 0; n < chunk; n++ )
+			{
+				remaining--;
+				[self addItem: [items objectAtIndex: remaining]];
+			}
 		}
 	}
-	
-	[localPool release];
 }
 
 - (NSArray*) searchItems: (NSString*) searchString inIndex: (FSItemIndexType) indexesToSearch
@@ -277,7 +267,7 @@
 - (FSItem*) itemForDocument: (SKDocumentRef) document
 {
 	NSString *name = (NSString*) SKDocumentGetName( document );
-	NSAssert( ![NSString isEmptyString: name], @"can't get name of SearchKit document" );
+	NSAssert( [name length] > 0, @"can't get name of SearchKit document" );
 	
 	FSItem *item = [_indexedItems objectForKey: name];
 	NSAssert1( item != nil, @"FSItem object for name '%@' does not exist in set of indexed items", name );

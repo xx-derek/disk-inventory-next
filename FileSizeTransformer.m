@@ -26,16 +26,10 @@
 	return self;
 }
 
-- (void) dealloc
-{
-	[_sizeFormatter release];
-	
-	[super dealloc];
-}
 
 + (id) transformer
 {
-	return [[[[self class] alloc] init] autorelease];
+	return [[[self class] alloc] init];
 }
 
 - (id)transformedValue:(id)value 

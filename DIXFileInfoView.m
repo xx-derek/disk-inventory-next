@@ -36,7 +36,7 @@
 	NSURL *url = [self URL];
 	
 	NSMutableArray *infoPairs = (NSMutableArray*) [super infoPairs];
-	OBPRECONDITION( [infoPairs isKindOfClass: [NSMutableArray class]] );
+	NSAssert( [infoPairs isKindOfClass: [NSMutableArray class]], @"info pairs must be a mutable array" );
 
 	//NTInfoView shows the display name (possibly localized and with hidden extension), but we want the "raw" name
 	//(the display name is shown above next to the image in the inspector panel)

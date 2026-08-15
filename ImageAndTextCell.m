@@ -43,8 +43,6 @@
 */
 
 #import "ImageAndTextCell.h"
-//#import <OmniAppKit/NSString-OAExtensions.h>
-#import <OmniFoundation/NSString-OFUnicodeCharacters.h>
 
 #define TEXT_OFFSET	10	//space between image and text
 #define IMAGE_OFFSET	5	//space between left side of cell rect and image
@@ -53,28 +51,25 @@
 
 + (id) cell
 {
-	return [[[[self class] alloc] init] autorelease];
+	return [[[self class] alloc] init];
 }
 
 - (void)dealloc
 {
-    [_image release];
     _image = nil;
-    [super dealloc];
 }
 
 - copyWithZone:(NSZone *)zone
 {
     ImageAndTextCell *cell = (ImageAndTextCell *)[super copyWithZone:zone];
-    cell->_image = [_image retain];
+    cell->_image = _image;
     return cell;
 }
 
 - (void)setImage:(NSImage *)anImage {
     if (anImage != _image)
 	{
-        [_image release];
-        _image = [anImage retain];
+        _image = anImage;
     }
 }
 
@@ -120,7 +115,7 @@
     // Make sure string is longer than requested width
     if ([string sizeWithAttributes:attribs].width > width)
     {
-        NSString *ellipsis = [NSString horizontalEllipsisString];
+        NSString *ellipsis = @"…";
         
        // Accommodate for ellipsis we’ll tack on the end
         width -= [ellipsis sizeWithAttributes:attribs].width;
@@ -133,7 +128,7 @@
         else
         {
             // Create copy that will be the returned result
-            NSMutableString *truncatedString = [[string mutableCopy] autorelease];
+            NSMutableString *truncatedString = [string mutableCopy];
 
             // Get range for last character in string
             NSRange range = {truncatedString.length - 1, 1};

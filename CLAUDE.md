@@ -15,8 +15,9 @@ historical record — see [Naming](#naming) below before "fixing" it.
 
 ## Building
 
-Single Xcode target, `Disk Inventory Next` (application). Deployment target macOS 10.11;
-project version `1.4b2`. Bundle ID `io.github.xxderek.DiskInventoryNext`.
+Single Xcode target, `Disk Inventory Next` (application). Deployment target macOS 10.13;
+`ARCHS = $(ARCHS_STANDARD)`, so the product is a universal arm64 + x86_64 binary. Project
+version `1.4b2`. Bundle ID `io.github.xxderek.DiskInventoryNext`.
 
 ```sh
 ./BuildRelease.sh                                                       # Release build
@@ -26,35 +27,82 @@ xcodebuild -project "Disk Inventory Next.xcodeproj" -configuration Release clean
 
 The project path contains a space — always quote it.
 
-### The build will not work from a fresh clone
+**A fresh clone builds with no setup.** There are no external dependencies and nothing to
+fetch. If that ever stops being true, it is a regression, not the normal state.
 
-Two dependencies are neither vendored nor fetched by any script. They are resolved through
-`FRAMEWORK_SEARCH_PATHS_OMNI` / `FRAMEWORK_SEARCH_PATHS_TREEMAP` in `project.pbxproj`,
-which point four directory levels above `SRCROOT` at the original author's machine layout:
+Signing is the one thing that is machine-specific: `DEVELOPMENT_TEAM` is set to the fork
+owner's team, so building on another machine needs an override rather than a project edit:
 
-| Configuration | Omni frameworks | TreeMapView |
-| --- | --- | --- |
-| Debug | `$(SRCROOT)/../../../../OmniFrameworks_2018-09-22/Build/Products/Debug` | `$(SRCROOT)/../../../../TreeMapView/vdev/make/Build/Products/Debug` |
-| Release | `$(SRCROOT)/../../../../OmniFrameworks_2018-09-22/Build/Release` | `$(SRCROOT)/../../../../TreeMapView/vdev/make/src/Build/Release` |
+```sh
+xcodebuild -project "Disk Inventory Next.xcodeproj" -configuration Release \
+    CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
+    PROVISIONING_PROFILE_SPECIFIER=""
+```
 
-The app links `OmniAppKit`, `OmniBase`, `OmniFoundation`, and `TreeMapView.framework`.
-Neither directory exists in a checkout of this repo. Before assuming a build failure is
-caused by a code change, check whether these paths resolve; if not, the fix is to supply
-the frameworks and repoint those two build settings, not to edit source. A built copy of
-`TreeMapView.framework` ships inside an installed `/Applications/Disk Inventory X.app/Contents/Frameworks/`
-(the *original* app, if present — its bundle name is unaffected by this fork's rename).
+Ad-hoc (`"-"`) rather than unsigned: an unsigned binary will not execute on Apple silicon.
 
 ### Tests
 
 There is no test target and no test files — `xcodebuild test` has nothing to run. Verify
 changes by building and exercising the app against a real volume or folder.
 
-## Memory management: manual retain/release, not ARC
+The two pieces worth checking with a throwaway harness rather than by eye are the treemap
+layout (cell area must stay proportional to weight — build a synthetic tree, compare
+`itemRectByPathToItem:` areas against weight fractions) and the preferences panel (compile
+a probe **into the built `.app`'s `Contents/MacOS/`** so `[NSBundle mainBundle]` resolves
+and the page nibs load).
 
-`CLANG_ENABLE_OBJC_ARC` is unset, so the entire codebase is MRR. New code must balance
-`retain`/`release`/`autorelease` by hand and implement `dealloc`. This is the most common
-way to break this codebase — recent upstream history includes a dedicated commit fixing
-`FSItem` leaks (`76304d9`).
+When testing anything about treemap coordinates, **derive the test points from the view's
+bounds, never from `itemRectByPathToItem:`.** A point taken from a cell rect round-trips
+through the very conversion under test, so a broken conversion still passes — that is
+exactly how the flipped-backing bug above survived a layout test, an area-proportionality
+test and a synthetic-click test before a real click found it. Useful assertions: every cell
+rect lies inside the view's bounds, and a grid of points across the bounds all hit a cell
+whose rect contains that point.
+
+## Memory management: ARC
+
+`CLANG_ENABLE_OBJC_ARC = YES`. The project was manual retain/release until 2026-08-15;
+`git log` before that date is full of hand-balanced `retain`/`release`, so old commits read
+differently from current code.
+
+`-fobjc-arc-exceptions` is set in `OTHER_CFLAGS`, and **must stay set**. ARC's exception
+cleanup is off by default for Objective-C, and this app throws exceptions as a normal
+control-flow path: cancelling a scan raises `FSItemLoadingCanceledException`, and an
+ejected volume raises `FSItemLoadingFailedException`. Without the flag, every cancelled
+scan would leak whatever was in flight.
+
+### Ownership rules that are not obvious
+
+A few pointers are deliberately not strong. Changing any of them to strong compiles fine
+and leaks silently:
+
+- **`FSItem._parent` is `__unsafe_unretained`.** `_childs` owns downwards, so a strong
+  back-pointer would put a cycle on every node and leak the entire scanned tree. It is
+  unretained rather than weak because a scan builds millions of these and `-dealloc`
+  already clears the children's pointers by hand (`-onParentDealloc`).
+- **`FSItem._delegate`** (the document) is `__unsafe_unretained` for the same reason.
+- **`TMVItem._dataSource`, `_delegate`, `_view`** are `__unsafe_unretained` — the view owns
+  the renderer tree and outlives it, and a big treemap holds tens of thousands of cells.
+- **`TreeMapView.delegate` / `.dataSource`** are `__weak`: few of them, and self-nilling is
+  worth more than the speed.
+- **Outlets pointing back up the ownership chain** (`_document`, `_windowController`) are
+  `__weak`. Under MRR an `IBOutlet` was never retained; under ARC it is strong by default,
+  which turns an upward outlet into a document that never deallocates.
+- **`ZoomInfo._delegate` is `__weak`, and `-cancel` exists** because `NSTimer` retains its
+  target. A running zoom keeps the `ZoomInfo` alive on its own, so `TreeMapView -dealloc`
+  calls `-cancel` rather than just dropping its reference.
+- **`NTPasteboardHelper` parks itself in a static set** while it owns a pasteboard, since
+  under ARC it can no longer retain itself. It removes itself in `-pasteboardChangedOwner:`,
+  holding a local strong reference across the removal.
+
+### Verifying you have not reintroduced a cycle
+
+The compiler cannot help here. Scan a folder repeatedly, dropping the document each time,
+and watch `phys_footprint`: it should climb for a dozen passes and then **plateau**. A real
+leak keeps growing linearly. Measured after the migration, a 361-file tree plateaus around
+27 MB by pass 15 and is still flat at pass 40. Reading only three or four passes is not
+enough to tell a leak from the initial ramp.
 
 ## Architecture
 
@@ -168,8 +216,104 @@ This recompiles `keyedobjects.nib` with the current Xcode toolchain. Two consequ
 during the rename: the archive shrinks (modern compiler, benign), and per-OS variants like
 `keyedobjects-101300.nib` are **not** regenerated — current `ibtool` no longer emits them
 even with `--minimum-deployment-target`. AppKit falls back to `keyedobjects.nib`, so this
-is safe, but nib edits made this way have not been verified at runtime (the app can't be
-built here — see Dependencies).
+is safe.
+
+### Editing a nib without Interface Builder
+
+For structural changes — swapping a custom class, renaming an outlet — the `designable.nib`
+*inside* each `.nib` bundle is the original XIB, in plain XML. Edit that and recompile.
+`ibtool` refuses a file named `.nib`, so it has to be copied to a `.xib` first:
+
+```sh
+N=en.lproj/TreeMap.nib
+sed -i '' 's| customClass="OASplitView"||' "$N/designable.nib"   # edit the XIB source
+cp "$N/designable.nib" /tmp/edit.xib                             # ibtool needs the extension
+ibtool --compile "$N/keyedobjects.nib" /tmp/edit.xib             # recompile in place
+```
+
+Keep `designable.nib` and `keyedobjects.nib` in step, and repeat for all four languages.
+The recompile rewrites the archive in the modern NIBArchive format, so `plutil` can no
+longer parse the result — that is expected, and AppKit reads both.
+
+This is how `OASplitView` was removed. **Verify at runtime**, not by diffing: load the nib
+in a probe and assert the objects survived (see Tests). A structural nib edit that silently
+drops a connection will still build.
+
+## `TreeMapView/` — the replaced dependency
+
+The app used to link four prebuilt frameworks. All four were Intel-only binaries with no
+headers, which made an Apple silicon build impossible, and none was in the repo. **The app
+now links only system frameworks.**
+
+The OmniGroup half was migrated away entirely (see [Where the Omni code went](#where-the-omni-code-went)).
+What remains is the treemap widget, in `TreeMapView/`, resolved by `HEADER_SEARCH_PATHS`
+(`$(SRCROOT)`) rather than a framework search path, so `#import <TreeMapView/…>` still works.
+
+`TreeMapView` (the `NSView`), `TMVItem` (one cell — layout and hit testing),
+`TMVCushionRenderer` (shading), `ZoomInfo` (the zoom effect), plus two small categories.
+Written for this fork and GPL-3, from the published algorithms — squarified layout is
+Bruls/Huizing/van Wijk 2000, cushion shading is van Wijk/van de Wetering 1999.
+
+**It is not Tjark Derlien's `TreeMapView.framework`, and must not be replaced by it.** That
+framework is published at `gitlab.com/tderlien/treemapview-framework` but carries *no
+license* — no `LICENSE`, no `COPYING`, and "All rights reserved" in every source file. It
+therefore cannot be vendored into this GPL-3 repo or redistributed in a built app. If
+Derlien ever licenses it, that decision can be revisited; until then, do not copy code from
+it, and be careful that "fixing" a rendering difference does not mean porting his.
+
+Two invariants worth knowing before changing anything here:
+
+- **Layout is computed in backing pixels, not points**, so cushions shade at full Retina
+  resolution. Hit tests and `itemRectByCellId:` convert at the boundary — a change that
+  mixes the two spaces will look right at 1× and be wrong at 2×.
+- **Do not use AppKit's `convertPointToBacking:` / `convertRectToBacking:` here.** On a
+  flipped view they convert into a bottom-up space and come back with a negated y, so a
+  cell at the top of the view lands at a negative coordinate. `NSView-BackingCoordsHelpers`
+  does the scaling itself and orients y downwards from the top-left, which is where a
+  bitmap's first row is. Using AppKit's versions put the whole layout outside the view:
+  every hit test missed, so clicking selected nothing, and tooltips and the hover readout
+  went dead with it.
+- **`calcLayout:` stops descending into cells below `TMVMinimumCellSize`.** A deep item can
+  have no cell of its own, so `findTMVItemByPathToDataItem:` returns the nearest drawn
+  ancestor rather than nil.
+
+Selection notifications are posted for **user-driven changes only**; `selectItemByCellId:`
+and `selectItemByPathToItem:` are deliberately silent, so a controller syncing the view to
+the document cannot bounce the change back at itself.
+
+## Where the Omni code went
+
+The OmniGroup frameworks are gone; nothing named `OA*`, `OF*` or `OB*` remains. The pieces
+the app actually used were folded into its own classes, so **do not reintroduce a
+compatibility layer** — if something looks like it is missing, it was inlined:
+
+| Was | Now |
+| --- | --- |
+| `OAToolbarWindowController` + `OAToolbarItem` + `OAToolbarWindowControllerEx` | `ToolbarWindowController` + `ToolbarItem` |
+| `OAPreferenceController` | folded into `PrefsPanelController` |
+| `OAPreferenceClient` | folded into `PrefsPageBase` |
+| `OAPreferenceClientRecord` | `PrefsPageRecord` |
+| `OAPasteboardHelper` | `CocoaTech-Depreciated/NTPasteboardHelper` |
+| `OASplitView` | plain `NSSplitView` (`setPositionAutosaveName:` → `setAutosaveName:`) |
+| `+[NSString isEmptyString:]`, `-[NSDictionary boolForKey:]`, `-[NSMutableDictionary setBoolValue:forKey:]`, the two `NSMutableArray` sorts, `+horizontalEllipsisString`, `-[NSTableView setFont:]` | inlined at their call sites |
+| `OBPRECONDITION` | `NSAssert` (both compile out in release builds) |
+
+`OASplitView` was the one class named inside the compiled nibs. It was removed by editing
+the XIB and recompiling — see [Editing a nib without Interface Builder](#ui-files-are-binary-nib-not-xib).
+Nothing else was ever nib-referenced, which is why the rest was a rename rather than a rewrite.
+
+Two Omni mechanisms are gone rather than reimplemented, so **`Info.plist` no longer drives
+them and `main.m` does**: `NSPrincipalClass` is plain `NSApplication` (was `OAApplication`),
+and `OFControllerClass` is removed. The factory defaults still live in `Info.plist`, now
+under the `Registrations` key (`AppRegistrationsKey` in `Preferences.h`, renamed from
+`OFRegistrations`), but `RegisterFactoryDefaults()` in `main.m` registers them before
+`NSApplicationMain`. **Adding a preference means adding it there**, or bound controls will
+read nil. `PrefsPanelController` reads its page list from the same dict, keyed by its own
+class name, and skips any page whose class is not in the binary — which is why the disabled
+`FinderCMPrefPage` entry is harmless.
+
+`AppController` was an `OAController` and is now an empty `NSObject`; nothing instantiates
+it, since only `OFControllerClass` ever did.
 
 ## Vendored legacy code
 
@@ -217,6 +361,15 @@ Upstream notes live in `documentation/` — `release notes.txt` (version history
 `known bugs.txt`, and `feature suggestions.txt` are the useful ones for understanding
 intended behavior and what was deliberately left unimplemented.
 
-Licensed GPL-3 (`COPYING`). Source files carry a GPL header naming Tjark Derlien —
-preserve it when editing, and match it when adding files. As a modified version, the
+Licensed GPL-3 (`COPYING`). Source files inherited from upstream carry a GPL header naming
+Tjark Derlien — preserve it when editing, never replace it. As a modified version, the
 README must keep its §5(a) modification notice and date.
+
+Files written for this fork (everything under `TreeMapView/`, `PrefsPageRecord`, plus
+`RegisterFactoryDefaults()` in `main.m`) carry the same GPL-3 header under "Disk Inventory
+Next contributors" — they are not Derlien's work and should not be attributed to him. Match
+whichever header fits when adding a file.
+
+Before pulling in any third-party code, check that it is actually licensed. Being public on
+GitLab or GitHub is not a license; `treemapview-framework` is the cautionary example
+(see [`TreeMapView/`](#treemapview-and-omnicompat--the-two-replaced-dependencies) above).

@@ -28,7 +28,8 @@
 @interface SelectionListTableController : NSObject
 {
     IBOutlet NSTableView *_tableView;
-    IBOutlet MainWindowController *_windowController;
+    //weak: this points back up the ownership chain
+    __weak IBOutlet MainWindowController *_windowController;
 	IBOutlet GenericArrayController *_selectionListArrayController;
 	IBOutlet FileKindsPopupController *_kindStatisticsArrayController;
 }

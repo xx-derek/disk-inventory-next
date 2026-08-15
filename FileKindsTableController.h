@@ -8,7 +8,8 @@
 @interface FileKindsTableController : NSObject
 {
     IBOutlet NSTableView *_tableView;
-    IBOutlet MainWindowController *_windowController;
+    //weak: this points back up the ownership chain
+    __weak IBOutlet MainWindowController *_windowController;
 	IBOutlet NSArrayController *_kindsPopupArrayController;
 	IBOutlet NSArrayController *_kindsTableArrayController;
 

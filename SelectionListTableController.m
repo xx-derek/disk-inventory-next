@@ -14,7 +14,6 @@
 //
 
 #import "SelectionListTableController.h"
-#import <OmniAppKit/NSTableView-OAExtensions.h>
 #import "ImageAndTextCell.h"
 
 @interface SelectionListTableController(Privat)
@@ -62,7 +61,7 @@
 	[[NSUserDefaultsController sharedUserDefaultsController] addObserver: self
 															  forKeyPath: [@"values." stringByAppendingString: UseSmallFontInSelectionList]
 																 options: 0
-																 context: UseSmallFontInSelectionList];
+																 context: (__bridge void*) UseSmallFontInSelectionList];
 
 	[doc addObserver: self forKeyPath: DocKeySelectedItem options: 0 context: nil];
 	[_selectionListArrayController addObserver: self forKeyPath: @"selection" options: 0 context: nil];
@@ -157,7 +156,7 @@ writeRowsWithIndexes:(NSIndexSet *)rowIndexes
 						change:(NSDictionary*)change
 					   context:(void*)context
 {
-	if ( context == UseSmallFontInSelectionList )
+	if ( context == (__bridge void*) UseSmallFontInSelectionList )
 	{
 		[self setTableViewFont];
 	}
@@ -189,7 +188,10 @@ writeRowsWithIndexes:(NSIndexSet *)rowIndexes
 	
 	NSFont *font = [NSFont systemFontOfSize: fontSize];
 	
-	[_tableView setFont: font];
+	//NSTableView has no font of its own; it lives on each column's data cell
+	for ( NSTableColumn *column in [_tableView tableColumns] )
+		[[column dataCell] setFont: font];
+	[_tableView setNeedsDisplay: YES];
 	
 	[_tableView setRowHeight: fontSize +4];
 }

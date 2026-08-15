@@ -390,7 +390,6 @@ void LoadFirmlinks()
     {
         cache = [[NSMutableDictionary alloc] init];
         [self setTemporaryResourceValue:cache forKey:cacheKey];
-        [cache release];
     }
 
     return cache;

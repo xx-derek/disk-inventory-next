@@ -8,10 +8,10 @@
  */
 
 #include "Preferences.h"
-#import <OmniFoundation/NSDictionary-OFExtensions.h>
-#import <OmniFoundation/NSMutableDictionary-OFExtensions.h>
 
 //keys for preference values
+NSString *AppRegistrationsKey			= @"Registrations";
+
 NSString *ShowPackageContents			= @"ShowPackageContents";
 NSString *ShowFreeSpace					= @"ShowFreeSpace";
 NSString *ShowOtherSpace				= @"ShowOtherSpace";
@@ -94,52 +94,52 @@ NSString *ShareKindColors				= @"ShareKindColors";
 
 - (BOOL) showPackageContents
 {
-	return [self boolForKey: ShowPackageContents];
+	return [[self objectForKey: ShowPackageContents] boolValue];
 }
 
 - (void) setShowPackageContents: (BOOL) value;
 {
-	[self setBoolValue: value forKey: ShowPackageContents];
+	[self setObject: [NSNumber numberWithBool: value] forKey: ShowPackageContents];
 }
 
 - (BOOL) showFreeSpace;
 {
-	return [self boolForKey: ShowFreeSpace];
+	return [[self objectForKey: ShowFreeSpace] boolValue];
 }
 
 - (void) setShowFreeSpace: (BOOL) value;
 {
-	[self setBoolValue: value forKey: ShowFreeSpace];
+	[self setObject: [NSNumber numberWithBool: value] forKey: ShowFreeSpace];
 }
 
 - (BOOL) showOtherSpace;
 {
-	return [self boolForKey: ShowOtherSpace];
+	return [[self objectForKey: ShowOtherSpace] boolValue];
 }
 
 - (void) setShowOtherSpace: (BOOL) value;
 {
-	[self setBoolValue: value forKey: ShowOtherSpace];
+	[self setObject: [NSNumber numberWithBool: value] forKey: ShowOtherSpace];
 }
 
 - (BOOL) ignoreCreatorCode;
 {
-	return [self boolForKey: IgnoreCreatorCode];
+	return [[self objectForKey: IgnoreCreatorCode] boolValue];
 }
 
 - (void) setIgnoreCreatorCode: (BOOL) value
 {
-	[self setBoolValue: value forKey: IgnoreCreatorCode];
+	[self setObject: [NSNumber numberWithBool: value] forKey: IgnoreCreatorCode];
 }
 
 - (BOOL) showPhysicalFileSize
 {
-	return [self boolForKey: ShowPhysicalFileSize];
+	return [[self objectForKey: ShowPhysicalFileSize] boolValue];
 }
 
 - (void) setShowPhysicalFileSize: (BOOL) value
 {
-	[self setBoolValue: value forKey: ShowPhysicalFileSize];
+	[self setObject: [NSNumber numberWithBool: value] forKey: ShowPhysicalFileSize];
 }
 
 @end
@@ -150,7 +150,8 @@ NSString *ShareKindColors				= @"ShareKindColors";
 {
 	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
 	
-#define COPYVALUEBOOL( name ) [self setBoolValue: [defaults boolForKey: name] forKey: name]
+#define COPYVALUEBOOL( name ) \
+	[self setObject: [NSNumber numberWithBool: [defaults boolForKey: name]] forKey: name]
 	
 	COPYVALUEBOOL( ShowPackageContents );
 	COPYVALUEBOOL( ShowFreeSpace );

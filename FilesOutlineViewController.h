@@ -8,7 +8,8 @@
 
 @interface FilesOutlineViewController : NSObject
 {
-    IBOutlet FileSystemDoc *_document;
+    //weak: this points back up the ownership chain
+    __weak IBOutlet FileSystemDoc *_document;
     IBOutlet DIXOutlineView *_outlineView;
     IBOutlet NSMenu *_contextMenu;
 }

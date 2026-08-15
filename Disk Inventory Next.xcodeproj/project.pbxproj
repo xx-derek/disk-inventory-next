@@ -15,27 +15,18 @@
 		FC2C2CA3238C802600D04E20 /* macOS privacy protected folders.txt in Resources */ = {isa = PBXBuildFile; fileRef = FC2C2CA1238C802600D04E20 /* macOS privacy protected folders.txt */; };
 		FC2E58FF21D3BFDF00F6F03B /* Disk Inventory Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = FC2E58FE21D3BFDF00F6F03B /* Disk Inventory Icon.png */; };
 		FC33B45A230C846F00133632 /* NSURL-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = FC33B459230C846F00133632 /* NSURL-Extensions.m */; };
-		FC347FA122CBDFED0002CDED /* OmniAppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC347F9322CBDF650002CDED /* OmniAppKit.framework */; };
-		FC347FA222CBDFED0002CDED /* OmniBase.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC347F9422CBDF660002CDED /* OmniBase.framework */; };
-		FC347FA322CBDFED0002CDED /* OmniFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC347F9222CBDF650002CDED /* OmniFoundation.framework */; };
-		FC347FA722CBE0340002CDED /* TreeMapView.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = FC347F9822CBDF870002CDED /* TreeMapView.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		FC347FA822CBE0340002CDED /* OmniAppKit.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = FC347F9322CBDF650002CDED /* OmniAppKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		FC347FA922CBE0340002CDED /* OmniBase.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = FC347F9422CBDF660002CDED /* OmniBase.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		FC347FAA22CBE0340002CDED /* OmniFoundation.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = FC347F9222CBDF650002CDED /* OmniFoundation.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FC4C4AC109802035004CCA22 /* Help in Resources */ = {isa = PBXBuildFile; fileRef = FC4C4ABF09802035004CCA22 /* Help */; };
 		FC4C4FF70981520A004CCA22 /* AppsForItem.m in Sources */ = {isa = PBXBuildFile; fileRef = FC4C4FF50981520A004CCA22 /* AppsForItem.m */; };
 		FC7F775D1067BAB10090E839 /* NTFilePasteboardSource.m in Sources */ = {isa = PBXBuildFile; fileRef = FC7F775C1067BAB10090E839 /* NTFilePasteboardSource.m */; };
 		FC7F77641067BC310090E839 /* NTInfoView.m in Sources */ = {isa = PBXBuildFile; fileRef = FC7F77631067BC310090E839 /* NTInfoView.m */; };
 		FC7F77D71067C9500090E839 /* NTTitledInfoPair.m in Sources */ = {isa = PBXBuildFile; fileRef = FC7F77D41067C9500090E839 /* NTTitledInfoPair.m */; };
 		FC7F77D81067C9500090E839 /* NTTitledInfoView.m in Sources */ = {isa = PBXBuildFile; fileRef = FC7F77D61067C9500090E839 /* NTTitledInfoView.m */; };
-		FC9CF15627E138DC00BEB93D /* TreeMapView.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC347F9822CBDF870002CDED /* TreeMapView.framework */; };
 		FCB2FDC42375F4E100DC4806 /* NSFileManager-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = FCB2FDC32375F4E100DC4806 /* NSFileManager-Extensions.m */; };
 		FCCFB2AA097FA3FD009EA2B6 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2A9097FA3FD009EA2B6 /* main.m */; };
 		FCCFB303097FA42B009EA2B6 /* DIXTableView.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2AD097FA42B009EA2B6 /* DIXTableView.m */; };
 		FCCFB304097FA42B009EA2B6 /* DIXOutlineView.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2AF097FA42B009EA2B6 /* DIXOutlineView.m */; };
 		FCCFB305097FA42B009EA2B6 /* GenericArrayController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2B0097FA42B009EA2B6 /* GenericArrayController.m */; };
 		FCCFB306097FA42B009EA2B6 /* ImageAndTextCell.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2B3097FA42B009EA2B6 /* ImageAndTextCell.m */; };
-		FCCFB307097FA42B009EA2B6 /* OAToolbarWindowControllerEx.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2B6097FA42B009EA2B6 /* OAToolbarWindowControllerEx.m */; };
 		FCCFB30C097FA42B009EA2B6 /* Preferences.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2C2097FA42B009EA2B6 /* Preferences.m */; };
 		FCCFB30D097FA42B009EA2B6 /* PrefsPanelController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2C4097FA42B009EA2B6 /* PrefsPanelController.m */; };
 		FCCFB30E097FA42B009EA2B6 /* PrefsPageBase.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2C6097FA42B009EA2B6 /* PrefsPageBase.m */; };
@@ -93,6 +84,15 @@
 		FCCFB382097FA4C1009EA2B6 /* VolumesPanel.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB36E097FA4C1009EA2B6 /* VolumesPanel.nib */; };
 		FCD5DAFE09CDD4260051C1CF /* MainWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = FCD5DAFC09CDD4260051C1CF /* MainWindow.m */; };
 		FCFB17B621B876A400E3F8C4 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FCFB17B521B876A400E3F8C4 /* Images.xcassets */; };
+		DEC0DE000000000000000003 /* TreeMapView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC0DE000000000000000002 /* TreeMapView.m */; };
+		DEC0DE000000000000000006 /* TMVItem.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC0DE000000000000000005 /* TMVItem.m */; };
+		DEC0DE000000000000000009 /* TMVCushionRenderer.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC0DE000000000000000008 /* TMVCushionRenderer.m */; };
+		DEC0DE00000000000000000C /* ZoomInfo.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC0DE00000000000000000B /* ZoomInfo.m */; };
+		DEC0DE00000000000000000F /* NSBitmapImageRep-CreationExtensions.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC0DE00000000000000000E /* NSBitmapImageRep-CreationExtensions.m */; };
+		DEC0DE000000000000000012 /* NSView-BackingCoordsHelpers.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC0DE000000000000000011 /* NSView-BackingCoordsHelpers.m */; };
+		DEC1DE000000000000000003 /* ToolbarWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC1DE000000000000000002 /* ToolbarWindowController.m */; };
+		DEC1DE000000000000000006 /* PrefsPageRecord.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC1DE000000000000000005 /* PrefsPageRecord.m */; };
+		DEC1DE000000000000000009 /* NTPasteboardHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC1DE000000000000000008 /* NTPasteboardHelper.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -102,10 +102,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				FC347FA722CBE0340002CDED /* TreeMapView.framework in CopyFiles */,
-				FC347FA822CBE0340002CDED /* OmniAppKit.framework in CopyFiles */,
-				FC347FA922CBE0340002CDED /* OmniBase.framework in CopyFiles */,
-				FC347FAA22CBE0340002CDED /* OmniFoundation.framework in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -152,10 +148,6 @@
 		FC2E58FE21D3BFDF00F6F03B /* Disk Inventory Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Disk Inventory Icon.png"; sourceTree = "<group>"; };
 		FC33B458230C846F00133632 /* NSURL-Extensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSURL-Extensions.h"; sourceTree = SOURCE_ROOT; };
 		FC33B459230C846F00133632 /* NSURL-Extensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSURL-Extensions.m"; sourceTree = SOURCE_ROOT; };
-		FC347F9222CBDF650002CDED /* OmniFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OmniFoundation.framework; path = "../../../../OmniFrameworks_2018-09-22/Build/Release/OmniFoundation.framework"; sourceTree = "<group>"; };
-		FC347F9322CBDF650002CDED /* OmniAppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OmniAppKit.framework; path = "../../../../OmniFrameworks_2018-09-22/Build/Release/OmniAppKit.framework"; sourceTree = "<group>"; };
-		FC347F9422CBDF660002CDED /* OmniBase.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OmniBase.framework; path = "../../../../OmniFrameworks_2018-09-22/Build/Release/OmniBase.framework"; sourceTree = "<group>"; };
-		FC347F9822CBDF870002CDED /* TreeMapView.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = TreeMapView.framework; path = ../../../../TreeMapView/vdev/make/src/build/Release/TreeMapView.framework; sourceTree = "<group>"; };
 		FC42B8622202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/TreeMapPreferencesPage.nib; sourceTree = "<group>"; };
 		FC42B8632202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/GeneralPreferencesPage.nib; sourceTree = "<group>"; };
 		FC42B8642202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/FinderCMPreferencesPage.nib; sourceTree = "<group>"; };
@@ -208,8 +200,6 @@
 		FCCFB2B1097FA42B009EA2B6 /* GenericArrayController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GenericArrayController.h; sourceTree = "<group>"; };
 		FCCFB2B2097FA42B009EA2B6 /* ImageAndTextCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ImageAndTextCell.h; sourceTree = "<group>"; };
 		FCCFB2B3097FA42B009EA2B6 /* ImageAndTextCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ImageAndTextCell.m; sourceTree = "<group>"; };
-		FCCFB2B5097FA42B009EA2B6 /* OAToolbarWindowControllerEx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OAToolbarWindowControllerEx.h; sourceTree = "<group>"; };
-		FCCFB2B6097FA42B009EA2B6 /* OAToolbarWindowControllerEx.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = OAToolbarWindowControllerEx.m; sourceTree = "<group>"; };
 		FCCFB2C1097FA42B009EA2B6 /* Preferences.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Preferences.h; sourceTree = "<group>"; };
 		FCCFB2C2097FA42B009EA2B6 /* Preferences.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Preferences.m; sourceTree = "<group>"; };
 		FCCFB2C3097FA42B009EA2B6 /* PrefsPanelController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PrefsPanelController.h; sourceTree = "<group>"; };
@@ -287,6 +277,24 @@
 		FCD71DB70984141E00590D16 /* release notes.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "release notes.txt"; path = "documentation/release notes.txt"; sourceTree = "<group>"; };
 		FCEEFC0421FE5B6700E9785E /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/FinderCMPreferencesPage.nib; sourceTree = "<group>"; };
 		FCFB17B521B876A400E3F8C4 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = "Disk Inventory Next/Images.xcassets"; sourceTree = "<group>"; };
+		DEC0DE000000000000000001 /* TreeMapView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "TreeMapView.h"; sourceTree = "<group>"; };
+		DEC0DE000000000000000002 /* TreeMapView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "TreeMapView.m"; sourceTree = "<group>"; };
+		DEC0DE000000000000000004 /* TMVItem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "TMVItem.h"; sourceTree = "<group>"; };
+		DEC0DE000000000000000005 /* TMVItem.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "TMVItem.m"; sourceTree = "<group>"; };
+		DEC0DE000000000000000007 /* TMVCushionRenderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "TMVCushionRenderer.h"; sourceTree = "<group>"; };
+		DEC0DE000000000000000008 /* TMVCushionRenderer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "TMVCushionRenderer.m"; sourceTree = "<group>"; };
+		DEC0DE00000000000000000A /* ZoomInfo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "ZoomInfo.h"; sourceTree = "<group>"; };
+		DEC0DE00000000000000000B /* ZoomInfo.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "ZoomInfo.m"; sourceTree = "<group>"; };
+		DEC0DE00000000000000000D /* NSBitmapImageRep-CreationExtensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSBitmapImageRep-CreationExtensions.h"; sourceTree = "<group>"; };
+		DEC0DE00000000000000000E /* NSBitmapImageRep-CreationExtensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSBitmapImageRep-CreationExtensions.m"; sourceTree = "<group>"; };
+		DEC0DE000000000000000010 /* NSView-BackingCoordsHelpers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSView-BackingCoordsHelpers.h"; sourceTree = "<group>"; };
+		DEC0DE000000000000000011 /* NSView-BackingCoordsHelpers.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSView-BackingCoordsHelpers.m"; sourceTree = "<group>"; };
+		DEC1DE000000000000000001 /* ToolbarWindowController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "ToolbarWindowController.h"; sourceTree = "<group>"; };
+		DEC1DE000000000000000002 /* ToolbarWindowController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "ToolbarWindowController.m"; sourceTree = "<group>"; };
+		DEC1DE000000000000000004 /* PrefsPageRecord.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "PrefsPageRecord.h"; sourceTree = "<group>"; };
+		DEC1DE000000000000000005 /* PrefsPageRecord.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "PrefsPageRecord.m"; sourceTree = "<group>"; };
+		DEC1DE000000000000000007 /* NTPasteboardHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NTPasteboardHelper.h"; sourceTree = "<group>"; };
+		DEC1DE000000000000000008 /* NTPasteboardHelper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NTPasteboardHelper.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -294,13 +302,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FC9CF15627E138DC00BEB93D /* TreeMapView.framework in Frameworks */,
 				FC2B2BBD277E47320040ED6C /* Foundation.framework in Frameworks */,
 				FC2B2BBB277E472C0040ED6C /* Cocoa.framework in Frameworks */,
 				FC2B2BBC277E472F0040ED6C /* AppKit.framework in Frameworks */,
-				FC347FA122CBDFED0002CDED /* OmniAppKit.framework in Frameworks */,
-				FC347FA222CBDFED0002CDED /* OmniBase.framework in Frameworks */,
-				FC347FA322CBDFED0002CDED /* OmniFoundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -342,7 +346,8 @@
 				FCD71DB4098413FF00590D16 /* Documentation */,
 				FCCFB2AB097FA42B009EA2B6 /* AppKit Extension */,
 				FC33B457230C842700133632 /* Foundation Extensions */,
-				FCCFB2B4097FA42B009EA2B6 /* OmniAppKitExtensions */,
+				FCCFB2B4097FA42B009EA2B6 /* Toolbar */,
+				DEC0DE00000000000000003C /* TreeMapView */,
 				FC7F775A1067BAB10090E839 /* CocoaTech-Depreciated */,
 				FCCFB2CD097FA42B009EA2B6 /* Helper Classes */,
 				FCCFB2ED097FA42B009EA2B6 /* FilesOutlineView Classes */,
@@ -398,8 +403,6 @@
 		2A37F4C3FDCFA73011CA2CEA /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				FC347F9822CBDF870002CDED /* TreeMapView.framework */,
-				FC66DCF5107A28A500F46D76 /* OmniGroup */,
 				1058C7A6FEA54F5311CA2CBB /* Linked Frameworks */,
 				1058C7A8FEA54F5311CA2CBB /* Other Frameworks */,
 			);
@@ -418,19 +421,11 @@
 			path = "Foundation Extensions";
 			sourceTree = "<group>";
 		};
-		FC66DCF5107A28A500F46D76 /* OmniGroup */ = {
-			isa = PBXGroup;
-			children = (
-				FC347F9322CBDF650002CDED /* OmniAppKit.framework */,
-				FC347F9422CBDF660002CDED /* OmniBase.framework */,
-				FC347F9222CBDF650002CDED /* OmniFoundation.framework */,
-			);
-			name = OmniGroup;
-			sourceTree = "<group>";
-		};
 		FC7F775A1067BAB10090E839 /* CocoaTech-Depreciated */ = {
 			isa = PBXGroup;
 			children = (
+				DEC1DE000000000000000007 /* NTPasteboardHelper.h */,
+				DEC1DE000000000000000008 /* NTPasteboardHelper.m */,
 				FC7F775B1067BAB10090E839 /* NTFilePasteboardSource.h */,
 				FC7F775C1067BAB10090E839 /* NTFilePasteboardSource.m */,
 				FC7F77621067BC310090E839 /* NTInfoView.h */,
@@ -460,18 +455,20 @@
 			name = "AppKit Extension";
 			sourceTree = "<group>";
 		};
-		FCCFB2B4097FA42B009EA2B6 /* OmniAppKitExtensions */ = {
+		FCCFB2B4097FA42B009EA2B6 /* Toolbar */ = {
 			isa = PBXGroup;
 			children = (
-				FCCFB2B5097FA42B009EA2B6 /* OAToolbarWindowControllerEx.h */,
-				FCCFB2B6097FA42B009EA2B6 /* OAToolbarWindowControllerEx.m */,
+				DEC1DE000000000000000001 /* ToolbarWindowController.h */,
+				DEC1DE000000000000000002 /* ToolbarWindowController.m */,
 			);
-			name = OmniAppKitExtensions;
+			name = Toolbar;
 			sourceTree = "<group>";
 		};
 		FCCFB2C0097FA42B009EA2B6 /* Preferences */ = {
 			isa = PBXGroup;
 			children = (
+				DEC1DE000000000000000004 /* PrefsPageRecord.h */,
+				DEC1DE000000000000000005 /* PrefsPageRecord.m */,
 				FCCFB2C1097FA42B009EA2B6 /* Preferences.h */,
 				FCCFB2C2097FA42B009EA2B6 /* Preferences.m */,
 				FCCFB2C3097FA42B009EA2B6 /* PrefsPanelController.h */,
@@ -644,6 +641,25 @@
 			name = "Project References";
 			sourceTree = "<group>";
 		};
+		DEC0DE00000000000000003C /* TreeMapView */ = {
+			isa = PBXGroup;
+			children = (
+				DEC0DE000000000000000001 /* TreeMapView.h */,
+				DEC0DE000000000000000002 /* TreeMapView.m */,
+				DEC0DE000000000000000004 /* TMVItem.h */,
+				DEC0DE000000000000000005 /* TMVItem.m */,
+				DEC0DE000000000000000007 /* TMVCushionRenderer.h */,
+				DEC0DE000000000000000008 /* TMVCushionRenderer.m */,
+				DEC0DE00000000000000000A /* ZoomInfo.h */,
+				DEC0DE00000000000000000B /* ZoomInfo.m */,
+				DEC0DE00000000000000000D /* NSBitmapImageRep-CreationExtensions.h */,
+				DEC0DE00000000000000000E /* NSBitmapImageRep-CreationExtensions.m */,
+				DEC0DE000000000000000010 /* NSView-BackingCoordsHelpers.h */,
+				DEC0DE000000000000000011 /* NSView-BackingCoordsHelpers.m */,
+			);
+			path = TreeMapView;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -673,7 +689,7 @@
 		2A37F4A9FDCFA73011CA2CEA /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1000;
+				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					8D15AC270486D014006FF6A4 = {
 						ProvisioningStyle = Automatic;
@@ -771,12 +787,20 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DEC1DE000000000000000003 /* ToolbarWindowController.m in Sources */,
+				DEC1DE000000000000000006 /* PrefsPageRecord.m in Sources */,
+				DEC1DE000000000000000009 /* NTPasteboardHelper.m in Sources */,
+				DEC0DE000000000000000003 /* TreeMapView.m in Sources */,
+				DEC0DE000000000000000006 /* TMVItem.m in Sources */,
+				DEC0DE000000000000000009 /* TMVCushionRenderer.m in Sources */,
+				DEC0DE00000000000000000C /* ZoomInfo.m in Sources */,
+				DEC0DE00000000000000000F /* NSBitmapImageRep-CreationExtensions.m in Sources */,
+				DEC0DE000000000000000012 /* NSView-BackingCoordsHelpers.m in Sources */,
 				FCCFB2AA097FA3FD009EA2B6 /* main.m in Sources */,
 				FCCFB303097FA42B009EA2B6 /* DIXTableView.m in Sources */,
 				FCCFB304097FA42B009EA2B6 /* DIXOutlineView.m in Sources */,
 				FCCFB305097FA42B009EA2B6 /* GenericArrayController.m in Sources */,
 				FCCFB306097FA42B009EA2B6 /* ImageAndTextCell.m in Sources */,
-				FCCFB307097FA42B009EA2B6 /* OAToolbarWindowControllerEx.m in Sources */,
 				FCCFB30C097FA42B009EA2B6 /* Preferences.m in Sources */,
 				FCCFB30D097FA42B009EA2B6 /* PrefsPanelController.m in Sources */,
 				FCCFB30E097FA42B009EA2B6 /* PrefsPageBase.m in Sources */,
@@ -987,27 +1011,25 @@
 				CURRENT_PROJECT_VERSION = 1.4b2;
 				DEVELOPMENT_TEAM = 65J464P6J4;
 				ENABLE_HARDENED_RUNTIME = YES;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(FRAMEWORK_SEARCH_PATHS)",
-					"$(FRAMEWORK_SEARCH_PATHS_TREEMAP)",
-					"$(FRAMEWORK_SEARCH_PATHS_OMNI)",
-				);
-				FRAMEWORK_SEARCH_PATHS_OMNI = "\"$(SRCROOT)/../../../../OmniFrameworks_2018-09-22/Build/Products/Debug\"";
-				FRAMEWORK_SEARCH_PATHS_TREEMAP = "\"$(SRCROOT)/../../../../TreeMapView/vdev/make/Build/Products/Debug\"";
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = "DEBUG=1";
 				GCC_VERSION = "";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)",
+				);
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = 1.4b2;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = io.github.xxderek.DiskInventoryNext;
 				PRODUCT_NAME = "Disk Inventory Next";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				ARCHS = "$(ARCHS_STANDARD)";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				OTHER_CFLAGS = "-fobjc-arc-exceptions";
 				SDKROOT = macosx;
-				SWIFT_VERSION = 4.2;
 				WRAPPER_EXTENSION = app;
 			};
 			name = Debug;
@@ -1023,24 +1045,22 @@
 				DEVELOPMENT_TEAM = 65J464P6J4;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_NS_ASSERTIONS = NO;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(FRAMEWORK_SEARCH_PATHS)",
-					"$(FRAMEWORK_SEARCH_PATHS_TREEMAP)",
-					"$(FRAMEWORK_SEARCH_PATHS_OMNI)",
-				);
-				FRAMEWORK_SEARCH_PATHS_OMNI = "\"$(SRCROOT)/../../../../OmniFrameworks_2018-09-22/Build/Release\"";
-				FRAMEWORK_SEARCH_PATHS_TREEMAP = "\"$(SRCROOT)/../../../../TreeMapView/vdev/make/src/Build/Release\"";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = "";
 				GCC_VERSION = "";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)",
+				);
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = 1.4b2;
 				PRODUCT_BUNDLE_IDENTIFIER = io.github.xxderek.DiskInventoryNext;
 				PRODUCT_NAME = "Disk Inventory Next";
+				ARCHS = "$(ARCHS_STANDARD)";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				OTHER_CFLAGS = "-fobjc-arc-exceptions";
 				SDKROOT = macosx;
-				SWIFT_VERSION = 4.2;
 				WRAPPER_EXTENSION = app;
 			};
 			name = Release;
@@ -1050,14 +1070,19 @@
 			buildSettings = {
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				ENABLE_TESTABILITY = YES;
-				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "Disk Inventory Next_Prefix.pch";
 				GCC_VERSION = "";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)",
+				);
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				ONLY_ACTIVE_ARCH = NO;
+				ARCHS = "$(ARCHS_STANDARD)";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				OTHER_CFLAGS = "-fobjc-arc-exceptions";
 				SDKROOT = macosx;
 				SHARED_PRECOMPS_DIR = "$(PROJECT_TEMP_DIR)/SharedPrecompiledHeaders";
 			};
@@ -1070,9 +1095,15 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "Disk Inventory Next_Prefix.pch";
 				GCC_VERSION = "";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)",
+				);
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				ARCHS = "$(ARCHS_STANDARD)";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				OTHER_CFLAGS = "-fobjc-arc-exceptions";
 				SDKROOT = macosx;
 				SHARED_PRECOMPS_DIR = "$(PROJECT_TEMP_DIR)/SharedPrecompiledHeaders";
 			};

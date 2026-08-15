@@ -15,6 +15,8 @@
 
 #import "GenericArrayController.h"
 
+//Used only as an opaque KVO context, never as a string; the address is what
+//matters, so it is bridged rather than converted.
 NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 
 @interface GenericArrayController(Privat)
@@ -38,14 +40,6 @@ NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 	return self;
 }
 
-- (void) dealloc
-{
-	[_cachedObjects release];
-	[_mySelectionIndexes release];
-	[_collectionKeyPath release];
-	
-	[super dealloc];
-}
 
 #pragma mark --------binding support-----------------
 
@@ -61,7 +55,7 @@ NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 		_model = observableController;
 		_collectionKeyPath = [keyPath copy];
 		
-		[_model addObserver: self forKeyPath: _collectionKeyPath options: NSKeyValueObservingOptionNew context: contentArrayBindingContext];
+		[_model addObserver: self forKeyPath: _collectionKeyPath options: NSKeyValueObservingOptionNew context: (__bridge void*) contentArrayBindingContext];
 	}
 	else
 	{
@@ -80,10 +74,8 @@ NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 		[_model removeObserver:self forKeyPath: _collectionKeyPath];
 		_model = nil;
 		
-		[_collectionKeyPath release];
 		_collectionKeyPath = nil;
 		
-		[_mySelectionIndexes release];
 		_mySelectionIndexes = nil;
 		
 		[self rearrangeObjects];
@@ -98,7 +90,7 @@ NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
-	if ( context == contentArrayBindingContext )
+	if ( context == (__bridge void*) contentArrayBindingContext )
 		[self rearrangeObjects];
 }
 
@@ -158,7 +150,7 @@ NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 			newObjects = [[collection objectEnumerator] allObjects];
 		}
 		
-		_cachedObjects = [[self arrangeObjects: newObjects] retain];
+		_cachedObjects = [self arrangeObjects: newObjects];
 	}
 	
 	return _cachedObjects;
@@ -178,7 +170,6 @@ NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 		
 		[_mySelectionIndexes removeAllIndexes];
 		
-		[_cachedObjects release];
 		_cachedObjects = nil;
 		
 		_updateSuspensionInfo.arrayIsValid = YES;
@@ -237,7 +228,6 @@ NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 		 
 	[self onSelectionChanging];
 	
-	[_mySelectionIndexes autorelease];
 	_mySelectionIndexes = [[NSMutableIndexSet alloc] initWithIndex: index];
 
 	[self onSelectionChanged];
@@ -263,7 +253,6 @@ NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 	
 	[self onSelectionChanging];
 	
-	[_mySelectionIndexes autorelease];
 	_mySelectionIndexes = [indexes mutableCopy];
 	
 	[self onSelectionChanged];
@@ -388,14 +377,5 @@ NSString *contentArrayBindingContext = @"contentArrayBindingContext";
 
 
 @end
-
-
-
-
-
-
-
-
-
 
 

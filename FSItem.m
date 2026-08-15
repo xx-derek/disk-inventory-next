@@ -16,7 +16,6 @@
 
 #import "FSItem.h"
 #import "NSURL-Extensions.h"
-#import <OmniFoundation/NSMutableArray-OFExtensions.h>
 #import "NTFilePasteboardSource.h"
 
 //for debugging and logging purposes
@@ -63,6 +62,21 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 
 @end
 
+//Children are kept largest first. Inserting into the already sorted array is
+//what keeps loading linear; re-sorting on every file added would not be.
+static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newChild )
+{
+	const NSUInteger index = [children indexOfObject: newChild
+									   inSortedRange: NSMakeRange( 0, [children count] )
+											 options: NSBinarySearchingInsertionIndex
+									 usingComparator: ^NSComparisonResult( FSItem *left, FSItem *right )
+	{
+		return [left compareSizeDescendingly: right];
+	}];
+
+	[children insertObject: newChild atIndex: index];
+}
+
 //================ implementation FSItem ======================================================
 
 @implementation FSItem
@@ -77,7 +91,7 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 {
     self = [super init];
     
-    NSURL * url = [[[NSURL alloc] initFileURLWithPath:path] autorelease];
+    NSURL * url = [[NSURL alloc] initFileURLWithPath:path];
     
     return [self initWithURL:url];
 }
@@ -88,7 +102,7 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
     
     _type = FileFolderItem;
     
-    _fileURL = [url retain];
+    _fileURL = url;
     
     if ( [url isDirectory] )
         _childs = [[NSMutableArray alloc] init];
@@ -145,16 +159,11 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 	if ( _childs != nil )
 	{
 		[_childs makeObjectsPerformSelector: @selector(onParentDealloc)];
-		[_childs release];
 	}
 	
-    [_fileURL release];
-	[_size release];
-	[_icons release];
     
     //_parent and _delegate no release!
 	
-    [super dealloc];
 }
 
 - (FSItemType) type
@@ -179,8 +188,6 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 {
 	NSAssert( ![self isSpecialItem], @"free and other space items don't habe a NTFileDesc object");
 	
-	[url retain];
-	[_fileURL release];
 	_fileURL = url;
 }
 
@@ -349,7 +356,7 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 	[newChild setParent: self];
 	
 	//insert child sorted by size
-	[_childs insertObject: newChild inArraySortedUsingSelector: @selector(compareSizeDescendingly:)];
+	InsertChildKeepingSizeOrder( _childs, newChild );
 	
 	[self setSizeValue: [self sizeValue] + [newChild sizeValue]];
 	
@@ -512,13 +519,11 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 		{
 			NSString *typeString = [[NSString alloc] initWithBytes:&type length:sizeof(OSType) encoding:NSMacOSRomanStringEncoding];
 			[kindNameKey appendFormat:@"T:%@ ", typeString];
-			[typeString release];
 		}
 		if (creator != kLSUnknownCreator)
 		{
 			NSString *creatorString = [[NSString alloc] initWithBytes:&creator length:sizeof(OSType) encoding:NSMacOSRomanStringEncoding];
 			[kindNameKey appendFormat:@"C:%@ ", creatorString];
-			[creatorString release];
 		}
 		
 		if (extension)
@@ -529,7 +534,7 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 	else if ( extension != nil )
 	{
 		askLSCopyKindStringForTypeInfo = YES;
-		kindNameKey = [extension retain];
+		kindNameKey = extension;
 	}
 	else if ( [fileDesc isExecutableBitSet] )
 		kindNameKey = @".UnixExecutable";
@@ -549,7 +554,7 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 			LSCopyKindStringForTypeInfo( type, creator, (CFStringRef)extension, (CFStringRef*) &kindName);	// kindName is retained
 		
 		if ( kindName == nil )
-			kindName = [[fileDesc kindString] retain];
+			kindName = [fileDesc kindString];
 		
 		if ( kindName != nil )
 		{
@@ -557,24 +562,23 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 			[g_kindNameDictionary setObject: kindName forKey: kindNameKey];Re: DiskInventory X is not compatible with MacOS Catalina (10.15)
 			
 			[fileDesc setKindString: kindName];
-			[kindName release];
 		}
 		else
 			LOG( @"couldn't get kind name for '%@'; will use default kind", [self path]);
 	}
 	
-	[kindNameKey release];
  */
     NSString *uti = [[self fileURL] cachedUTI];
     
     if ( g_kindNameDictionary == nil )
         g_kindNameDictionary = [[NSMutableDictionary alloc] init];
 
-    _kindName = [[g_kindNameDictionary objectForKey: uti] retain];
+    _kindName = [g_kindNameDictionary objectForKey: uti];
 
     if ( _kindName == nil )
     {
-        _kindName = (NSString*) UTTypeCopyDescription((CFStringRef)uti);
+        //Copy* returns +1, so ownership is transferred to ARC rather than bridged
+        _kindName = CFBridgingRelease( UTTypeCopyDescription( (__bridge CFStringRef) uti ) );
         
         //remember kind name for similar files
         if ( _kindName != nil )
@@ -584,7 +588,6 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
     if ( _kindName == nil )
     {
         _kindName = [[self fileURL] getCachedStringValue: NSURLLocalizedTypeDescriptionKey];
-        [_kindName retain];
     }
     
     //let our childs do the same
@@ -719,7 +722,13 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 
 - (NSArray<NSPasteboardType>*) supportedPasteboardTypes
 {
-	NSMutableArray<NSPasteboardType> *types = [NSMutableArray arrayWithObjects: NSFilenamesPboardType,
+	//NSPasteboardTypeFileURL comes first, because a receiver takes the first type
+	//it understands. NSFilenamesPboardType is kept for older receivers, but it can
+	//no longer carry a file on its own: macOS stopped mapping it to public.file-url,
+	//so it now arrives as an unregistered dynamic UTI that nothing recognises. That
+	//is why dragging to the Finder, and copying a file, silently did nothing.
+	NSMutableArray<NSPasteboardType> *types = [NSMutableArray arrayWithObjects: NSPasteboardTypeFileURL,
+                                                                                NSFilenamesPboardType,
                                                                                 NSStringPboardType,
                                                                                 NSFileContentsPboardType,
                                                                                 nil ];
@@ -747,14 +756,15 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 	NSString * uti = [[self fileURL] cachedUTI];
 	
 	//this if clause is derived from the code in NTFilePasteboardSource's "- (NSArray*)pasteboardTypes:(NSArray *)types"
-	return [type isEqualToString: NSFilenamesPboardType]
+	return [type isEqualToString: NSPasteboardTypeFileURL]
+			|| [type isEqualToString: NSFilenamesPboardType]
 			|| [type isEqualToString: NSStringPboardType]
 			|| [type isEqualToString: NSFileContentsPboardType]
 			|| ([type isEqualToString: NSTIFFPboardType] && UTTypeConformsTo((__bridge CFStringRef)uti, kUTTypeImage))
 			|| ([type isEqualToString: NSRTFPboardType] && [uti isEqualToString:(__bridge NSString*)kUTTypeRTF])
 			|| ([type isEqualToString: NSRTFDPboardType] && [uti isEqualToString:(__bridge NSString*)kUTTypeFlatRTFD])
-			|| ([type isEqualToString: NSHTMLPboardType] && [uti isEqualToString:(__bridge NSString*)NSHTMLPboardType])
-			|| ([type isEqualToString: NSPDFPboardType] && [uti isEqualToString:(__bridge NSString*)NSPDFPboardType]);
+			|| ([type isEqualToString: NSHTMLPboardType] && [uti isEqualToString:NSHTMLPboardType])
+			|| ([type isEqualToString: NSPDFPboardType] && [uti isEqualToString:NSPDFPboardType]);
 }
 
 - (void) writeToPasteboard: (NSPasteboard*) pboard
@@ -782,7 +792,12 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
     NSString *path = [url cachedPath];
     NSString * uti = [url cachedUTI];
 
-	if ([type isEqualToString:NSFilenamesPboardType])
+	if ([type isEqualToString:NSPasteboardTypeFileURL])
+	{
+		//how NSURL itself writes a file URL: the absolute string as UTF-8
+		[pboard setString:[url absoluteString] forType:NSPasteboardTypeFileURL];
+	}
+	else if ([type isEqualToString:NSFilenamesPboardType])
 	{
 		NSArray* pathsArray = [NSArray arrayWithObject: path];
 		
@@ -805,7 +820,7 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
         else if ( UTTypeConformsTo((__bridge CFStringRef)uti, kUTTypeImage) )
         {
             // open the image and return TIFFRepresentation
-            NSImage *image = [[[NSImage alloc] initWithContentsOfFile:[url path]] autorelease];
+            NSImage *image = [[NSImage alloc] initWithContentsOfFile:[url path]];
 
             if (image)
             {
@@ -825,7 +840,7 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 	{
 		if ([uti isEqualToString:(__bridge NSString*)kUTTypeFlatRTFD])
 		{
-			NSFileWrapper *tempRTFDData = [[[NSFileWrapper alloc] initWithPath:path] autorelease];
+			NSFileWrapper *tempRTFDData = [[NSFileWrapper alloc] initWithPath:path];
 			[pboard setData:[tempRTFDData serializedRepresentation] forType:NSRTFDPboardType];
 		}
 	}
@@ -864,16 +879,20 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
     
     //_hash = 0;	//will be generated on demand (see FSItem.hash)
 	
-    _fileURL = [url retain];
+    _fileURL = url;
 	
 	BOOL isFolder = [_fileURL isDirectory];
 
 	if ( !isFolder )
 	{
+		//-physicalSize and -logicalSize hand back an NSNumber; passing it
+		//straight to -setSizeValue: stored the pointer as the size. Harmless in
+		//practice only because -recalculateSize:updateParent: overwrites every
+		//size before anything displays one.
 		 if ( usePhysicalSize )
-			[self setSizeValue: [url physicalSize]];
+			[self setSizeValue: [[url physicalSize] unsignedLongLongValue]];
 		 else
-			[self setSizeValue: [url logicalSize]];
+			[self setSizeValue: [[url logicalSize] unsignedLongLongValue]];
 	}
     else
         _childs = [[NSMutableArray<FSItem*> alloc] init];
@@ -918,7 +937,6 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
         [NSException raise: FSItemLoadingCanceledException format: @""];
     }
 
-    [_childs release];
     _childs = [[NSMutableArray alloc] init];
 
     //should the kind strings of our childs should be set initially?
@@ -1071,7 +1089,6 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
         
         lastEnumLevel = [dirEnum level];
         
-        [currentItem release];
     }
  
     // signal exiting of remaining folders
@@ -1085,7 +1102,6 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
         }
      }
     
-    [itemStack release];
     
 	[self recalculateSize:YES updateParent:NO];
 }
@@ -1111,8 +1127,7 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 	
 	if ( _size != newSize )
 	{
-		[_size release];
-		_size = [newSize retain];
+		_size = newSize;
 		
 		_sizeValue = [_size unsignedLongLongValue];
 	}
@@ -1121,7 +1136,6 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 - (void) setSizeValue: (unsigned long long) newSize
 {
 	_sizeValue = newSize;
-	[_size release];
 	_size = nil;
 }
 
@@ -1136,7 +1150,6 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 	unsigned long long myNewSize = myOldSize - oldSize + newSize;
 	
 	//child will be released by "removeChild", so prevent it from beeing freed
-	[[child retain] autorelease];
 	
 	//keep childs array sorted
 	[self removeChild: child updateParent: NO];

@@ -21,7 +21,6 @@
 #import "FSItem-Utilities.h"
 #import "FileSizeTransformer.h"
 #import "AppsForItem.h"
-#import <OmniFoundation/NSString-OFExtensions.h>
 #import "NSURL-Extensions.h"
 
 @interface MainWindowController(Private)
@@ -107,7 +106,8 @@
 		[_splitter setVertical: NO];		
 	}
 	
-	[_splitter setPositionAutosaveName: @"MainWindowSplitter"];
+	//NSSplitView remembers the divider position itself
+	[_splitter setAutosaveName: @"MainWindowSplitter"];
 	
     [_kindsDrawer toggle: self];
 	//[_selectionListDrawer toggle: self];
@@ -137,7 +137,7 @@
 
 - (IBAction) openFile:(id)sender
 {
-	OBPRECONDITION( [sender isKindOfClass: [NSMenuItem class]] );
+	NSAssert( [sender isKindOfClass: [NSMenuItem class]], @"sender is not a menu item" );
 	NSMenuItem *menuItem = (NSMenuItem*) sender;
 	
 	FSItem *selectedItem = [(FileSystemDoc*)[self document] selectedItem];
@@ -182,8 +182,8 @@
     FileSystemDoc *doc = [self document];
 	FSItem *item = [sender representedObject];
 	
-	OBPRECONDITION( [doc rootItem] == [item root] );
-	OBPRECONDITION( [[doc zoomStack] indexOfObjectIdenticalTo: item] != NSNotFound );
+	NSAssert( [doc rootItem] == [item root], @"item belongs to a different document" );
+	NSAssert( [[doc zoomStack] indexOfObjectIdenticalTo: item] != NSNotFound, @"item is not on the zoom stack" );
 	
     FSItem *currentZoomedItem = [doc zoomedItem];
 		
@@ -248,14 +248,16 @@
 						  self,
 						  nil,
 						  @selector(moveToTrashSheetDidDismiss: returnCode: contextInfo:),
-						  selectedItem,
+						  //unowned: the document holds the selection for as long as the
+						  //sheet is up, so nothing else has to keep it alive
+						  (__bridge void*) selectedItem,
 						  @"%@", NSLocalizedString(@"Would you like to delete it immediately?",@""));
 	}
 	else
 	{
 		[self moveToTrashSheetDidDismiss: nil
 							  returnCode: NSAlertAlternateReturn
-							 contextInfo: selectedItem];
+							 contextInfo: (__bridge void*) selectedItem];
 	}
 }
 
@@ -357,6 +359,25 @@
 	NSBeginInformationalAlertSheet( msg, nil, nil, nil, [_splitter window], nil, nil, nil, nil, @"" );
 }
 
+#pragma mark -----------------edit menu-----------------------
+
+//The Edit menu's Copy item has always sent -copy: down the responder chain, but
+//nothing implemented it, so it did nothing. The pasteboard support was only ever
+//reachable through the Services menu and drag & drop, both of which go through
+//the same -writeToPasteboard: below.
+- (IBAction) copy: (id) sender
+{
+	FSItem *item = [(FileSystemDoc*)[self document] selectedItem];
+
+	if ( item == nil || [item isSpecialItem] || ![item exists] )
+		return;
+
+	NSPasteboard *pboard = [NSPasteboard generalPasteboard];
+	[pboard clearContents];
+
+	[item writeToPasteboard: pboard];
+}
+
 #pragma mark -----------------UI elment validation-----------------------
 
 - (BOOL) validateMenuItem: (NSMenuItem*) menuItem
@@ -394,6 +415,10 @@
 			  || menuAction == @selector(refresh:))
     {
         return selectedItem != nil;
+    }
+    else if ( menuAction == @selector(copy:) )
+    {
+        return selectedItem != nil && ![selectedItem isSpecialItem] && [selectedItem exists];
     }
     else if ( menuAction == @selector(moveToTrash:) )
     {
@@ -466,7 +491,7 @@
 
 #pragma mark -----------------Toolbar support---------------------
 
-//used by OAToolbarWindowController to load the toolbar configuration file (.toolbar)
+//used by ToolbarWindowController to load the toolbar configuration file (.toolbar)
 - (NSString *)toolbarConfigurationName;
 {
     return @"MainWindowToolbar";
@@ -501,7 +526,7 @@
 //populates the "Open With" sub menu which the default and additional applications which can open the selected file
 - (void) menuNeedsUpdate: (NSMenu*) menu
 {	
-	OBPRECONDITION( _openWithSubMenu == menu );
+	NSAssert( _openWithSubMenu == menu, @"asked to update a menu that is not the Open With submenu" );
 	
     FSItem *selectedItem = [(FileSystemDoc*)[self document] selectedItem];
 	if ( selectedItem == nil )
@@ -517,7 +542,7 @@
 		//the first and second menu item is the default app and a serperator item
 		if ( [_openWithSubMenu numberOfItems] == 0 )
 		{
-			[_openWithSubMenu addItem: [[[NSMenuItem alloc] init] autorelease]];
+			[_openWithSubMenu addItem: [[NSMenuItem alloc] init]];
 			[_openWithSubMenu addItem: [NSMenuItem separatorItem]];
 		}
 
@@ -540,7 +565,7 @@
 		{
 			unsigned menuItemIndex = i+2;
 			if ( menuItemIndex >= ((unsigned) [_openWithSubMenu numberOfItems]) )
-				[_openWithSubMenu addItem: [[[NSMenuItem alloc] init] autorelease]];
+				[_openWithSubMenu addItem: [[NSMenuItem alloc] init]];
 			
 			menuItem = [_openWithSubMenu itemAtIndex: menuItemIndex];
 			appURL = [appURLs objectAtIndex: i];
@@ -573,7 +598,7 @@
 	
     if ( selectedItem != nil
 		 && ![selectedItem isSpecialItem]
-		 && [NSString isEmptyString: returnType] //we don't accept any input, so returnType must be emty
+		 && [returnType length] == 0 //we don't accept any input, so returnType must be empty
 		 && [selectedItem exists]
 		 && [selectedItem supportsPasteboardType: sendType] )
 	{
@@ -609,7 +634,7 @@
 		return;
 	
 	FileSystemDoc *doc = [self document];
-	FSItem *selectedItem = (FSItem*) contextInfo;
+	FSItem *selectedItem = (__bridge FSItem*) contextInfo;
 	
 	NSParameterAssert(	selectedItem != nil
 						&& selectedItem != [doc zoomedItem] 
