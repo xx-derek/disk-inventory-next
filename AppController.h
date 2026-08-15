@@ -12,13 +12,14 @@
 //  of the License, or any later version.
 //
 
-#import <OmniAppKit/OAController.h>
-
 #import <Cocoa/Cocoa.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface AppController : OAController
+//Was an OAController, whose one job here was to be named by OFControllerClass in
+//Info.plist so the OmniGroup bootstrap would instantiate it. Nothing does that
+//now, and nothing in the nibs refers to this class either.
+@interface AppController : NSObject
 {
 //    IBOutlet NSMenu* _zoomStackMenu;
 //    IBOutlet NSPanel* _donationPanel;

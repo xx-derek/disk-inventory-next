@@ -8,7 +8,8 @@
     IBOutlet id _fileNameTextField;
     IBOutlet id _fileSizeTextField;
     IBOutlet id _treeMapView;
-    IBOutlet FileSystemDoc *_document;
+    //weak: this points back up the ownership chain
+    IBOutlet __weak FileSystemDoc *_document;
 	
 	FSItem *_otherSpaceItem;
 	FSItem *_freeSpaceItem;

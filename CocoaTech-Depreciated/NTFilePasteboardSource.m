@@ -7,7 +7,7 @@
 //
 
 #import "NTFilePasteboardSource.h"
-#import <OmniAppKit/OAPasteboardHelper.h>
+#import "NTPasteboardHelper.h"
 #import "NSURL-Extensions.h"
 
 // SNG 666 add NSPICTPboardType
@@ -22,17 +22,11 @@
 {
     self = [super init];
 
-    _URLs = [URLs retain];
+    _URLs = URLs;
 
     return self;
 }
 
-- (void)dealloc;
-{
-    [_URLs release];
-
-    [super dealloc];
-}
 
 + (NSArray<NSPasteboardType>*)defaultTypes;
 {
@@ -68,13 +62,13 @@
 
 + (NTFilePasteboardSource*)files:(NSArray<NSURL*> *)URLs toPasteboard:(NSPasteboard *)pboard types:(NSArray<NSPasteboardType> *)types;
 {
-    NTFilePasteboardSource* source = [[[NTFilePasteboardSource alloc] initWithURLs:URLs] autorelease];
-    OAPasteboardHelper *helper;
+    NTFilePasteboardSource* source = [[NTFilePasteboardSource alloc] initWithURLs:URLs];
+    NTPasteboardHelper *helper;
     NSArray<NSPasteboardType>* pasteboardTypes = [source pasteboardTypes:types];
 
     if (pasteboardTypes)
     {
-        helper = [OAPasteboardHelper helperWithPasteboard:pboard];
+        helper = [NTPasteboardHelper helperWithPasteboard:pboard];
 
         // the helper is retained for as long as it stays in the pasteboard, the source is retained by the helper
         [helper declareTypes:pasteboardTypes owner:source];
@@ -163,7 +157,7 @@
                 else if ( UTTypeConformsTo((__bridge CFStringRef)uti, kUTTypeImage) )
                 {
                     // open the image and return TIFFRepresentation
-                    NSImage *image = [[[NSImage alloc] initWithContentsOfFile:[url path]] autorelease];
+                    NSImage *image = [[NSImage alloc] initWithContentsOfFile:[url path]];
 
                     if (image)
                     {
@@ -198,7 +192,7 @@
             {
                 if ([uti isEqualToString: (__bridge NSString *)kUTTypeFlatRTFD])
                 {
-                    NSFileWrapper *tempRTFDData = [[[NSFileWrapper alloc] initWithPath:[url path]] autorelease];
+                    NSFileWrapper *tempRTFDData = [[NSFileWrapper alloc] initWithPath:[url path]];
                     [pboard setData:[tempRTFDData serializedRepresentation] forType:NSRTFDPboardType];
                 }
             }

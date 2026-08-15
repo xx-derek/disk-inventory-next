@@ -6,8 +6,6 @@
     #import <Cocoa/Cocoa.h>
     #import <Carbon/Carbon.h>
 
-    #import <OmniBase/OmniBase.h>
-
 
 	//global variable which enables/disables logging
 	extern BOOL g_EnableLogging;

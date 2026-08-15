@@ -35,7 +35,6 @@
 	//load Nib with info panel
     if ( ![NSBundle loadNibNamed: @"InfoPanel" owner: self] )
 	{
-		[self release];
 		self = nil;
 	}
 	else
@@ -46,7 +45,6 @@
 		[_infoView removeFromSuperviewWithoutNeedingDisplay];
 		
 		_infoView = [[DIXFileInfoView alloc] initWithFrame: frameRect longFormat: YES];
-		[_infoView autorelease];
 		
 		[_infoView setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
 		
@@ -57,10 +55,6 @@
 	return self;
 }
 
-- (void) dealloc
-{	
-    [super dealloc];
-}
 
 - (BOOL) panelIsVisible
 {

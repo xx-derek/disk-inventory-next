@@ -64,7 +64,7 @@
 	[[NSUserDefaultsController sharedUserDefaultsController] addObserver: self
 															  forKeyPath: [@"values." stringByAppendingString: ShareKindColors]
 																 options: 0
-																 context: ShareKindColors];
+																 context: (__bridge void*) ShareKindColors];
 	
 	//create "free space" and "other space" items
 	//(don't use [self rootItem] as we want the root, not the zoomed item)
@@ -76,13 +76,6 @@
 	[self reloadData];
 }
 
-- (void) dealloc
-{
-	[_otherSpaceItem release];
-	[_freeSpaceItem release];
-    
-    [super dealloc];
-}
 
 - (FileSystemDoc*) document
 {
@@ -232,7 +225,7 @@
     else
     {
         NSString *displayName = [fsItem displayName];
-		FileSizeFormatter *sizeFormatter = [[[FileSizeFormatter alloc] init] autorelease];
+		FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
 		NSString *size = [sizeFormatter stringForObjectValue: [fsItem size]];
 		
 		if ( ![fsItem isSpecialItem] )
@@ -274,9 +267,7 @@
 	//(don't use [self rootItem] as we want the root, not the zoomed item)
 	FSItem *rootItem =  [[self document] rootItem];
 	
-	[_otherSpaceItem release];
 	_otherSpaceItem = [[FSItem alloc] initAsOtherSpaceItemForParent: rootItem];
-	[_freeSpaceItem release];
 	_freeSpaceItem = [[FSItem alloc] initAsFreeSpaceItemForParent: rootItem];
 	
     [self reloadData];
@@ -344,7 +335,7 @@
 
 - (void)observeValueForKeyPath:(NSString*)keyPath ofObject:(id)object change:(NSDictionary*)change context:(void*)context
 {
-	if ( context == ShareKindColors )
+	if ( context == (__bridge void*) ShareKindColors )
 	{
 		[_treeMapView invalidateCanvasCache];
 		[_treeMapView setNeedsDisplay: YES];

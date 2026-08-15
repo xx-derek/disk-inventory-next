@@ -21,7 +21,7 @@
 
 + (id) transformer
 {
-	return [[[VolumeUsageTransformer alloc] init] autorelease];
+	return [[VolumeUsageTransformer alloc] init];
 }
 
 - (id) init
@@ -33,12 +33,6 @@
 	return self;
 }
 
-- (void) dealloc
-{
-	[_sizeFormatter release];
-	
-	[super dealloc];
-}
 
 - (id)transformedValue:(id)value 
 {
@@ -73,12 +67,12 @@
 	NSMutableAttributedString *attribString = [[NSMutableAttributedString alloc] initWithString: capacityField 
 																					 attributes: [VolumeUsageTransformer capacityStringAttributes]];
 	
-	[attribString appendAttributedString:[[[NSMutableAttributedString alloc] initWithString: usedAndFreeFields 
-																				 attributes: [VolumeUsageTransformer usedAndFreeStringAttributes]] autorelease]];
+	[attribString appendAttributedString:[[NSMutableAttributedString alloc] initWithString: usedAndFreeFields 
+																				 attributes: [VolumeUsageTransformer usedAndFreeStringAttributes]]];
 	
 	
 	
-	return [attribString autorelease];
+	return attribString;
 }
 
 + (NSDictionary*) capacityStringAttributes
@@ -93,7 +87,6 @@
 		NSFont *font = [NSFont boldSystemFontOfSize: [NSFont smallSystemFontSize]];
 		attribs = [[NSDictionary alloc] initWithObjectsAndKeys: font, NSFontAttributeName, rightAlignStyle, NSParagraphStyleAttributeName, nil];
 		
-		[rightAlignStyle release];
 	}
 	
 	return attribs;
@@ -111,12 +104,10 @@
 		NSFont *font = [NSFont systemFontOfSize: [NSFont smallSystemFontSize]];
 		attribs = [[NSDictionary alloc] initWithObjectsAndKeys: font, NSFontAttributeName, rightAlignStyle, NSParagraphStyleAttributeName, nil];
 		
-		[rightAlignStyle release];
 	}
 	
 	return attribs;
 }
-
 
 
 + (Class) transformedValueClass

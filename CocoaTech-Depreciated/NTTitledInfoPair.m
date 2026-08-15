@@ -15,8 +15,8 @@
 {
     self = [super init];
     
-    _title = [title retain];
-    _info = [info retain];
+    _title = title;
+    _info = info;
     _action = action;
     _target = target;
     
@@ -32,16 +32,9 @@
 {
     NTTitledInfoPair *result = [[NTTitledInfoPair alloc] initWithTitle:title info:info action:action target:target];
     
-    return [result autorelease];    
+    return result;    
 }
 
-- (void)dealloc;
-{
-    [_title release];
-    [_info release];
-    
-    [super dealloc];
-}
 
 - (NSString*)title;
 {

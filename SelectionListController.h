@@ -26,7 +26,8 @@
 @interface SelectionListController : GenericArrayController
 {
 	IBOutlet NSProgressIndicator *_progressIndicator;
-	IBOutlet NSWindowController *_windowController;
+	//weak: this points back up the ownership chain
+	__weak IBOutlet NSWindowController *_windowController;
 	IBOutlet GenericArrayController *_kindsPopupController;
 	IBOutlet NSSearchField *_searchField;
     NSString *_serachString;

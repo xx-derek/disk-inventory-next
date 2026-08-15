@@ -151,7 +151,6 @@ BOOL g_EnableLogging;
 - (IBAction) showPreferencesPanel: (id) sender
 {
 	[[PrefsPanelController sharedPreferenceController] showPreferencesPanel: self];
-	//[[OAPreferenceController sharedPreferenceController] showPreferencesPanel: self];
 }
 
 - (IBAction) gotoHomepage: (id) sender
@@ -173,8 +172,6 @@ BOOL g_EnableLogging;
     //verify that our custom DocumentController is in use 
     NSAssert( [[NSDocumentController sharedDocumentController] isKindOfClass: [MyDocumentController class]], @"the shared DocumentController is not our custom class!" );
     
-    //@@test
-    //[[OAController sharedController] applicationWillFinishLaunching:notification];
 	
 	g_EnableLogging = [[NSUserDefaults standardUserDefaults] boolForKey: EnableLogging];
     
@@ -185,9 +182,6 @@ BOOL g_EnableLogging;
 
 - (void) applicationDidFinishLaunching:(NSNotification *)notification
 {
-    //@@test
-    //[[OAController sharedController] applicationDidFinishLaunching:notification];
-
     //show donate message
 	if ( ![[NSUserDefaults standardUserDefaults] boolForKey: DontShowDonationMessage] )
 	{
@@ -204,7 +198,7 @@ BOOL g_EnableLogging;
 
 - (void) menuNeedsUpdate: (NSMenu*) zoomStackMenu
 {
-	OBPRECONDITION( _zoomStackMenu == zoomStackMenu );
+	NSAssert( _zoomStackMenu == zoomStackMenu, @"asked to update a menu that is not the zoom stack" );
 	
 	FileSystemDoc *doc = [self currentDocument];
 	NSArray *zoomStack = [doc zoomStack];
@@ -220,7 +214,7 @@ BOOL g_EnableLogging;
 			fsItem = [zoomStack objectAtIndex: i-1];
 		
 		if ( i >= ((unsigned) [zoomStackMenu numberOfItems]) )
-			[zoomStackMenu addItem: [[[NSMenuItem alloc] init] autorelease]];
+			[zoomStackMenu addItem: [[NSMenuItem alloc] init]];
 		
 		NSMenuItem *menuItem = [zoomStackMenu itemAtIndex: i];
 		

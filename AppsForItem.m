@@ -13,7 +13,6 @@
 //
 
 #import "AppsForItem.h"
-#import <OmniFoundation/NSMutableArray-OFExtensions.h>
 #import "NSURL-Extensions.h"
 
 @interface AppsForItem(Private)
@@ -30,7 +29,7 @@
 {
 	AppsForItem *appsForFile = [[[self class] alloc] initWithItemURL: url];
 		
-	return [appsForFile autorelease];
+	return appsForFile;
 }
 
 - (id) initWithItemURL: (NSURL*) url
@@ -38,20 +37,12 @@
 	self = [super init];
 	if ( self != nil )
 	{
-		_itemURL = [url retain];
+		_itemURL = url;
 	}
 	
 	return self;
 }
 
-- (void) dealloc
-{
-	[_itemURL release];
-	[_defaultAppURL release];
-	[_additionalAppURLs release];
-	
-	[super dealloc];
-}
 
 - (NSURL*) defaultAppURL //may return nil
 {
@@ -61,12 +52,11 @@
 		
 		LSRolesMask RoleMask = kLSRolesViewer | kLSRolesEditor;
 
-        NSURL *appURL = (NSURL*)LSCopyDefaultApplicationURLForURL( (CFURLRef)[self itemURL], RoleMask, nil );
-        
+        //Copy* returns +1; ARC takes ownership and lets it go at end of scope
+        NSURL *appURL = CFBridgingRelease( LSCopyDefaultApplicationURLForURL( (__bridge CFURLRef)[self itemURL], RoleMask, nil ) );
+
 		if ( [self checkAppURL: appURL checkDefaultApp: NO] )
 			_defaultAppURL = appURL;
-        else
-            [appURL release];
 	}
 	
 	return (_defaultAppURL == (id)[NSNull null]) ? nil : _defaultAppURL;
@@ -89,7 +79,10 @@
 			}
 		}
 		
-		[_additionalAppURLs sortOnAttribute: @selector(name) usingSelector: @selector(caseInsensitiveCompare:)];
+		[_additionalAppURLs sortUsingComparator: ^NSComparisonResult( NSURL *left, NSURL *right )
+		{
+			return [[left name] caseInsensitiveCompare: [right name]];
+		}];
 	}
 	
 	return _additionalAppURLs;
@@ -138,15 +131,17 @@
 // NOTE: this searches network volumes!!
 + (NSArray<NSURL*>*) applicationURLsForItemURL:(NSURL*)inItemURL;
 {
-    CFArrayRef outURLs;
     NSMutableArray* result=nil;
-	
-    outURLs = LSCopyApplicationURLsForURL( (CFURLRef) inItemURL, kLSRolesViewer | kLSRolesEditor );
+
+    //Copy* returns +1; CFBridgingRelease hands that over to ARC, which is what
+    //the explicit CFRelease below used to do
+    NSArray *outURLs = CFBridgingRelease( LSCopyApplicationURLsForURL( (__bridge CFURLRef) inItemURL,
+                                                                       kLSRolesViewer | kLSRolesEditor ) );
     if (outURLs)
     {
-        if ([(id)outURLs isKindOfClass:[NSArray class]])
+        if ([outURLs isKindOfClass:[NSArray class]])
         {
-            result = [NSMutableArray arrayWithArray:(NSArray*)outURLs];
+            result = [NSMutableArray arrayWithArray:outURLs];
             
             // filter out .exe files
             int i, cnt = [result count];
@@ -160,8 +155,6 @@
                     [result removeObjectAtIndex:i];
             }            
         }
-        
-        CFRelease(outURLs);
     }
 	
     return result;

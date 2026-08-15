@@ -30,7 +30,11 @@ typedef enum
 
 @interface FSItem : NSObject {
 	NSURL *_fileURL;
-    FSItem *_parent;	//only valid for non-root items
+	//Unretained on purpose: _childs owns downwards, so a strong back-pointer
+	//would be a cycle on every node in the tree. __unsafe_unretained rather
+	//than __weak because a scan builds millions of these and -dealloc already
+	//clears the children's pointers by hand (see -onParentDealloc).
+	__unsafe_unretained FSItem *_parent;	//only valid for non-root items
 	NSMutableDictionary *_icons; //holds icons in various sizes (see iconWithSize:)
 	FSItemType _type;
     NSNumber *_size;
@@ -38,7 +42,7 @@ typedef enum
     NSString *_kindName;
     //unsigned _hash;
     NSMutableArray<FSItem*> *_childs;
-	id _delegate;
+	__unsafe_unretained id _delegate;	//not retained
 }
 
 - (id) initWithPath: (NSString *) path;

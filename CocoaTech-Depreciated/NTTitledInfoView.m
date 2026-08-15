@@ -71,13 +71,7 @@
 {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 
-    [_pairs release];
-    [_titleViews release];
-    [_infoViews release];
 
-    [_backgroundLineOffsets release];
-
-    [super dealloc];
 }
 
 - (void)setTarget:(id)target;
@@ -220,13 +214,10 @@
         [view removeFromSuperview];
     }
 
-    [_titleViews release];
     _titleViews = [[NSMutableArray alloc] init];
 
-    [_infoViews release];
     _infoViews = [[NSMutableArray alloc] init];
 
-    [_pairs release];
     _pairs = nil;
 
     _titleWidth = 0;
@@ -320,7 +311,6 @@
 
 - (void)resetBackgroundLineOffsets;
 {    
-    [_backgroundLineOffsets release];
     _backgroundLineOffsets = [[NSMutableArray alloc] init];
         
     if ([_infoViews count])
@@ -365,7 +355,7 @@
     static NSColor *color = nil;
     
     if (!color)
-        color = [[[NSColor colorWithCalibratedRed:0.6 green:0.6 blue:0.9 alpha:0.1] colorWithAlphaComponent:0.1] retain];
+        color = [[NSColor colorWithCalibratedRed:0.6 green:0.6 blue:0.9 alpha:0.1] colorWithAlphaComponent:0.1];
     
     return color;
 }
@@ -375,7 +365,7 @@
     static NSColor *color = nil;
     
     if (!color)
-        color = [[NSColor colorWithCalibratedRed:0.6 green:0.6 blue:0.9 alpha:0.1] retain];
+        color = [NSColor colorWithCalibratedRed:0.6 green:0.6 blue:0.9 alpha:0.1];
     
     return color;
 }
@@ -459,7 +449,7 @@
     {
         attributes = [[NSMutableDictionary alloc] init];
         
-        NSMutableParagraphStyle *paragraphStyle = [[[NSMutableParagraphStyle alloc] init] autorelease];
+        NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
         
         [paragraphStyle setAlignment:NSRightTextAlignment];
         [paragraphStyle setLineBreakMode:NSLineBreakByWordWrapping];
@@ -481,7 +471,7 @@
     {
         attributes = [[NSMutableDictionary alloc] init];
                 
-        NSMutableParagraphStyle *paragraphStyle = [[[NSMutableParagraphStyle alloc] init] autorelease];
+        NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
         
         [paragraphStyle setAlignment:NSLeftTextAlignment];
         [paragraphStyle setLineBreakMode:NSLineBreakByWordWrapping];
@@ -505,8 +495,8 @@
 {
     self = [super init];
     
-    _textString = [title retain];
-    _attributes = [attributes retain];
+    _textString = title;
+    _attributes = attributes;
     _action = action;
     _target = target;
     
@@ -517,16 +507,13 @@
 {
     NTFastTextView* result = [[NTFastTextView alloc] initWithString:title action:action target:target attributes:attributes];
     
-    return [result autorelease];
+    return result;
 }
 
 - (void)dealloc;
 {
     //[_blitter release];
-    [_textString release];
-    [_attributes release];
     
-    [super dealloc];
 }
 
 - (void)mouseDown:(NSEvent*)event;
@@ -580,14 +567,13 @@
     {
         if (size.width != [_blitter size].width)
         {
-            [_blitter release];
             _blitter = nil;
         }
     }
     
     if (!_blitter)
     {        
-        _blitter = [[NTGlyphBlitter blitterWithString:_textString 
+        _blitter = [NTGlyphBlitter blitterWithString:_textString 
                                                  size:size 
                                              numLines:0
                                      verticallyCenter:YES
@@ -595,7 +581,7 @@
                                             backColor:nil
                                        ovalBackground:(_target != nil)
                                             antialias:YES
-                                               shadow:NO] retain];
+                                               shadow:NO];
     }
     
     return _blitter;
