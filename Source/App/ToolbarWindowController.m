@@ -15,6 +15,7 @@
 //
 
 #import "ToolbarWindowController.h"
+#import "NSImage-Extensions.h"
 
 //a "target" of this means "whatever is first responder", not a key path
 static NSString * const ToolbarFirstResponderTarget = @"firstResponder";
@@ -273,14 +274,17 @@ static NSMutableDictionary *g_toolbarStateImages = nil;
 	if ( toolTip != nil )
 		[toolbarItem setToolTip: toolTip];
 
-	NSString *imageName = [itemInfo objectForKey: @"imageName"];
-	if ( imageName != nil )
+	//Item images are SF Symbols named in the toolbar plist, so they are vector,
+	//tint with the appearance, and carry the item's label to VoiceOver.
+	NSString *symbolName = [itemInfo objectForKey: @"symbolName"];
+	if ( symbolName != nil )
 	{
-		NSImage *image = [NSImage imageNamed: imageName];
+		NSImage *image = [NSImage imageForSymbolName: symbolName
+							accessibilityDescription: [toolbarItem label]];
 		if ( image != nil )
 			[toolbarItem setImage: image];
 		else
-			NSLog( @"toolbar item '%@' wants a missing image '%@'", itemIdentifier, imageName );
+			NSLog( @"toolbar item '%@' wants a missing symbol '%@'", itemIdentifier, symbolName );
 	}
 
 	NSString *actionName = [itemInfo objectForKey: @"action"];
@@ -315,13 +319,13 @@ static NSMutableDictionary *g_toolbarStateImages = nil;
 	switch( state )
 	{
 		case NSControlStateValueOn:
-			imageKey = @"imageName";
+			imageKey = @"symbolName";
 			break;
 		case NSControlStateValueOff:
-			imageKey = @"imageNameOffState";
+			imageKey = @"symbolNameOffState";
 			break;
 		case NSControlStateValueMixed:
-			imageKey = @"imageNameMixedState";
+			imageKey = @"symbolNameMixedState";
 			break;
 		default:
 			NSAssert( NO, @"invalid item state for ToolbarItem" );
@@ -349,15 +353,15 @@ static NSMutableDictionary *g_toolbarStateImages = nil;
 	{
 		NSDictionary *itemInfo = [self toolbarInfoForItem: [item itemIdentifier]];
 
-		//get image name from info dictionary
-		NSString *imageName = [itemInfo objectForKey: imageKey];
-		if ( imageName == nil )
-			imageName = [itemInfo objectForKey: @"imageName"];
+		//get symbol name from info dictionary, falling back to the on-state one
+		NSString *symbolName = [itemInfo objectForKey: imageKey];
+		if ( symbolName == nil )
+			symbolName = [itemInfo objectForKey: @"symbolName"];
 
-		NSAssert1( imageName != nil, @"no image name for item '%@'", [item itemIdentifier] );
+		NSAssert1( symbolName != nil, @"no symbol name for item '%@'", [item itemIdentifier] );
 
-		image = [NSImage imageNamed: imageName];
-		NSAssert1( image != nil, @"couldn't load image '%@'", imageName );
+		image = [NSImage imageForSymbolName: symbolName accessibilityDescription: [item label]];
+		NSAssert1( image != nil, @"couldn't load symbol '%@'", symbolName );
 
 		[itemImageCache setObject: image forKey: imageKey];
 	}

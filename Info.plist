@@ -167,14 +167,14 @@ No data will be read.</string>
 				<array/>
 				<key>hidden</key>
 				<true/>
-				<key>icon</key>
-				<string>FinderCMPreferences</string>
 				<key>identifier</key>
 				<string>FinderCMPrefPage</string>
 				<key>nib</key>
 				<string>FinderCMPreferencesPage</string>
 				<key>ordering</key>
 				<integer>20</integer>
+				<key>symbol</key>
+				<string>puzzlepiece</string>
 				<key>title</key>
 				<string>Finder Plugin</string>
 			</dict>
@@ -193,14 +193,14 @@ No data will be read.</string>
 					<string>UseSmallFontInSelectionList</string>
 					<string>ShareKindColors</string>
 				</array>
-				<key>icon</key>
-				<string>GeneralPreferences</string>
 				<key>identifier</key>
 				<string>GeneralPrefPage</string>
 				<key>nib</key>
 				<string>GeneralPreferencesPage</string>
 				<key>ordering</key>
 				<integer>0</integer>
+				<key>symbol</key>
+				<string>gearshape</string>
 				<key>title</key>
 				<string>General</string>
 			</dict>
@@ -214,14 +214,14 @@ No data will be read.</string>
 					<string>ShowFreeSpace</string>
 					<string>ShowOtherSpace</string>
 				</array>
-				<key>icon</key>
-				<string>TreeMapPreferences</string>
 				<key>identifier</key>
 				<string>TreeMapPrefPage</string>
 				<key>nib</key>
 				<string>TreeMapPreferencesPage</string>
 				<key>ordering</key>
 				<integer>10</integer>
+				<key>symbol</key>
+				<string>square.grid.3x3</string>
 				<key>title</key>
 				<string>Treemap</string>
 			</dict>

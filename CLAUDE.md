@@ -15,7 +15,7 @@ historical record — see [Naming](#naming) below before "fixing" it.
 
 ## Building
 
-Single Xcode target, `Disk Inventory Next` (application). Deployment target macOS 10.13;
+Single Xcode target, `Disk Inventory Next` (application). Deployment target macOS 11.0;
 `ARCHS = $(ARCHS_STANDARD)`, so the product is a universal arm64 + x86_64 binary. Project
 version `1.4b2`. Bundle ID `io.github.xxderek.DiskInventoryNext`.
 
@@ -77,7 +77,7 @@ Source/Views/                  DIXTableView, DIXOutlineView, ImageAndTextCell, G
 Source/Extensions/             NSAlert-, NSURL- and NSFileManager-Extensions
 Source/Helpers/                Timing, FileSizeFormatter, FileSizeTransformer, AppsForItem
 Source/TreeMapView/            the treemap widget — see its own section below
-Resources/                     Images.xcassets, the app icon, Toolbar/ and Preferences/ images
+Resources/                     Images.xcassets (the app icon) and the toolbar plist
 ```
 
 `Info.plist`, `version.plist`, the entitlements, `documentation/` and the five `.lproj`
@@ -364,6 +364,49 @@ class name, and skips any page whose class is not in the binary — which is why
 
 `AppController` was an `OAController` and is now an empty `NSObject`; nothing instantiates
 it, since only `OFControllerClass` ever did.
+
+## Icons are SF Symbols, not files
+
+There are no icon bitmaps. The 11 toolbar images and 3 preference-page images were
+deleted on 2026-08-15 and replaced with SF Symbols, which is why the deployment target
+is 11.0 — `+[NSImage imageWithSystemSymbolName:accessibilityDescription:]` needs it.
+
+The symbol names are **data, not code**: they live in `Resources/Toolbar/MainWindowToolbar.toolbar`
+under `symbolName` (plus `symbolNameOffState` / `symbolNameMixedState` for items with
+state, currently only `ShowPackageContents`) and in `Info.plist`'s `Registrations` under
+`symbol` for each preferences page. A typo compiles fine and shows an empty toolbar
+button, so both go through `+[NSImage imageForSymbolName:accessibilityDescription:]`
+(`Source/Extensions/NSImage-Extensions`), which returns nil and logs the bad name rather
+than handing back a blank image. The accessibility description is the item's label, which
+is what VoiceOver reads.
+
+Adding a toolbar item means adding a `symbolName`, and checking the symbol exists **in
+SF Symbols 2** — the app targets macOS 11, and the symbol set grows every release, so a
+name that resolves on a current Mac may be missing on the oldest supported one.
+
+`Resources/Images.xcassets/AppIcon.appiconset` is the app icon. Nine of its ten slots are
+filled; **512×512@2x (1024px) is empty because no artwork that large exists** — the
+largest original is 512px. macOS scales the 512 up for it. If higher-resolution artwork
+ever turns up, that is the slot to fill.
+
+## Pasteboard types have two spellings
+
+Worth knowing before touching `FSItem`'s pasteboard code. Every type has a UTI and a
+legacy NeXT/Apple name, and **they are different strings**: `NSPasteboardTypeHTML` is
+`public.html`, `NSHTMLPboardType` is `Apple HTML pasteboard type`. `-declareTypes:`
+advertises *both* whichever one is passed, so the outgoing side does not care — but a
+receiver may ask for either, and a plain `-isEqualToString:` against one silently refuses
+the other.
+
+`PasteboardTypeMatches()` in `FSItem.m` compares against both, and every incoming
+comparison goes through it. Renaming the deprecated constants to their modern equivalents
+without it looks like a pure rename and is not: it broke HTML and plain-text requests made
+with the legacy spelling, which a probe caught.
+
+`NSFilenamesPboardType` has no modern equivalent and is deliberately still offered for
+receivers that predate `NSPasteboardTypeFileURL`. It is reached through
+`FSItemLegacyFilenamesPasteboardType()` so the deprecation is suppressed in exactly one
+place.
 
 ## The Info panel
 

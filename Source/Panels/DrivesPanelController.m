@@ -230,7 +230,7 @@
 		if ( i >= [_progressIndicators count] )
 		{
 			progrInd = [[NSProgressIndicator alloc] init];
-			[progrInd setStyle: NSProgressIndicatorBarStyle];
+			[progrInd setStyle: NSProgressIndicatorStyleBar];
 			[progrInd setIndeterminate: NO];
 			
 			[_progressIndicators addObject: progrInd];
@@ -293,8 +293,12 @@
 		NSInteger colIndex = [tableView columnWithIdentifier: [tableColumn identifier]];
 		NSRect cellRect = [tableView frameOfCellAtColumn: colIndex row: row];
 		
-		const float progrIndThickness = NSProgressIndicatorPreferredLargeThickness; 
-		const float extraSpace = 16; //space before and after progress indicator (relative to left and right side of cell)
+		//The old NSProgressIndicatorPreferredLargeThickness constant was a
+		//guess at the geometry; -sizeToFit asks the indicator itself, which is
+		//what the deprecation notice recommends.
+		[progrInd sizeToFit];
+		const CGFloat progrIndThickness = NSHeight( [progrInd frame] );
+		const CGFloat extraSpace = 16; //space before and after progress indicator (relative to left and right side of cell)
 		
 		//center it vertically in cell
 		NSAssert( NSHeight(cellRect) > progrIndThickness, @"rows need to be higher than progress indicator thickness" );

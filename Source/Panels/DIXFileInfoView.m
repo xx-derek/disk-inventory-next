@@ -140,11 +140,7 @@ static const CGFloat kRowGap       = 6.0;
 	if ( [_valueFields count] < 2 )
 		return;
 
-	NSColor *separator = [NSColor gridColor];
-	if ( @available( macOS 10.14, * ) )
-		separator = [NSColor separatorColor];
-
-	[separator set];
+	[[NSColor separatorColor] set];
 
 	const NSRect bounds = [self bounds];
 

@@ -76,6 +76,49 @@ static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newCh
 	[children insertObject: newChild atIndex: index];
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
+NSPasteboardType FSItemLegacyFilenamesPasteboardType( void )
+{
+	return NSFilenamesPboardType;
+}
+
+//Every pasteboard type has two spellings: a UTI and the NeXT/Apple name that
+//predates it. They are *different strings* — NSPasteboardTypeHTML is
+//"public.html", NSHTMLPboardType is "Apple HTML pasteboard type" — but
+//-declareTypes: advertises both whichever one is passed in. So a receiver may
+//ask for either, and comparing against only one silently refuses half of them.
+static NSDictionary<NSPasteboardType, NSPasteboardType>* LegacyPasteboardTypeAliases( void )
+{
+	static NSDictionary *aliases = nil;
+	static dispatch_once_t once;
+
+	dispatch_once( &once, ^{
+		aliases = @{ NSPasteboardTypeString : NSStringPboardType,
+					 NSPasteboardTypeTIFF   : NSTIFFPboardType,
+					 NSPasteboardTypeRTF    : NSRTFPboardType,
+					 NSPasteboardTypeRTFD   : NSRTFDPboardType,
+					 NSPasteboardTypeHTML   : NSHTMLPboardType,
+					 NSPasteboardTypePDF    : NSPDFPboardType };
+	});
+
+	return aliases;
+}
+
+#pragma clang diagnostic pop
+
+//YES if `type` names `wanted`, in either spelling.
+static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wanted )
+{
+	if ( [type isEqualToString: wanted] )
+		return YES;
+
+	NSPasteboardType legacy = [LegacyPasteboardTypeAliases() objectForKey: wanted];
+
+	return legacy != nil && [type isEqualToString: legacy];
+}
+
 //================ implementation FSItem ======================================================
 
 @implementation FSItem
@@ -727,8 +770,8 @@ static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newCh
 	//so it now arrives as an unregistered dynamic UTI that nothing recognises. That
 	//is why dragging to the Finder, and copying a file, silently did nothing.
 	NSMutableArray<NSPasteboardType> *types = [NSMutableArray arrayWithObjects: NSPasteboardTypeFileURL,
-                                                                                NSFilenamesPboardType,
-                                                                                NSStringPboardType,
+                                                                                FSItemLegacyFilenamesPasteboardType(),
+                                                                                NSPasteboardTypeString,
                                                                                 NSFileContentsPboardType,
                                                                                 nil ];
 
@@ -736,16 +779,16 @@ static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newCh
 
 #define TESTTYPE( test, type ) if ( [uti isEqualToString:(NSString*)test] ) [types addObject: type]
 
-	TESTTYPE( kUTTypeRTF, NSRTFPboardType );
-	TESTTYPE( kUTTypeRTFD, NSRTFDPboardType );
-	TESTTYPE( kUTTypeHTML, NSHTMLPboardType );
-	TESTTYPE( kUTTypePDF, NSPDFPboardType );
+	TESTTYPE( kUTTypeRTF, NSPasteboardTypeRTF );
+	TESTTYPE( kUTTypeRTFD, NSPasteboardTypeRTFD );
+	TESTTYPE( kUTTypeHTML, NSPasteboardTypeHTML );
+	TESTTYPE( kUTTypePDF, NSPasteboardTypePDF );
 
 #undef TESTTYPE
     
     // add TIFF is this is an image
     if ( UTTypeConformsTo((__bridge CFStringRef)uti, kUTTypeImage) )
-        [types addObject: NSTIFFPboardType];
+        [types addObject: NSPasteboardTypeTIFF];
 
 	return types;
 }
@@ -761,14 +804,14 @@ static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newCh
 	//pasteboard type name rather than the UTI ("NeXT HTML pasteboard type" and
 	//friends), which can never match, so neither type was ever offered.
 	return [type isEqualToString: NSPasteboardTypeFileURL]
-			|| [type isEqualToString: NSFilenamesPboardType]
-			|| [type isEqualToString: NSStringPboardType]
+			|| [type isEqualToString: FSItemLegacyFilenamesPasteboardType()]
+			|| PasteboardTypeMatches( type, NSPasteboardTypeString )
 			|| [type isEqualToString: NSFileContentsPboardType]
-			|| ([type isEqualToString: NSTIFFPboardType] && UTTypeConformsTo((__bridge CFStringRef)uti, kUTTypeImage))
-			|| ([type isEqualToString: NSRTFPboardType] && [uti isEqualToString:(__bridge NSString*)kUTTypeRTF])
-			|| ([type isEqualToString: NSRTFDPboardType] && [uti isEqualToString:(__bridge NSString*)kUTTypeFlatRTFD])
-			|| ([type isEqualToString: NSHTMLPboardType] && [uti isEqualToString:(__bridge NSString*)kUTTypeHTML])
-			|| ([type isEqualToString: NSPDFPboardType] && [uti isEqualToString:(__bridge NSString*)kUTTypePDF]);
+			|| (PasteboardTypeMatches( type, NSPasteboardTypeTIFF ) && UTTypeConformsTo((__bridge CFStringRef)uti, kUTTypeImage))
+			|| (PasteboardTypeMatches( type, NSPasteboardTypeRTF ) && [uti isEqualToString:(__bridge NSString*)kUTTypeRTF])
+			|| (PasteboardTypeMatches( type, NSPasteboardTypeRTFD ) && [uti isEqualToString:(__bridge NSString*)kUTTypeFlatRTFD])
+			|| (PasteboardTypeMatches( type, NSPasteboardTypeHTML ) && [uti isEqualToString:(__bridge NSString*)kUTTypeHTML])
+			|| (PasteboardTypeMatches( type, NSPasteboardTypePDF ) && [uti isEqualToString:(__bridge NSString*)kUTTypePDF]);
 }
 
 //The data is promised rather than written: -pasteboard:provideDataForType:
@@ -809,26 +852,26 @@ static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newCh
 		//how NSURL itself writes a file URL: the absolute string as UTF-8
 		[pboard setString:[url absoluteString] forType:NSPasteboardTypeFileURL];
 	}
-	else if ([type isEqualToString:NSFilenamesPboardType])
+	else if ([type isEqualToString:FSItemLegacyFilenamesPasteboardType()])
 	{
 		NSArray* pathsArray = [NSArray arrayWithObject: path];
 		
-		[pboard setPropertyList:pathsArray forType:NSFilenamesPboardType];
+		[pboard setPropertyList:pathsArray forType:FSItemLegacyFilenamesPasteboardType()];
 	}
-	else if ([type isEqualToString:NSStringPboardType])
+	else if (PasteboardTypeMatches( type, NSPasteboardTypeString ))
 	{
 		// set the path
-		[pboard setString:path forType:NSStringPboardType];
+		[pboard setString:path forType:NSPasteboardTypeString];
 	}
 	else if ([type isEqualToString:NSFileContentsPboardType])
 	{
 		// write the contents
 		[pboard writeFileContents:path];
 	}
-    else if ([type isEqualToString:NSTIFFPboardType])
+    else if (PasteboardTypeMatches( type, NSPasteboardTypeTIFF ))
     {
         if ([uti isEqualToString: (__bridge NSString *)kUTTypeTIFF])
-            [pboard setData:[NSData dataWithContentsOfFile:[url path]] forType:NSTIFFPboardType];
+            [pboard setData:[NSData dataWithContentsOfFile:[url path]] forType:NSPasteboardTypeTIFF];
         else if ( UTTypeConformsTo((__bridge CFStringRef)uti, kUTTypeImage) )
         {
             // open the image and return TIFFRepresentation
@@ -839,32 +882,32 @@ static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newCh
                 NSData* data = [image TIFFRepresentation];
 
                 if (data)
-                    [pboard setData:data forType:NSTIFFPboardType];
+                    [pboard setData:data forType:NSPasteboardTypeTIFF];
             }
         }
     }
-	else if ([type isEqualToString:NSRTFPboardType])
+	else if (PasteboardTypeMatches( type, NSPasteboardTypeRTF ))
 	{
 		if ([uti isEqualToString:(__bridge NSString*)kUTTypeRTF])
-			[pboard setData:[NSData dataWithContentsOfFile:path] forType:NSRTFPboardType];
+			[pboard setData:[NSData dataWithContentsOfFile:path] forType:NSPasteboardTypeRTF];
 	}
-	else if ([type isEqualToString:NSRTFDPboardType])
+	else if (PasteboardTypeMatches( type, NSPasteboardTypeRTFD ))
 	{
 		if ([uti isEqualToString:(__bridge NSString*)kUTTypeFlatRTFD])
 		{
 			NSFileWrapper *tempRTFDData = [[NSFileWrapper alloc] initWithURL:[NSURL fileURLWithPath:path] options:0 error:NULL];
-			[pboard setData:[tempRTFDData serializedRepresentation] forType:NSRTFDPboardType];
+			[pboard setData:[tempRTFDData serializedRepresentation] forType:NSPasteboardTypeRTFD];
 		}
 	}
-	else if ([type isEqualToString:NSHTMLPboardType])
+	else if (PasteboardTypeMatches( type, NSPasteboardTypeHTML ))
 	{
 		if ([uti isEqualToString:(__bridge NSString*)kUTTypeHTML])
-			[pboard setData:[NSData dataWithContentsOfFile:path] forType:NSHTMLPboardType];
+			[pboard setData:[NSData dataWithContentsOfFile:path] forType:NSPasteboardTypeHTML];
 	}
-	else if ([type isEqualToString:NSPDFPboardType])
+	else if (PasteboardTypeMatches( type, NSPasteboardTypePDF ))
 	{
 		if ([uti isEqualToString:(__bridge NSString*)kUTTypePDF])
-			[pboard setData:[NSData dataWithContentsOfFile:path] forType:NSPDFPboardType];
+			[pboard setData:[NSData dataWithContentsOfFile:path] forType:NSPasteboardTypePDF];
 	}
 	
 	LOG( @"    exiting FSItem.pasteboard:provideDataForType: %@", type )

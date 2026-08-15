@@ -30,7 +30,7 @@
 	_identifier = [( recordIdentifier != nil ? recordIdentifier : identifier ) copy];
 
 	_title = [[description objectForKey: @"title"] copy];
-	_iconName = [[description objectForKey: @"icon"] copy];
+	_symbolName = [[description objectForKey: @"symbol"] copy];
 	_nibName = [[description objectForKey: @"nib"] copy];
 	_category = [[description objectForKey: @"category"] copy];
 	_ordering = [description objectForKey: @"ordering"];
@@ -52,7 +52,7 @@
 - (NSString*) identifier				{ return _identifier; }
 - (NSString*) className					{ return _className; }
 - (NSString*) title						{ return _title; }
-- (NSString*) iconName					{ return _iconName; }
+- (NSString*) symbolName				{ return _symbolName; }
 - (NSString*) nibName					{ return _nibName; }
 - (NSString*) category					{ return _category; }
 - (NSNumber*) ordering					{ return _ordering; }

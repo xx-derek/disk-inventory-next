@@ -15,6 +15,7 @@
 //
 
 #import "PrefsPanelController.h"
+#import "NSImage-Extensions.h"
 #import "PrefsPageBase.h"
 #import "PrefsPageRecord.h"
 #import "Preferences.h"
@@ -389,8 +390,9 @@ static NSString * const PrefsTitlesTable = @"Preferences";
 	[item setLabel: title];
 	[item setPaletteLabel: title];
 
-	if ( [record iconName] != nil )
-		[item setImage: [NSImage imageNamed: [record iconName]]];
+	if ( [record symbolName] != nil )
+		[item setImage: [NSImage imageForSymbolName: [record symbolName]
+						   accessibilityDescription: [record title]]];
 
 	[item setTarget: self];
 	[item setAction: @selector(_selectPageFromToolbar:)];

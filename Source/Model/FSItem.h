@@ -107,6 +107,11 @@ typedef enum
 
 - (NSArray<NSPasteboardType>*) supportedPasteboardTypes;
 - (BOOL) supportsPasteboardType: (NSString*) type;
+//NSFilenamesPboardType, which was deprecated in 10.14 and has no replacement.
+//It is still offered for receivers that predate NSPasteboardTypeFileURL, so the
+//deprecation is isolated behind this rather than suppressed at each use.
+NSPasteboardType FSItemLegacyFilenamesPasteboardType( void );
+
 - (void) writeToPasteboard: (NSPasteboard*) pasteboard;
 - (void) writeToPasteboard: (NSPasteboard*) pasteboard withTypes: (NSArray*) types;
 

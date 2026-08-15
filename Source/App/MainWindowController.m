@@ -40,8 +40,10 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 		return;
     initialized = YES;
 	
-	//initalize support for the service menu
-    NSArray *sendTypes = [NSArray arrayWithObjects: NSFilenamesPboardType, nil];
+	//Initialise support for the service menu. NSPasteboardTypeFileURL has to be
+	//here: registering only the legacy type meant no service that wants a file
+	//URL ever offered itself, the same way dragging and copying used to fail.
+    NSArray *sendTypes = @[ NSPasteboardTypeFileURL, FSItemLegacyFilenamesPasteboardType() ];
     NSArray *returnTypes = [NSArray array];
 	
 	[NSApp registerServicesMenuSendTypes: sendTypes returnTypes: returnTypes];
@@ -502,7 +504,7 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 #define SET_TITLE_AND_IMAGE( condition, string1, string2 )	\
 	SET_TITLE( (condition), string1, string2 );				\
 	if ( [menuItem isKindOfClass: [NSToolbarItemValidationAdapter class]] )\
-		 [menuItem setState: (condition) ? NSOffState : NSOnState];
+		 [menuItem setState: (condition) ? NSControlStateValueOff : NSControlStateValueOn];
 	
     if ( menuAction == @selector(openFile:)
 		 || menuAction == @selector(openFileWith:) )

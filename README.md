@@ -46,6 +46,9 @@ releases. This fork exists to modernize it:
 | 2026-08-15 | Moved the sources out of the repository root into `Source/`, and the loose images into `Resources/`; the directories now mirror the Xcode groups |
 | 2026-08-15 | Dropped the vendored CocoaTech pasteboard classes; `FSItem` promises its own data, so the Services menu now offers `public.file-url` like dragging does, and HTML and PDF are offered instead of being silently refused |
 | 2026-08-15 | Rebuilt the Info panel on `NSGridView`, removing the last vendored CocoaTech code; values are now selectable text, long paths wrap, and the panel follows dark mode |
+| 2026-08-15 | Replaced all 14 toolbar and preference icons with SF Symbols and deleted the bitmaps; deployment target raised from 10.13 to 11.0, which SF Symbols require |
+| 2026-08-15 | Filled the missing 16×16 app icon sizes, so the menu bar and Finder list no longer show a downscaled 32px icon |
+| 2026-08-15 | Fixed the Services menu registering only the legacy filenames type, so no service wanting a file URL ever offered itself |
 | 2026-08-15 | Fixed the Info panel showing setuid and setgid in all three permission positions — `/usr/bin/sudo` read `-r-s--s--s` where `ls` says `-r-s--x--x` |
 
 ## Features
@@ -61,7 +64,7 @@ releases. This fork exists to modernize it:
 
 ## Requirements
 
-- **macOS 10.13 or later**
+- **macOS 11.0 (Big Sur) or later**
 - **Xcode** with the macOS SDK, to build from source
 
 Builds as a **universal binary**, running natively on both Apple silicon and Intel Macs.

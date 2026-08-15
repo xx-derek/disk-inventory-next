@@ -174,13 +174,13 @@
 - (BOOL) validateMenuItem: (NSMenuItem*) menuItem
 {
     if ( [menuItem action] == @selector(searchInAll:) )
-		[menuItem setState: (_indexToSearch == FSItemIndexAll) ? NSOnState : NSOffState];
+		[menuItem setState: (_indexToSearch == FSItemIndexAll) ? NSControlStateValueOn : NSControlStateValueOff];
 	else if ( [menuItem action] == @selector(searchInNames:) )
-		[menuItem setState: (_indexToSearch == FSItemIndexName) ? NSOnState : NSOffState];
+		[menuItem setState: (_indexToSearch == FSItemIndexName) ? NSControlStateValueOn : NSControlStateValueOff];
 	else if ( [menuItem action] == @selector(searchInKindNames:) )
-		[menuItem setState: (_indexToSearch == FSItemIndexKind) ? NSOnState : NSOffState];
+		[menuItem setState: (_indexToSearch == FSItemIndexKind) ? NSControlStateValueOn : NSControlStateValueOff];
 	else if ( [menuItem action] == @selector(searchInPaths:) )
-		[menuItem setState: (_indexToSearch == FSItemIndexPath) ? NSOnState : NSOffState];
+		[menuItem setState: (_indexToSearch == FSItemIndexPath) ? NSControlStateValueOn : NSControlStateValueOff];
 	
 	return YES;
 }
