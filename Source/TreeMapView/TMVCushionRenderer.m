@@ -24,13 +24,18 @@ static const double Lz =  0.97590;
 //Ambient and diffuse contributions. They sum to 1, so a fully lit pixel reaches
 //exactly the cell's base color and nothing can clip.
 //
-//Ia is the floor: it is what a pixel gets where the cushion turns away from the
-//light. At the 0.10 this started with, the rim of every cell fell to a tenth of
-//its colour - practically black - and the contrast against the lit centre read
-//as a glow rather than as a curved surface. 0.55 keeps the shading that makes
-//nesting legible while leaving the whole map light.
-static const double Ia = 0.55;
-static const double Is = 0.45;
+//Ia is the floor: what a pixel gets where the cushion turns away from the light.
+//At the 0.10 this started with, the rim of every cell fell to a tenth of its
+//colour - practically black - and the contrast against the lit centre read as a
+//glow rather than as a curved surface.
+//
+//0.68 is high because the palette is saturated. Shading multiplies all three
+//components by the same number, so it never desaturates, only darkens - and a
+//darkened saturated colour is a muddy one, orange going to brown. Keeping the
+//floor high keeps the hues clean; the dome is still plainly visible because the
+//remaining 0.32 of range is spread over a curve, not a gradient.
+static const double Ia = 0.68;
+static const double Is = 0.32;
 
 //Ceiling on a base colour's mean component, applied by +normalizeColor:.
 //Nothing can clip - the brightest a pixel gets is Ia + Is = 1 times the base

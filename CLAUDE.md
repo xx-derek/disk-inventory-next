@@ -196,15 +196,28 @@ largest kinds. Kinds past the twelve-colour palette get a light grey ramp.
 each cell towards its rim, so a base colour is the *brightest* that cell will ever be. The
 saturated primaries this started with — pure blue, pure red — therefore ran from full
 intensity at the centre to near-black at the edge, which is what made the treemap read as
-glowing blobs rather than as curved tiles. The palette is now twelve light, low-saturation
-hues around a mean component of 0.8, and the shading constants in `TMVCushionRenderer`
-were moved to match: `Ia` (the unlit floor) from 0.10 to 0.55, and `TMVMaxColorBrightness`
-(the cap on a base colour) from 0.6 to 0.85.
+glowing blobs rather than as curved tiles.
 
-Changing one without the other undoes it. A darker `Ia` brings the rims back; a lower
-brightness cap dims the pastels to mud. `Ia + Is` must stay at 1.0 — that is what
-guarantees a pixel cannot exceed its base colour, and the render went from 81 clipped
-pixels to none.
+The fix is not to pale the colours down. **Shading multiplies all three components by the
+same number, so it changes value and never touches saturation** — which means a washed-out
+treemap is always the palette's doing, not the shading's. A first attempt raised every
+component to around 0.8; that produced a map that was light and unmistakably grey (mean
+per-pixel saturation 0.26). The palette is now twelve hues 30° apart that keep a high peak
+(~0.95) and let their other components fall to ~0.4, which more than doubles that figure
+to 0.58.
+
+Saturated colours darken into muddy ones — orange into brown — so the shading constants
+in `TMVCushionRenderer` compensate: `Ia`, the unlit floor, is 0.68 (from 0.10), and
+`TMVMaxColorBrightness`, the cap on a base colour's mean, is 0.85 (from 0.6). The dome is
+still plainly visible because the remaining 0.32 of range falls over a curve.
+
+Changing one without the other undoes it. A low `Ia` brings the dark rims back; a low
+brightness cap dims everything to mud; a low-contrast palette turns the map grey however
+light it is. `Ia + Is` must stay at 1.0 — that is what guarantees a pixel cannot exceed its
+base colour, and it took the render from 81 clipped pixels to none.
+
+A saturated colour has a *lower* mean than a pale one at the same peak, so raising the
+brightness cap and raising saturation do not fight each other.
 
 The two synthetic cells are deliberately neutral so they read as "not a file kind":
 free space is the lightest thing on the map, other space a mid grey (set in

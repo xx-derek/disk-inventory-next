@@ -37,26 +37,33 @@
 
 #define COLOR(r,g,b) [NSColor colorWithCalibratedRed: r green: g blue: b alpha: 1.0]
 
-    //Twelve light, low-saturation hues rather than the saturated primaries this
-    //started with. Cushion shading darkens a cell towards its rim, so a base
-    //colour that is already fully saturated has nowhere to go but towards black,
-    //which is what made the treemap read as glowing blobs. These sit around a
-    //mean component of 0.8, are spaced right around the hue circle so adjacent
-    //kinds stay tellable apart, and are close enough in luminance that no single
-    //kind shouts over the others.
+    //Twelve hues, one every 30 degrees round the colour circle.
+    //
+    //What makes a colour look washed out here is not how light it is but how
+    //close its three components are: shading multiplies all three by the same
+    //number, so it changes value and leaves saturation alone. A first attempt at
+    //"lighter" raised every component to around 0.8, which left barely a third
+    //between the highest and lowest — light, and grey. These keep a high peak
+    //(0.95 or so) and let the other components fall to around 0.4, which is what
+    //makes the hue actually read.
+    //
+    //Their means land between 0.55 and 0.75, comfortably under
+    //TMVMaxColorBrightness, so +normalizeColor: leaves them alone. A saturated
+    //colour has a lower mean than a pale one at the same peak, which is why
+    //raising the cap and raising saturation do not fight each other.
     _predefinedColors = [[NSMutableArray alloc] initWithObjects:
-        COLOR(0.62, 0.76, 0.95),    //blue
-        COLOR(0.96, 0.68, 0.64),    //coral
-        COLOR(0.68, 0.87, 0.70),    //green
-        COLOR(0.64, 0.86, 0.89),    //teal
-        COLOR(0.83, 0.72, 0.93),    //purple
-        COLOR(0.95, 0.90, 0.72),    //yellow
-        COLOR(0.98, 0.82, 0.70),    //orange
-        COLOR(0.96, 0.73, 0.85),    //pink
-        COLOR(0.82, 0.91, 0.73),    //lime
-        COLOR(0.72, 0.82, 0.92),    //sky
-        COLOR(0.78, 0.76, 0.94),    //lavender
-        COLOR(0.88, 0.83, 0.80),    //warm grey
+        COLOR(0.38, 0.68, 0.96),    //azure
+        COLOR(0.96, 0.44, 0.42),    //red
+        COLOR(0.42, 0.82, 0.48),    //green
+        COLOR(0.32, 0.80, 0.88),    //cyan
+        COLOR(0.68, 0.48, 0.94),    //violet
+        COLOR(0.96, 0.85, 0.35),    //yellow
+        COLOR(0.98, 0.63, 0.32),    //orange
+        COLOR(0.97, 0.50, 0.72),    //pink
+        COLOR(0.70, 0.88, 0.38),    //lime
+        COLOR(0.36, 0.85, 0.68),    //spring green
+        COLOR(0.50, 0.55, 0.95),    //blue
+        COLOR(0.88, 0.48, 0.90),    //magenta
         nil];
 
 #undef COLOR
