@@ -359,6 +359,25 @@
 	NSBeginInformationalAlertSheet( msg, nil, nil, nil, [_splitter window], nil, nil, nil, nil, @"" );
 }
 
+#pragma mark -----------------edit menu-----------------------
+
+//The Edit menu's Copy item has always sent -copy: down the responder chain, but
+//nothing implemented it, so it did nothing. The pasteboard support was only ever
+//reachable through the Services menu and drag & drop, both of which go through
+//the same -writeToPasteboard: below.
+- (IBAction) copy: (id) sender
+{
+	FSItem *item = [(FileSystemDoc*)[self document] selectedItem];
+
+	if ( item == nil || [item isSpecialItem] || ![item exists] )
+		return;
+
+	NSPasteboard *pboard = [NSPasteboard generalPasteboard];
+	[pboard clearContents];
+
+	[item writeToPasteboard: pboard];
+}
+
 #pragma mark -----------------UI elment validation-----------------------
 
 - (BOOL) validateMenuItem: (NSMenuItem*) menuItem
@@ -396,6 +415,10 @@
 			  || menuAction == @selector(refresh:))
     {
         return selectedItem != nil;
+    }
+    else if ( menuAction == @selector(copy:) )
+    {
+        return selectedItem != nil && ![selectedItem isSpecialItem] && [selectedItem exists];
     }
     else if ( menuAction == @selector(moveToTrash:) )
     {

@@ -22,6 +22,7 @@
 - (NSDrawer*) kindStatisticsDrawer;
 - (NSDrawer*) selectionListDrawer;
 
+- (IBAction) copy:(id)sender;
 - (IBAction) openFile:(id)sender;
 - (IBAction) toggleFileKindsDrawer:(id)sender;
 - (IBAction) toggleSelectionListDrawer:(id)sender;

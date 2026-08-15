@@ -722,7 +722,13 @@ static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newCh
 
 - (NSArray<NSPasteboardType>*) supportedPasteboardTypes
 {
-	NSMutableArray<NSPasteboardType> *types = [NSMutableArray arrayWithObjects: NSFilenamesPboardType,
+	//NSPasteboardTypeFileURL comes first, because a receiver takes the first type
+	//it understands. NSFilenamesPboardType is kept for older receivers, but it can
+	//no longer carry a file on its own: macOS stopped mapping it to public.file-url,
+	//so it now arrives as an unregistered dynamic UTI that nothing recognises. That
+	//is why dragging to the Finder, and copying a file, silently did nothing.
+	NSMutableArray<NSPasteboardType> *types = [NSMutableArray arrayWithObjects: NSPasteboardTypeFileURL,
+                                                                                NSFilenamesPboardType,
                                                                                 NSStringPboardType,
                                                                                 NSFileContentsPboardType,
                                                                                 nil ];
@@ -750,7 +756,8 @@ static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newCh
 	NSString * uti = [[self fileURL] cachedUTI];
 	
 	//this if clause is derived from the code in NTFilePasteboardSource's "- (NSArray*)pasteboardTypes:(NSArray *)types"
-	return [type isEqualToString: NSFilenamesPboardType]
+	return [type isEqualToString: NSPasteboardTypeFileURL]
+			|| [type isEqualToString: NSFilenamesPboardType]
 			|| [type isEqualToString: NSStringPboardType]
 			|| [type isEqualToString: NSFileContentsPboardType]
 			|| ([type isEqualToString: NSTIFFPboardType] && UTTypeConformsTo((__bridge CFStringRef)uti, kUTTypeImage))
@@ -785,7 +792,12 @@ static void InsertChildKeepingSizeOrder( NSMutableArray *children, FSItem *newCh
     NSString *path = [url cachedPath];
     NSString * uti = [url cachedUTI];
 
-	if ([type isEqualToString:NSFilenamesPboardType])
+	if ([type isEqualToString:NSPasteboardTypeFileURL])
+	{
+		//how NSURL itself writes a file URL: the absolute string as UTF-8
+		[pboard setString:[url absoluteString] forType:NSPasteboardTypeFileURL];
+	}
+	else if ([type isEqualToString:NSFilenamesPboardType])
 	{
 		NSArray* pathsArray = [NSArray arrayWithObject: path];
 		

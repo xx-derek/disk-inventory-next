@@ -59,17 +59,26 @@
         return NULL;
 }
 
-//ask the delegate which drag operations are supported (if we are the dragging source) 
-- (NSDragOperation) draggingSourceOperationMaskForLocal:(BOOL)isLocal
+//ask the delegate which drag operations are supported (if we are the dragging source)
+//
+//AppKit stopped calling -draggingSourceOperationMaskForLocal: in 10.7, so the
+//override that used to live here was dead code and the mask fell back to the
+//NSTableView default -- which is NSDragOperationNone for a drag leaving the
+//application. That is why dragging a file to the Finder did nothing. This is the
+//method AppKit actually calls; it forwards to the delegate exactly as before, so
+//the delegates are unchanged.
+- (NSDragOperation) draggingSession: (NSDraggingSession*) session
+sourceOperationMaskForDraggingContext: (NSDraggingContext) context
 {
+    const BOOL isLocal = ( context == NSDraggingContextWithinApplication );
+
     id delegate = [self delegate];
-	
+
 	//forward to our delegate, if possible
 	if ( [delegate  respondsToSelector:@selector(draggingSourceOperationMaskForLocal:)] )
 		return [delegate draggingSourceOperationMaskForLocal: isLocal];
 	else
-		//NSOutlineView implements draggingSourceOperationMaskForLocal 
-		return [super draggingSourceOperationMaskForLocal: isLocal];
+		return [super draggingSession: session sourceOperationMaskForDraggingContext: context];
 }
 
 //@@test
