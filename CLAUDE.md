@@ -48,9 +48,16 @@ changes by building and exercising the app against a real volume or folder.
 
 The two pieces worth checking with a throwaway harness rather than by eye are the treemap
 layout (cell area must stay proportional to weight — build a synthetic tree, compare
-`itemRectByPathToItem:` areas against weight fractions) and the preferences panel (compile
-a probe **into the built `.app`'s `Contents/MacOS/`** so `[NSBundle mainBundle]` resolves
-and the page nibs load).
+`itemRectByPathToItem:` areas against weight fractions) and anything that loads a nib or
+reads a localized string — compile a probe **into the built `.app`'s `Contents/MacOS/`** so
+`[NSBundle mainBundle]` resolves. That is how the settings pages, the Info panel and the
+`Preferences.strings` translations were checked.
+
+Two things a probe cannot show you. **`-cacheDisplayInRect:toBitmapImageRep:` comes back
+blank** for layer-backed text fields, so render through `-dataWithPDFInsideRect:` instead,
+or screenshot the real window. And **a probe outside a modal session will not reproduce
+modal-session behaviour** — the progress bar drew its indeterminate animation over the top
+of a determinate value only in the running app, and looked correct in isolation.
 
 When testing anything about treemap coordinates, **derive the test points from the view's
 bounds, never from `itemRectByPathToItem:`.** A point taken from a cell rect round-trips
@@ -72,12 +79,14 @@ Source/App/                    main.m, the prefix header, MainWindow(Controller)
 Source/Model/                  FSItem(+Utilities), FSItemIndex, FileSystemDoc, FileTypeColors
 Source/Controllers/            one controller per pane, plus the selection-list trio
 Source/Panels/                 Info, Drives and Loading panels, and the volume transformers
-Source/Preferences/            Preferences, PrefsPanelController, PrefsPageBase/Record, the pages
+Source/Preferences/            Preferences, PrefsPanelController, PrefsPageBase/Record,
+                               PrefsPageLayout, the two pages
 Source/Views/                  DIXTableView, DIXOutlineView, ImageAndTextCell, GenericArrayController
 Source/Extensions/             NSAlert-, NSURL- and NSFileManager-Extensions
 Source/Helpers/                Timing, FileSizeFormatter, FileSizeTransformer, AppsForItem
 Source/TreeMapView/            the treemap widget — see its own section below
-Resources/                     Images.xcassets (the app icon) and the toolbar plist
+Resources/                     Images.xcassets (the app icon), AppIcon-master.png (its
+                               source artwork, not in the Xcode project) and the toolbar plist
 ```
 
 `Info.plist`, `version.plist`, the entitlements, `documentation/` and the five `.lproj`
@@ -476,8 +485,9 @@ under the `Registrations` key (`AppRegistrationsKey` in `Preferences.h`, renamed
 `OFRegistrations`), but `RegisterFactoryDefaults()` in `Source/App/main.m` registers them before
 `NSApplicationMain`. **Adding a preference means adding it there**, or bound controls will
 read nil. `PrefsPanelController` reads its page list from the same dict, keyed by its own
-class name, and skips any page whose class is not in the binary — which is why the disabled
-`FinderCMPrefPage` entry is harmless.
+class name, and skips any page whose class is not in the binary. There used to be a third,
+disabled `FinderCMPrefPage` entry relying on that; it was removed on 2026-08-15 along with
+its nibs, since neither the class nor the page had existed for years.
 
 `AppController` was an `OAController` and is now an empty `NSObject`; nothing instantiates
 it, since only `OFControllerClass` ever did.
@@ -622,7 +632,7 @@ a `.m` file requires the same change to the key **and** value in all four
 ## Encoding: everything text is UTF-8
 
 Normalized on 2026-08-15. Every text file in the repo is UTF-8 (most are pure ASCII), and
-all 89 `fileEncoding` entries in `project.pbxproj` are `4` (`NSUTF8StringEncoding`). Keep
+all 99 `fileEncoding` entries in `project.pbxproj` are `4` (`NSUTF8StringEncoding`). Keep
 it that way — write new files as UTF-8 and do not reintroduce `fileEncoding = 30`
 (MacRoman), which is what 69 of them used to be.
 
@@ -645,14 +655,27 @@ Upstream notes live in `documentation/` — `release notes.txt` (version history
 `known bugs.txt`, and `feature suggestions.txt` are the useful ones for understanding
 intended behavior and what was deliberately left unimplemented.
 
-Licensed GPL-3 (`COPYING`). Source files inherited from upstream carry a GPL header naming
-Tjark Derlien — preserve it when editing, never replace it. As a modified version, the
-README must keep its §5(a) modification notice and date.
+Licensed GPL-3 (`COPYING`). Most files inherited from upstream carry a GPL header naming
+Tjark Derlien — preserve it when editing, never replace it. A handful carry no header at
+all (`Timing.*`, `MainWindowController.h` and the three other `/* ClassName */` headers,
+the prefix header); they are Derlien's too. As a modified version, the README must keep its
+§5(a) modification notice and date.
 
-Files written for this fork (everything under `Source/TreeMapView/`, `PrefsPageRecord`,
-plus `RegisterFactoryDefaults()` in `Source/App/main.m`) carry the same GPL-3 header under "Disk Inventory
-Next contributors" — they are not Derlien's work and should not be attributed to him. Match
-whichever header fits when adding a file.
+Files written for this fork carry the same GPL-3 header under "Disk Inventory Next
+contributors" — everything under `Source/TreeMapView/`, plus `PrefsPageRecord`,
+`PrefsPageLayout`, `NSAlert-Extensions`, `NSImage-Extensions` and
+`RegisterFactoryDefaults()` in `Source/App/main.m`. They are not Derlien's work and should
+not be attributed to him. Files rewritten rather than written — `DIXFileInfoView` is the
+clearest case — carry both. Match whichever header fits when adding a file.
+
+By line count roughly 81% of the `.m`/`.h` still sits in files bearing Derlien's copyright
+and 16% in fork-only files, though that undercounts the rewriting: the ARC migration, the
+Info panel and the threading of the scan all happened inside files that keep his header.
+
+**`Source/Views/ImageAndTextCell.*` is Apple sample code**, not GPL and not Derlien's. Its
+licence does grant use, modification and redistribution in source and binary form, unlike
+the CocoaTech files that were removed — but only on condition the notice is retained. Do
+not strip it.
 
 Before pulling in any third-party code, check that it is actually licensed. Being public on
 GitLab or GitHub is not a license; `treemapview-framework` is the cautionary example

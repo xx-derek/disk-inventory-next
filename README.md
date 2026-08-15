@@ -26,7 +26,10 @@ releases. This fork exists to modernize it:
   frameworks, so it could only run under Rosetta. Those are gone.
 - **Builds from a clean checkout** on a current Xcode, with no external frameworks to
   supply first.
-- Interface updates
+- **Interface brought up to date** — SF Symbol toolbar icons, the standard sidebar toggle,
+  a settings window laid out in code, a treemap palette that works in both appearances,
+  and drawers replaced by collapsible split-view panes.
+- **Scanning no longer blocks the interface**, and shows an estimated percentage.
 
 ## Changes from the original
 
@@ -36,7 +39,7 @@ releases. This fork exists to modernize it:
 | 2026-08-15 | Own-app filter in `AppsForItem` now derives the app name from the running bundle instead of a hardcoded string, so it survives renames |
 | 2026-08-15 | Replaced `TreeMapView.framework` with an independent GPL-3 treemap implementation in [`Source/TreeMapView/`](Source/TreeMapView) |
 | 2026-08-15 | Removed the OmniGroup frameworks entirely; the toolbar and preferences code they provided now lives in the app's own classes, and `OASplitView` gave way to a plain `NSSplitView` |
-| 2026-08-15 | Builds as a universal arm64 + x86_64 binary; deployment target raised from 10.11 to 10.13 |
+| 2026-08-15 | Builds as a universal arm64 + x86_64 binary; deployment target raised from 10.11 to 11.0 |
 | 2026-08-15 | Fixed a preferences bug where "Restore Defaults" compared a 64-bit sheet response against a 32-bit constant and never matched |
 | 2026-08-15 | Fixed a crash opening the "Open With" menu, caused by a sort method that no longer existed |
 | 2026-08-15 | Fixed treemap clicks selecting nothing: the layout was converted into a bottom-up backing space, putting every cell outside the view, which also broke tooltips and the hover readout |
@@ -46,7 +49,7 @@ releases. This fork exists to modernize it:
 | 2026-08-15 | Moved the sources out of the repository root into `Source/`, and the loose images into `Resources/`; the directories now mirror the Xcode groups |
 | 2026-08-15 | Dropped the vendored CocoaTech pasteboard classes; `FSItem` promises its own data, so the Services menu now offers `public.file-url` like dragging does, and HTML and PDF are offered instead of being silently refused |
 | 2026-08-15 | Rebuilt the Info panel on `NSGridView`, removing the last vendored CocoaTech code; values are now selectable text, long paths wrap, and the panel follows dark mode |
-| 2026-08-15 | Replaced all 14 toolbar and preference icons with SF Symbols and deleted the bitmaps; deployment target raised from 10.13 to 11.0, which SF Symbols require |
+| 2026-08-15 | Replaced all 14 toolbar and preference icons with SF Symbols and deleted the bitmaps; this is what requires macOS 11 |
 | 2026-08-15 | The loading panel now shows an estimated percentage and a real progress bar, based on what the last scan of that path found, or on the volume's inode count for a whole drive |
 | 2026-08-15 | Moved the directory scan onto a background queue; the progress panel and Cancel button stay responsive instead of updating five times a second while the main thread walked the file system |
 | 2026-08-15 | Redesigned the settings window: pages are laid out in code so both align consistently, help text is properly secondary, Restore Defaults has a button, and the window is titled "Settings" on macOS 13 and later |
@@ -160,7 +163,10 @@ conveys no trademark rights.
 
 ## Credits
 
-- **Tjark Derlien** — original author of Disk Inventory X, and of essentially all the code here
+- **Tjark Derlien** — original author of Disk Inventory X, and of most of the code this fork
+  is built on: about 81% of the source still sits in files bearing his copyright
 - **Anton Repponen** — application icon of the original Disk Inventory X, replaced in this fork
+- **Chuck Pisula / Apple** — `ImageAndTextCell`, Apple sample code, used under its own
+  licence with the notice retained
 - Treemap rendering under `Source/TreeMapView/` was written for this fork and is GPL-3 like the
   rest of the project
