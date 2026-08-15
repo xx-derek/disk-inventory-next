@@ -34,7 +34,7 @@ releases. This fork exists to modernize it:
 | --- | --- |
 | 2026-08-15 | Renamed from "Disk Inventory X" to "Disk Inventory Next"; bundle identifier changed from `com.derlien.DiskInventoryX` to `io.github.xxderek.DiskInventoryNext` |
 | 2026-08-15 | Own-app filter in `AppsForItem` now derives the app name from the running bundle instead of a hardcoded string, so it survives renames |
-| 2026-08-15 | Replaced `TreeMapView.framework` with an independent GPL-3 treemap implementation in [`TreeMapView/`](TreeMapView) |
+| 2026-08-15 | Replaced `TreeMapView.framework` with an independent GPL-3 treemap implementation in [`Source/TreeMapView/`](Source/TreeMapView) |
 | 2026-08-15 | Removed the OmniGroup frameworks entirely; the toolbar and preferences code they provided now lives in the app's own classes, and `OASplitView` gave way to a plain `NSSplitView` |
 | 2026-08-15 | Builds as a universal arm64 + x86_64 binary; deployment target raised from 10.11 to 10.13 |
 | 2026-08-15 | Fixed a preferences bug where "Restore Defaults" compared a 64-bit sheet response against a 32-bit constant and never matched |
@@ -43,6 +43,10 @@ releases. This fork exists to modernize it:
 | 2026-08-15 | Fixed a file's size being initialised from a pointer instead of the number it points at (masked, because sizes are recalculated before display) |
 | 2026-08-15 | Migrated the codebase from manual retain/release to ARC |
 | 2026-08-15 | Fixed a diagnostic that scanned a hex value over the string pointer holding it, then logged the result as an object |
+| 2026-08-15 | Moved the sources out of the repository root into `Source/`, and the loose images into `Resources/`; the directories now mirror the Xcode groups |
+| 2026-08-15 | Dropped the vendored CocoaTech pasteboard classes; `FSItem` promises its own data, so the Services menu now offers `public.file-url` like dragging does, and HTML and PDF are offered instead of being silently refused |
+| 2026-08-15 | Rebuilt the Info panel on `NSGridView`, removing the last vendored CocoaTech code; values are now selectable text, long paths wrap, and the panel follows dark mode |
+| 2026-08-15 | Fixed the Info panel showing setuid and setgid in all three permission positions — `/usr/bin/sudo` read `-r-s--s--s` where `ls` says `-r-s--x--x` |
 
 ## Features
 
@@ -105,7 +109,7 @@ impossible. They have been replaced by source in this repository:
 
 | Replaced | By |
 | --- | --- |
-| `TreeMapView.framework` | [`TreeMapView/`](TreeMapView) — an independent treemap implementation written for this fork |
+| `TreeMapView.framework` | [`Source/TreeMapView/`](Source/TreeMapView) — an independent treemap implementation written for this fork |
 | OmniGroup frameworks | Nothing — the parts the app used were folded into its own classes, or replaced by the AppKit equivalents that have since appeared |
 
 ### macOS privacy protections
@@ -148,6 +152,5 @@ conveys no trademark rights.
 
 - **Tjark Derlien** — original author of Disk Inventory X, and of essentially all the code here
 - **Anton Repponen** — application icon
-- Includes **CocoaTech** sources under `CocoaTech-Depreciated/`
-- Treemap rendering under `TreeMapView/` was written for this fork and is GPL-3 like the
+- Treemap rendering under `Source/TreeMapView/` was written for this fork and is GPL-3 like the
   rest of the project

@@ -15,6 +15,9 @@
 
 #import "InfoPanelController.h"
 #import "DIXFileInfoView.h"
+//-isEqualToURL: used to arrive through NTInfoView.h; the replacement header
+//does not drag it in, so name the dependency here
+#import "NSURL-Extensions.h"
 
 @implementation InfoPanelController
 

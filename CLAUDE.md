@@ -60,6 +60,40 @@ test and a synthetic-click test before a real click found it. Useful assertions:
 rect lies inside the view's bounds, and a grid of points across the bounds all hit a cell
 whose rect contains that point.
 
+## Layout on disk
+
+Sources moved out of the repository root into `Source/` on 2026-08-15; before that date
+every `.h`/`.m` sat flat beside `Info.plist`, so paths in older commits will not match.
+The directories mirror the Xcode groups one-for-one — a file's group **is** its folder.
+
+```
+Source/App/                    main.m, the prefix header, MainWindow(Controller),
+                               MyDocumentController, AppController, ToolbarWindowController
+Source/Model/                  FSItem(+Utilities), FSItemIndex, FileSystemDoc, FileTypeColors
+Source/Controllers/            one controller per pane, plus the selection-list trio
+Source/Panels/                 Info, Drives and Loading panels, and the volume transformers
+Source/Preferences/            Preferences, PrefsPanelController, PrefsPageBase/Record, the pages
+Source/Views/                  DIXTableView, DIXOutlineView, ImageAndTextCell, GenericArrayController
+Source/Extensions/             NSAlert-, NSURL- and NSFileManager-Extensions
+Source/Helpers/                Timing, FileSizeFormatter, FileSizeTransformer, AppsForItem
+Source/TreeMapView/            the treemap widget — see its own section below
+Resources/                     Images.xcassets, the app icon, Toolbar/ and Preferences/ images
+```
+
+`Info.plist`, `version.plist`, the entitlements, `documentation/` and the five `.lproj`
+bundles stay at the root: the localized nibs are the app's UI and moving them buys nothing.
+
+Two build settings depend on this layout — update them together with any further move:
+
+- `GCC_PREFIX_HEADER = "Source/App/Disk Inventory Next_Prefix.pch"`.
+- `HEADER_SEARCH_PATHS` is `$(SRCROOT)` **and** `$(SRCROOT)/Source`. The second entry is
+  what makes `#import <TreeMapView/…>` resolve to `Source/TreeMapView/`.
+
+Plain `#import "Foo.h"` keeps working across directories because Xcode's header maps
+(`USE_HEADERMAP`, on by default) map every project header by bare filename. That only
+covers files that are *file references in the project* — a header that exists on disk but
+was never added to the project will not be found from another directory.
+
 ## Memory management: ARC
 
 `CLANG_ENABLE_OBJC_ARC = YES`. The project was manual retain/release until 2026-08-15;
@@ -92,9 +126,10 @@ and leaks silently:
 - **`ZoomInfo._delegate` is `__weak`, and `-cancel` exists** because `NSTimer` retains its
   target. A running zoom keeps the `ZoomInfo` alive on its own, so `TreeMapView -dealloc`
   calls `-cancel` rather than just dropping its reference.
-- **`NTPasteboardHelper` parks itself in a static set** while it owns a pasteboard, since
-  under ARC it can no longer retain itself. It removes itself in `-pasteboardChangedOwner:`,
-  holding a local strong reference across the removal.
+- **`FSItem` owns nothing on the pasteboard.** `-declareTypes:owner:` does not retain its
+  owner, and `FSItem` passes `self`; that is safe only because an item lives as long as
+  the document's tree. Anything shorter-lived must not be a pasteboard owner. (The old
+  `NTPasteboardHelper` existed to park a short-lived owner in a static set; it is gone.)
 
 ### Verifying you have not reintroduced a cycle
 
@@ -178,8 +213,8 @@ touching both layers plus a `ViewOptionChangedNotification` post.
 
 ### Prefix header
 
-`Disk Inventory Next_Prefix.pch` is precompiled into every file and already imports Cocoa,
-Carbon, and `OmniBase`. It also defines the logging macro:
+`Source/App/Disk Inventory Next_Prefix.pch` is precompiled into every file and already
+imports Cocoa and Carbon. It also defines the logging macro:
 
 ```objc
 #define LOG(x, args...) { if (g_EnableLogging) NSLog(x, ## args); }
@@ -191,7 +226,7 @@ Use `LOG(...)` rather than bare `NSLog`; it is gated on the `EnableLogging` pref
 
 Modern macOS blocks Desktop/Documents/Downloads and similar. `FileSystemDoc
 checkForProtectedFolders:` detects them before scanning via
-`privacyProtectedFoldersInURL:` (in `Foundation Extensions/NSFileManager-Extensions`) and
+`privacyProtectedFoldersInURL:` (in `Source/Extensions/NSFileManager-Extensions`) and
 shows a one-time explanatory alert gated on `DontShowPrivacyWarningMessage`.
 `NSURL-Extensions` adds `stillExists` for revalidating URLs after a volume is ejected.
 Background and localized strings: `documentation/macOS privacy protected folders.txt`.
@@ -253,15 +288,16 @@ This is how `OASplitView` was removed. **Verify at runtime**, not by diffing: lo
 in a probe and assert the objects survived (see Tests). A structural nib edit that silently
 drops a connection will still build.
 
-## `TreeMapView/` — the replaced dependency
+## `Source/TreeMapView/` — the replaced dependency
 
 The app used to link four prebuilt frameworks. All four were Intel-only binaries with no
 headers, which made an Apple silicon build impossible, and none was in the repo. **The app
 now links only system frameworks.**
 
 The OmniGroup half was migrated away entirely (see [Where the Omni code went](#where-the-omni-code-went)).
-What remains is the treemap widget, in `TreeMapView/`, resolved by `HEADER_SEARCH_PATHS`
-(`$(SRCROOT)`) rather than a framework search path, so `#import <TreeMapView/…>` still works.
+What remains is the treemap widget, in `Source/TreeMapView/`, resolved by
+`HEADER_SEARCH_PATHS` (`$(SRCROOT)/Source`) rather than a framework search path, so
+`#import <TreeMapView/…>` still works.
 
 `TreeMapView` (the `NSView`), `TMVItem` (one cell — layout and hit testing),
 `TMVCushionRenderer` (shading), `ZoomInfo` (the zoom effect), plus two small categories.
@@ -307,7 +343,7 @@ compatibility layer** — if something looks like it is missing, it was inlined:
 | `OAPreferenceController` | folded into `PrefsPanelController` |
 | `OAPreferenceClient` | folded into `PrefsPageBase` |
 | `OAPreferenceClientRecord` | `PrefsPageRecord` |
-| `OAPasteboardHelper` | `CocoaTech-Depreciated/NTPasteboardHelper` |
+| `OAPasteboardHelper` | `NTPasteboardHelper`, then deleted — `FSItem` promises its own data via `-declareTypes:owner:self` |
 | `OASplitView` | plain `NSSplitView` (`setPositionAutosaveName:` → `setAutosaveName:`) |
 | `+[NSString isEmptyString:]`, `-[NSDictionary boolForKey:]`, `-[NSMutableDictionary setBoolValue:forKey:]`, the two `NSMutableArray` sorts, `+horizontalEllipsisString`, `-[NSTableView setFont:]` | inlined at their call sites |
 | `OBPRECONDITION` | `NSAssert` (both compile out in release builds) |
@@ -317,10 +353,10 @@ the XIB and recompiling — see [Editing a nib without Interface Builder](#ui-fi
 Nothing else was ever nib-referenced, which is why the rest was a rename rather than a rewrite.
 
 Two Omni mechanisms are gone rather than reimplemented, so **`Info.plist` no longer drives
-them and `main.m` does**: `NSPrincipalClass` is plain `NSApplication` (was `OAApplication`),
+them and `Source/App/main.m` does**: `NSPrincipalClass` is plain `NSApplication` (was `OAApplication`),
 and `OFControllerClass` is removed. The factory defaults still live in `Info.plist`, now
 under the `Registrations` key (`AppRegistrationsKey` in `Preferences.h`, renamed from
-`OFRegistrations`), but `RegisterFactoryDefaults()` in `main.m` registers them before
+`OFRegistrations`), but `RegisterFactoryDefaults()` in `Source/App/main.m` registers them before
 `NSApplicationMain`. **Adding a preference means adding it there**, or bound controls will
 read nil. `PrefsPanelController` reads its page list from the same dict, keyed by its own
 class name, and skips any page whose class is not in the binary — which is why the disabled
@@ -329,10 +365,43 @@ class name, and skips any page whose class is not in the binary — which is why
 `AppController` was an `OAController` and is now an empty `NSObject`; nothing instantiates
 it, since only `OFControllerClass` ever did.
 
-## Vendored legacy code
+## The Info panel
 
-`CocoaTech-Depreciated/` holds third-party `NT*` classes (pasteboard, info view, ID3
-helpers) kept for compatibility. Treat as legacy; prefer not to extend it.
+`DIXFileInfoView` (`Source/Panels/`) is the scrolling title/value list. It used to be three
+vendored CocoaTech classes — `NTInfoView` gathering the rows, `NTTitledInfoView` laying
+them out by hand, `NTTitledInfoPair` carrying one pair — all removed on 2026-08-15 along
+with `NTFilePasteboardSource`, `NTPasteboardHelper` and the already-dead `NTID3Helper`.
+**Nothing vendored remains; there is no `Source/CocoaTech-Depreciated/`.** That also
+cleared the last files in the repo carrying "All rights reserved" with no license grant.
+
+Three things about the replacement are easy to break:
+
+- **The class name is load-bearing.** All four `InfoPanel.nib`s hold an `NSCustomView`
+  placeholder naming `DIXFileInfoView`. A placeholder instantiates through
+  **`-initWithFrame:`**, not `-initWithCoder:` — which is why the old code's subviews
+  existed at all, and why both initialisers now funnel into `-buildViewHierarchy`. Rename
+  the class and the panel silently comes up empty.
+- **The value column's width must come from the title column, never from the value field's
+  own frame.** `NSGridView` sizes columns from their content, so a wrapping `NSTextField`
+  whose `preferredMaxLayoutWidth` is derived from where it landed shrinks itself on every
+  pass. Doing that collapsed the value column to five points and made the grid 1428 points
+  tall instead of 166. `-finishRows` pins the title column to the widest title and `-layout`
+  computes the rest from the grid's own width.
+- **`-removeRowAtIndex:` leaves the row's content views as subviews.** They have to be
+  removed by hand or every refresh stacks another set of labels on the last.
+
+`NSLocalizedString` keys are the English strings themselves, and all twelve row titles
+(`Name:` … `Application:`) exist in de/en/es/fr. Changing a literal means changing every
+`Localizable.strings` too.
+
+Two gaps are deliberate, inherited from the code this replaced: there is no **Size** row
+(the old `sizePairs` was commented out and returned an empty array), and the "long format"
+variant was dead code — `_longFormat` was never set.
+
+Verifying a change here means rendering it, not reading it: a probe compiled into the built
+`.app` can drive `-setURL:` and capture the view with `-dataWithPDFInsideRect:`.
+`-cacheDisplayInRect:toBitmapImageRep:` returns blank, because the text fields are
+layer-backed.
 
 ## Naming
 
@@ -379,11 +448,11 @@ Licensed GPL-3 (`COPYING`). Source files inherited from upstream carry a GPL hea
 Tjark Derlien — preserve it when editing, never replace it. As a modified version, the
 README must keep its §5(a) modification notice and date.
 
-Files written for this fork (everything under `TreeMapView/`, `PrefsPageRecord`, plus
-`RegisterFactoryDefaults()` in `main.m`) carry the same GPL-3 header under "Disk Inventory
+Files written for this fork (everything under `Source/TreeMapView/`, `PrefsPageRecord`,
+plus `RegisterFactoryDefaults()` in `Source/App/main.m`) carry the same GPL-3 header under "Disk Inventory
 Next contributors" — they are not Derlien's work and should not be attributed to him. Match
 whichever header fits when adding a file.
 
 Before pulling in any third-party code, check that it is actually licensed. Being public on
 GitLab or GitHub is not a license; `treemapview-framework` is the cautionary example
-(see [`TreeMapView/`](#treemapview-and-omnicompat--the-two-replaced-dependencies) above).
+(see [`Source/TreeMapView/`](#sourcetreemapview--the-replaced-dependency) above).
