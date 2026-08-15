@@ -19,47 +19,89 @@ and colored by file type — alongside a sortable outline view and a breakdown b
 
 ## Why the fork
 
-The original was last updated in March 2022 and targets Intel Macs on older macOS
-releases. This fork exists to modernize it:
+The original was last released in March 2022 and had drifted far enough from current macOS
+that it could no longer be built, let alone run natively: it targeted Intel Macs and
+depended on prebuilt frameworks that were not included with the source. This fork exists to
+fix that and to bring the interface up to date.
 
-- **Runs natively on Apple silicon.** The original depended on Intel-only prebuilt
-  frameworks, so it could only run under Rosetta. Those are gone.
-- **Builds from a clean checkout** on a current Xcode, with no external frameworks to
-  supply first.
-- **Interface brought up to date** — SF Symbol toolbar icons, the standard sidebar toggle,
-  a settings window laid out in code, a treemap palette that works in both appearances,
-  and drawers replaced by collapsible split-view panes.
-- **Scanning no longer blocks the interface**, and shows an estimated percentage.
+## What's changed
 
-## Changes from the original
+All of the work below happened between 15 and 16 August 2026.
 
-| Date | Change |
+### Runs on current macOS
+
+- **Native on Apple silicon**, as a universal arm64 + x86_64 binary. The original depended
+  on Intel-only prebuilt frameworks and could only run under Rosetta.
+- **Deployment target raised from 10.11 to 11.0**, which is what SF Symbols require.
+- **Migrated from manual retain/release to ARC**, and the remaining deprecated API swept
+  up behind it. The build is clean.
+- Renamed to "Disk Inventory Next"; bundle identifier `com.derlien.DiskInventoryX` became
+  `io.github.xxderek.DiskInventoryNext`.
+
+### No external dependencies
+
+A fresh clone builds with nothing to fetch. Four prebuilt frameworks used to be resolved
+through build settings pointing outside the repository, and none of them was included with
+the source — they were Intel-only binaries without headers, which is what made a native
+build impossible:
+
+| Was | Now |
 | --- | --- |
-| 2026-08-15 | Renamed from "Disk Inventory X" to "Disk Inventory Next"; bundle identifier changed from `com.derlien.DiskInventoryX` to `io.github.xxderek.DiskInventoryNext` |
-| 2026-08-15 | Own-app filter in `AppsForItem` now derives the app name from the running bundle instead of a hardcoded string, so it survives renames |
-| 2026-08-15 | Replaced `TreeMapView.framework` with an independent GPL-3 treemap implementation in [`Source/TreeMapView/`](Source/TreeMapView) |
-| 2026-08-15 | Removed the OmniGroup frameworks entirely; the toolbar and preferences code they provided now lives in the app's own classes, and `OASplitView` gave way to a plain `NSSplitView` |
-| 2026-08-15 | Builds as a universal arm64 + x86_64 binary; deployment target raised from 10.11 to 11.0 |
-| 2026-08-15 | Fixed a preferences bug where "Restore Defaults" compared a 64-bit sheet response against a 32-bit constant and never matched |
-| 2026-08-15 | Fixed a crash opening the "Open With" menu, caused by a sort method that no longer existed |
-| 2026-08-15 | Fixed treemap clicks selecting nothing: the layout was converted into a bottom-up backing space, putting every cell outside the view, which also broke tooltips and the hover readout |
-| 2026-08-15 | Fixed a file's size being initialised from a pointer instead of the number it points at (masked, because sizes are recalculated before display) |
-| 2026-08-15 | Migrated the codebase from manual retain/release to ARC |
-| 2026-08-15 | Fixed a diagnostic that scanned a hex value over the string pointer holding it, then logged the result as an object |
-| 2026-08-15 | Moved the sources out of the repository root into `Source/`, and the loose images into `Resources/`; the directories now mirror the Xcode groups |
-| 2026-08-15 | Dropped the vendored CocoaTech pasteboard classes; `FSItem` promises its own data, so the Services menu now offers `public.file-url` like dragging does, and HTML and PDF are offered instead of being silently refused |
-| 2026-08-15 | Rebuilt the Info panel on `NSGridView`, removing the last vendored CocoaTech code; values are now selectable text, long paths wrap, and the panel follows dark mode |
-| 2026-08-15 | Replaced all 14 toolbar and preference icons with SF Symbols and deleted the bitmaps; this is what requires macOS 11 |
-| 2026-08-15 | The loading panel now shows an estimated percentage and a real progress bar, based on what the last scan of that path found, or on the volume's inode count for a whole drive |
-| 2026-08-15 | Moved the directory scan onto a background queue; the progress panel and Cancel button stay responsive instead of updating five times a second while the main thread walked the file system |
-| 2026-08-15 | Redesigned the settings window: pages are laid out in code so both align consistently, help text is properly secondary, Restore Defaults has a button, and the window is titled "Settings" on macOS 13 and later |
-| 2026-08-15 | Deleted twelve localized preference-page nibs; the German, Spanish and French translations moved into `Preferences.strings` |
-| 2026-08-15 | New application icon, replacing the original; all ten icon sizes are now supplied, including the 1024px one that was previously missing |
-| 2026-08-15 | Reworked the treemap palette: twelve hues spaced round the colour circle, light but not washed out, with a high ambient floor so cells no longer fall to near-black at their edges |
-| 2026-08-15 | Replaced the "Show File Kind Statistics" toolbar button with the standard macOS sidebar toggle, and made the pane slide rather than jump |
-| 2026-08-15 | Filled the missing 16×16 app icon sizes, so the menu bar and Finder list no longer show a downscaled 32px icon |
-| 2026-08-15 | Fixed the Services menu registering only the legacy filenames type, so no service wanting a file URL ever offered itself |
-| 2026-08-15 | Fixed the Info panel showing setuid and setgid in all three permission positions — `/usr/bin/sudo` read `-r-s--s--s` where `ls` says `-r-s--x--x` |
+| `TreeMapView.framework` | an independent GPL-3 implementation in [`Source/TreeMapView/`](Source/TreeMapView), written from the published algorithms |
+| `OmniAppKit`, `OmniBase`, `OmniFoundation` | folded into the app's own classes, or replaced by the AppKit equivalents that have appeared since |
+
+A set of CocoaTech `NT*` classes was vendored into the source rather than linked. Those are
+gone too: the pasteboard handling and the Info panel are the app's own now, which also
+settled the awkwardness of shipping "all rights reserved" files in a GPL project.
+
+### Interface
+
+- **Drawers replaced by collapsible split-view panes.** `NSDrawer` has been deprecated for
+  years and never looked right in dark mode. The file-kind statistics pane is now toggled
+  by the standard macOS sidebar button, and slides rather than jumping.
+- **Toolbar and preference icons are SF Symbols**, so they are vector, tint correctly and
+  follow dark mode; fourteen bitmap files were deleted.
+- **New application icon**, supplied in all ten sizes including the 1024px one that was
+  missing, with its source artwork kept in the repository.
+- **Treemap palette reworked** — twelve hues spaced around the colour circle, light enough
+  to read and saturated enough not to look grey, with no cell falling to near-black at its
+  edges.
+- **Info panel rebuilt** on `NSGridView`: values are selectable text, long paths wrap, and
+  it follows dark mode. Three vendored classes went with it.
+- **Settings window redesigned** and laid out in code rather than in twelve localized nibs,
+  with consistent alignment, secondary-styled help text, a Restore Defaults button that is
+  actually reachable, and the title "Settings" on macOS 13 and later. The German, Spanish
+  and French translations moved into `Preferences.strings`.
+- **Scanning no longer freezes the app.** The directory walk runs on a background queue
+  instead of taking turns with the interface on the main thread, and the progress panel
+  shows an estimated percentage.
+
+### Fixes
+
+- **Drag and drop did nothing, and there was no Copy at all.** macOS stopped mapping
+  `NSFilenamesPboardType` to `public.file-url`, so the file never reached the receiver.
+  Dragging out of the outline also offered to make an alias rather than a copy.
+- **No service wanting a file URL ever appeared** in the Services menu, which registered
+  only that same dead type. HTML and PDF were compared against pasteboard type *names*
+  rather than UTIs, so they were never offered either.
+- **Clicking the treemap selected nothing.** The layout was converted into a bottom-up
+  backing space, putting every cell outside the view; tooltips and the hover readout had
+  gone with it.
+- **"Restore Defaults" did nothing** — it compared a 64-bit sheet response against a
+  32-bit constant.
+- **Opening the "Open With" menu crashed**, on a sort method that no longer existed.
+- **The Info panel misreported permissions**, showing setuid and setgid in all three
+  positions: `/usr/bin/sudo` read `-r-s--s--s` where `ls` says `-r-s--x--x`.
+- **The thirteenth file kind was drawn black**, and the next few nearly so.
+- A file's size was initialised from a pointer instead of the number it points at, and a
+  diagnostic scanned a hex value over the string pointer holding it.
+- Own-app filtering used a hardcoded application name, so it stopped working on rename.
+
+### Repository
+
+Sources moved out of the repository root, where 78 `.h`/`.m` files sat beside `Info.plist`,
+into `Source/` with one directory per Xcode group; images moved to `Resources/`. Every text file is UTF-8. Paths in commits before 15 August 2026 will not
+match the current layout.
 
 ## Features
 
@@ -112,18 +154,9 @@ Apple silicon.
 
 ### Dependencies
 
-None. The app links only system frameworks.
-
-It previously required two sets of prebuilt frameworks — the OmniGroup frameworks
-(`OmniAppKit`, `OmniBase`, `OmniFoundation`) and `TreeMapView.framework` — which were not
-included here and were resolved through build settings pointing outside the repository.
-Both were Intel-only binaries without headers, so they made a native Apple silicon build
-impossible. They have been replaced by source in this repository:
-
-| Replaced | By |
-| --- | --- |
-| `TreeMapView.framework` | [`Source/TreeMapView/`](Source/TreeMapView) — an independent treemap implementation written for this fork |
-| OmniGroup frameworks | Nothing — the parts the app used were folded into its own classes, or replaced by the AppKit equivalents that have since appeared |
+None — the app links only system frameworks. See
+[No external dependencies](#no-external-dependencies) for what used to be required and
+where it went.
 
 ### macOS privacy protections
 
