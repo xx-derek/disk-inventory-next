@@ -146,9 +146,9 @@
 		FC2D7D7D21FE4ABC004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		FC2D7D7E21FE4ABC004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = folder; name = de; path = de.lproj/Help; sourceTree = "<group>"; };
 		FC2DB78221AF4E1100F24C1E /* Disk Inventory Next.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Disk Inventory Next.entitlements"; sourceTree = "<group>"; };
-		FC2E58FE21D3BFDF00F6F03B /* Disk Inventory Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Disk Inventory Icon.png"; sourceTree = "<group>"; };
-		FC33B458230C846F00133632 /* NSURL-Extensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSURL-Extensions.h"; sourceTree = SOURCE_ROOT; };
-		FC33B459230C846F00133632 /* NSURL-Extensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSURL-Extensions.m"; sourceTree = SOURCE_ROOT; };
+		FC2E58FE21D3BFDF00F6F03B /* Disk Inventory Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "Disk Inventory Icon.png"; path = "Resources/Disk Inventory Icon.png"; sourceTree = "<group>"; };
+		FC33B458230C846F00133632 /* NSURL-Extensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSURL-Extensions.h"; sourceTree = "<group>"; };
+		FC33B459230C846F00133632 /* NSURL-Extensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSURL-Extensions.m"; sourceTree = "<group>"; };
 		FC42B8622202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/TreeMapPreferencesPage.nib; sourceTree = "<group>"; };
 		FC42B8632202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/GeneralPreferencesPage.nib; sourceTree = "<group>"; };
 		FC42B8642202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/FinderCMPreferencesPage.nib; sourceTree = "<group>"; };
@@ -267,9 +267,9 @@
 		FCCFB333097FA44A009EA2B6 /* RefreshAll.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = RefreshAll.png; sourceTree = "<group>"; };
 		FCCFB334097FA44A009EA2B6 /* ShowPackageContentsClosed.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ShowPackageContentsClosed.png; sourceTree = "<group>"; };
 		FCCFB335097FA44A009EA2B6 /* ShowPackageContentsOpen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ShowPackageContentsOpen.png; sourceTree = "<group>"; };
-		FCCFB337097FA44A009EA2B6 /* TreeMapPreferences.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = TreeMapPreferences.tiff; sourceTree = "<group>"; };
-		FCCFB338097FA44A009EA2B6 /* GeneralPreferences.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = GeneralPreferences.tiff; sourceTree = "<group>"; };
-		FCCFB339097FA44A009EA2B6 /* FinderCMPreferences.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = FinderCMPreferences.tiff; sourceTree = "<group>"; };
+		FCCFB337097FA44A009EA2B6 /* TreeMapPreferences.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = TreeMapPreferences.tiff; path = "Resources/Preferences/TreeMapPreferences.tiff"; sourceTree = "<group>"; };
+		FCCFB338097FA44A009EA2B6 /* GeneralPreferences.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = GeneralPreferences.tiff; path = "Resources/Preferences/GeneralPreferences.tiff"; sourceTree = "<group>"; };
+		FCCFB339097FA44A009EA2B6 /* FinderCMPreferences.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = FinderCMPreferences.tiff; path = "Resources/Preferences/FinderCMPreferences.tiff"; sourceTree = "<group>"; };
 		FCCFB33A097FA44A009EA2B6 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FCD5DAFB09CDD4260051C1CF /* MainWindow.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MainWindow.h; sourceTree = "<group>"; };
 		FCD5DAFC09CDD4260051C1CF /* MainWindow.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MainWindow.m; sourceTree = "<group>"; };
@@ -277,7 +277,7 @@
 		FCD71DB60984141E00590D16 /* known bugs.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "known bugs.txt"; path = "documentation/known bugs.txt"; sourceTree = "<group>"; };
 		FCD71DB70984141E00590D16 /* release notes.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "release notes.txt"; path = "documentation/release notes.txt"; sourceTree = "<group>"; };
 		FCEEFC0421FE5B6700E9785E /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/FinderCMPreferencesPage.nib; sourceTree = "<group>"; };
-		FCFB17B521B876A400E3F8C4 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = "Disk Inventory Next/Images.xcassets"; sourceTree = "<group>"; };
+		FCFB17B521B876A400E3F8C4 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Resources/Images.xcassets; sourceTree = "<group>"; };
 		DEC0DE000000000000000001 /* TreeMapView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "TreeMapView.h"; sourceTree = "<group>"; };
 		DEC0DE000000000000000002 /* TreeMapView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "TreeMapView.m"; sourceTree = "<group>"; };
 		DEC0DE000000000000000004 /* TMVItem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "TMVItem.h"; sourceTree = "<group>"; };
@@ -347,21 +347,7 @@
 				FCB5709822CD2DE60014B794 /* BuildRelease.sh */,
 				FC2DB78221AF4E1100F24C1E /* Disk Inventory Next.entitlements */,
 				FCD71DB4098413FF00590D16 /* Documentation */,
-				FCCFB2AB097FA42B009EA2B6 /* AppKit Extension */,
-				FC33B457230C842700133632 /* Foundation Extensions */,
-				FCCFB2B4097FA42B009EA2B6 /* Toolbar */,
-				DEC0DE00000000000000003C /* TreeMapView */,
-				FC7F775A1067BAB10090E839 /* CocoaTech-Depreciated */,
-				FCCFB2CD097FA42B009EA2B6 /* Helper Classes */,
-				FCCFB2ED097FA42B009EA2B6 /* FilesOutlineView Classes */,
-				FCCFB2EA097FA42B009EA2B6 /* FileKindsTableView Classes */,
-				FCCFB2E7097FA42B009EA2B6 /* TreeMapView Classes */,
-				FCCFB2E0097FA42B009EA2B6 /* DrivesPanel */,
-				FCCFB2D9097FA42B009EA2B6 /* SelectionList */,
-				FCCFB2D4097FA42B009EA2B6 /* InfoPanel */,
-				FCCFB2C0097FA42B009EA2B6 /* Preferences */,
-				FCCFB2F0097FA42B009EA2B6 /* Main Classes */,
-				2A37F4AFFDCFA73011CA2CEA /* Other Sources */,
+				DEC3DE000000000000000001 /* Source */,
 				2A37F4B8FDCFA73011CA2CEA /* Resources */,
 				2A37F4C3FDCFA73011CA2CEA /* Frameworks */,
 				FCEE299D106266CB00B16DBB /* Project References */,
@@ -370,14 +356,195 @@
 			name = "Disk Inventory Next";
 			sourceTree = "<group>";
 		};
-		2A37F4AFFDCFA73011CA2CEA /* Other Sources */ = {
+		DEC3DE000000000000000001 /* Source */ = {
 			isa = PBXGroup;
 			children = (
-				32DBCF750370BD2300C91783 /* Disk Inventory Next_Prefix.pch */,
-				FCCFB2A9097FA3FD009EA2B6 /* main.m */,
+				DEC3DE000000000000000002 /* App */,
+				DEC3DE000000000000000003 /* Model */,
+				DEC3DE000000000000000004 /* Controllers */,
+				DEC3DE000000000000000005 /* Panels */,
+				FCCFB2C0097FA42B009EA2B6 /* Preferences */,
+				DEC3DE000000000000000006 /* Views */,
+				DEC3DE000000000000000007 /* Extensions */,
+				DEC3DE000000000000000008 /* Helpers */,
+				DEC0DE00000000000000003C /* TreeMapView */,
+				FC7F775A1067BAB10090E839 /* CocoaTech-Depreciated */,
 			);
-			includeInIndex = 0;
-			name = "Other Sources";
+			path = Source;
+			sourceTree = "<group>";
+		};
+		DEC3DE000000000000000002 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				FC2A42882219C89900A484D7 /* AppController.h */,
+				FC2A42892219C89900A484D7 /* AppController.m */,
+				FCCFB2FA097FA42B009EA2B6 /* MyDocumentController.h */,
+				FCCFB2F9097FA42B009EA2B6 /* MyDocumentController.m */,
+				FCD5DAFB09CDD4260051C1CF /* MainWindow.h */,
+				FCD5DAFC09CDD4260051C1CF /* MainWindow.m */,
+				FCCFB2FC097FA42B009EA2B6 /* MainWindowController.h */,
+				FCCFB2FB097FA42B009EA2B6 /* MainWindowController.m */,
+				DEC1DE000000000000000001 /* ToolbarWindowController.h */,
+				DEC1DE000000000000000002 /* ToolbarWindowController.m */,
+				FCCFB2A9097FA3FD009EA2B6 /* main.m */,
+				32DBCF750370BD2300C91783 /* Disk Inventory Next_Prefix.pch */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		DEC3DE000000000000000003 /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				FCCFB2FD097FA42B009EA2B6 /* FSItem.h */,
+				FCCFB2FE097FA42B009EA2B6 /* FSItem.m */,
+				FCCFB2F7097FA42B009EA2B6 /* FSItem-Utilities.h */,
+				FCCFB2F8097FA42B009EA2B6 /* FSItem-Utilities.m */,
+				FCCFB2F3097FA42B009EA2B6 /* FSItemIndex.h */,
+				FCCFB2F4097FA42B009EA2B6 /* FSItemIndex.m */,
+				FCCFB302097FA42B009EA2B6 /* FileSystemDoc.h */,
+				FCCFB301097FA42B009EA2B6 /* FileSystemDoc.m */,
+				FCCFB300097FA42B009EA2B6 /* FileTypeColors.h */,
+				FCCFB2FF097FA42B009EA2B6 /* FileTypeColors.m */,
+			);
+			path = Model;
+			sourceTree = "<group>";
+		};
+		DEC3DE000000000000000004 /* Controllers */ = {
+			isa = PBXGroup;
+			children = (
+				FCCFB2E9097FA42B009EA2B6 /* TreeMapViewController.h */,
+				FCCFB2E8097FA42B009EA2B6 /* TreeMapViewController.m */,
+				FCCFB2EE097FA42B009EA2B6 /* FilesOutlineViewController.h */,
+				FCCFB2EF097FA42B009EA2B6 /* FilesOutlineViewController.m */,
+				FCCFB2EC097FA42B009EA2B6 /* FileKindsTableController.h */,
+				FCCFB2EB097FA42B009EA2B6 /* FileKindsTableController.m */,
+				FCCFB2DA097FA42B009EA2B6 /* SelectionListController.h */,
+				FCCFB2DB097FA42B009EA2B6 /* SelectionListController.m */,
+				FCCFB2DE097FA42B009EA2B6 /* SelectionListTableController.h */,
+				FCCFB2DF097FA42B009EA2B6 /* SelectionListTableController.m */,
+				FCCFB2DC097FA42B009EA2B6 /* FileKindsPopupController.h */,
+				FCCFB2DD097FA42B009EA2B6 /* FileKindsPopupController.m */,
+			);
+			path = Controllers;
+			sourceTree = "<group>";
+		};
+		DEC3DE000000000000000005 /* Panels */ = {
+			isa = PBXGroup;
+			children = (
+				FCCFB2D7097FA42B009EA2B6 /* InfoPanelController.h */,
+				FCCFB2D8097FA42B009EA2B6 /* InfoPanelController.m */,
+				FCCFB2D5097FA42B009EA2B6 /* DIXFileInfoView.h */,
+				FCCFB2D6097FA42B009EA2B6 /* DIXFileInfoView.m */,
+				FCCFB2E1097FA42B009EA2B6 /* DrivesPanelController.h */,
+				FCCFB2E2097FA42B009EA2B6 /* DrivesPanelController.m */,
+				FCCFB2E3097FA42B009EA2B6 /* VolumeNameTransformer.h */,
+				FCCFB2E4097FA42B009EA2B6 /* VolumeNameTransformer.m */,
+				FCCFB2E5097FA42B009EA2B6 /* VolumeUsageTransformer.h */,
+				FCCFB2E6097FA42B009EA2B6 /* VolumeUsageTransformer.m */,
+				FCCFB2F5097FA42B009EA2B6 /* LoadingPanelController.h */,
+				FCCFB2F6097FA42B009EA2B6 /* LoadingPanelController.m */,
+			);
+			path = Panels;
+			sourceTree = "<group>";
+		};
+		FCCFB2C0097FA42B009EA2B6 /* Preferences */ = {
+			isa = PBXGroup;
+			children = (
+				FCCFB2C1097FA42B009EA2B6 /* Preferences.h */,
+				FCCFB2C2097FA42B009EA2B6 /* Preferences.m */,
+				FCCFB2C3097FA42B009EA2B6 /* PrefsPanelController.h */,
+				FCCFB2C4097FA42B009EA2B6 /* PrefsPanelController.m */,
+				FCCFB2C5097FA42B009EA2B6 /* PrefsPageBase.h */,
+				FCCFB2C6097FA42B009EA2B6 /* PrefsPageBase.m */,
+				DEC1DE000000000000000004 /* PrefsPageRecord.h */,
+				DEC1DE000000000000000005 /* PrefsPageRecord.m */,
+				FCCFB2C9097FA42B009EA2B6 /* GeneralPrefPage.h */,
+				FCCFB2CA097FA42B009EA2B6 /* GeneralPrefPage.m */,
+				FCCFB2C7097FA42B009EA2B6 /* TreeMapPrefPage.h */,
+				FCCFB2C8097FA42B009EA2B6 /* TreeMapPrefPage.m */,
+			);
+			path = Preferences;
+			sourceTree = "<group>";
+		};
+		DEC3DE000000000000000006 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				FCCFB2AC097FA42B009EA2B6 /* DIXTableView.h */,
+				FCCFB2AD097FA42B009EA2B6 /* DIXTableView.m */,
+				FCCFB2AE097FA42B009EA2B6 /* DIXOutlineView.h */,
+				FCCFB2AF097FA42B009EA2B6 /* DIXOutlineView.m */,
+				FCCFB2B2097FA42B009EA2B6 /* ImageAndTextCell.h */,
+				FCCFB2B3097FA42B009EA2B6 /* ImageAndTextCell.m */,
+				FCCFB2B1097FA42B009EA2B6 /* GenericArrayController.h */,
+				FCCFB2B0097FA42B009EA2B6 /* GenericArrayController.m */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		DEC3DE000000000000000007 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				DEC2DE000000000000000001 /* NSAlert-Extensions.h */,
+				DEC2DE000000000000000002 /* NSAlert-Extensions.m */,
+				FC33B458230C846F00133632 /* NSURL-Extensions.h */,
+				FC33B459230C846F00133632 /* NSURL-Extensions.m */,
+				FCB2FDC22375F4E100DC4806 /* NSFileManager-Extensions.h */,
+				FCB2FDC32375F4E100DC4806 /* NSFileManager-Extensions.m */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		DEC3DE000000000000000008 /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				FCCFB2CF097FA42B009EA2B6 /* Timing.h */,
+				FCCFB2CE097FA42B009EA2B6 /* Timing.m */,
+				FCCFB2D0097FA42B009EA2B6 /* FileSizeFormatter.h */,
+				FCCFB2D1097FA42B009EA2B6 /* FileSizeFormatter.m */,
+				FCCFB2D2097FA42B009EA2B6 /* FileSizeTransformer.h */,
+				FCCFB2D3097FA42B009EA2B6 /* FileSizeTransformer.m */,
+				FC4C4FF40981520A004CCA22 /* AppsForItem.h */,
+				FC4C4FF50981520A004CCA22 /* AppsForItem.m */,
+			);
+			path = Helpers;
+			sourceTree = "<group>";
+		};
+		DEC0DE00000000000000003C /* TreeMapView */ = {
+			isa = PBXGroup;
+			children = (
+				DEC0DE000000000000000001 /* TreeMapView.h */,
+				DEC0DE000000000000000002 /* TreeMapView.m */,
+				DEC0DE000000000000000004 /* TMVItem.h */,
+				DEC0DE000000000000000005 /* TMVItem.m */,
+				DEC0DE000000000000000007 /* TMVCushionRenderer.h */,
+				DEC0DE000000000000000008 /* TMVCushionRenderer.m */,
+				DEC0DE00000000000000000A /* ZoomInfo.h */,
+				DEC0DE00000000000000000B /* ZoomInfo.m */,
+				DEC0DE00000000000000000D /* NSBitmapImageRep-CreationExtensions.h */,
+				DEC0DE00000000000000000E /* NSBitmapImageRep-CreationExtensions.m */,
+				DEC0DE000000000000000010 /* NSView-BackingCoordsHelpers.h */,
+				DEC0DE000000000000000011 /* NSView-BackingCoordsHelpers.m */,
+			);
+			path = TreeMapView;
+			sourceTree = "<group>";
+		};
+		FC7F775A1067BAB10090E839 /* CocoaTech-Depreciated */ = {
+			isa = PBXGroup;
+			children = (
+				DEC1DE000000000000000007 /* NTPasteboardHelper.h */,
+				DEC1DE000000000000000008 /* NTPasteboardHelper.m */,
+				FC7F775B1067BAB10090E839 /* NTFilePasteboardSource.h */,
+				FC7F775C1067BAB10090E839 /* NTFilePasteboardSource.m */,
+				FC7F77621067BC310090E839 /* NTInfoView.h */,
+				FC7F77631067BC310090E839 /* NTInfoView.m */,
+				FC7F77D31067C9500090E839 /* NTTitledInfoPair.h */,
+				FC7F77D41067C9500090E839 /* NTTitledInfoPair.m */,
+				FC7F77D51067C9500090E839 /* NTTitledInfoView.h */,
+				FC7F77D61067C9500090E839 /* NTTitledInfoView.m */,
+				FC7F77F31067CA7D0090E839 /* NTID3Helper.h */,
+				FC7F77F41067CA7D0090E839 /* NTID3Helper.m */,
+			);
+			path = "CocoaTech-Depreciated";
 			sourceTree = "<group>";
 		};
 		2A37F4B8FDCFA73011CA2CEA /* Resources */ = {
@@ -403,197 +570,6 @@
 			name = Resources;
 			sourceTree = "<group>";
 		};
-		2A37F4C3FDCFA73011CA2CEA /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				1058C7A6FEA54F5311CA2CBB /* Linked Frameworks */,
-				1058C7A8FEA54F5311CA2CBB /* Other Frameworks */,
-			);
-			includeInIndex = 0;
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		FC33B457230C842700133632 /* Foundation Extensions */ = {
-			isa = PBXGroup;
-			children = (
-				FC33B458230C846F00133632 /* NSURL-Extensions.h */,
-				FC33B459230C846F00133632 /* NSURL-Extensions.m */,
-				FCB2FDC22375F4E100DC4806 /* NSFileManager-Extensions.h */,
-				FCB2FDC32375F4E100DC4806 /* NSFileManager-Extensions.m */,
-			);
-			path = "Foundation Extensions";
-			sourceTree = "<group>";
-		};
-		FC7F775A1067BAB10090E839 /* CocoaTech-Depreciated */ = {
-			isa = PBXGroup;
-			children = (
-				DEC1DE000000000000000007 /* NTPasteboardHelper.h */,
-				DEC1DE000000000000000008 /* NTPasteboardHelper.m */,
-				FC7F775B1067BAB10090E839 /* NTFilePasteboardSource.h */,
-				FC7F775C1067BAB10090E839 /* NTFilePasteboardSource.m */,
-				FC7F77621067BC310090E839 /* NTInfoView.h */,
-				FC7F77631067BC310090E839 /* NTInfoView.m */,
-				FC7F77D31067C9500090E839 /* NTTitledInfoPair.h */,
-				FC7F77D41067C9500090E839 /* NTTitledInfoPair.m */,
-				FC7F77D51067C9500090E839 /* NTTitledInfoView.h */,
-				FC7F77D61067C9500090E839 /* NTTitledInfoView.m */,
-				FC7F77F31067CA7D0090E839 /* NTID3Helper.h */,
-				FC7F77F41067CA7D0090E839 /* NTID3Helper.m */,
-			);
-			path = "CocoaTech-Depreciated";
-			sourceTree = "<group>";
-		};
-		FCCFB2AB097FA42B009EA2B6 /* AppKit Extension */ = {
-			isa = PBXGroup;
-			children = (
-				DEC2DE000000000000000001 /* NSAlert-Extensions.h */,
-				DEC2DE000000000000000002 /* NSAlert-Extensions.m */,
-				FCCFB2AC097FA42B009EA2B6 /* DIXTableView.h */,
-				FCCFB2AD097FA42B009EA2B6 /* DIXTableView.m */,
-				FCCFB2AE097FA42B009EA2B6 /* DIXOutlineView.h */,
-				FCCFB2AF097FA42B009EA2B6 /* DIXOutlineView.m */,
-				FCCFB2B0097FA42B009EA2B6 /* GenericArrayController.m */,
-				FCCFB2B1097FA42B009EA2B6 /* GenericArrayController.h */,
-				FCCFB2B2097FA42B009EA2B6 /* ImageAndTextCell.h */,
-				FCCFB2B3097FA42B009EA2B6 /* ImageAndTextCell.m */,
-			);
-			name = "AppKit Extension";
-			sourceTree = "<group>";
-		};
-		FCCFB2B4097FA42B009EA2B6 /* Toolbar */ = {
-			isa = PBXGroup;
-			children = (
-				DEC1DE000000000000000001 /* ToolbarWindowController.h */,
-				DEC1DE000000000000000002 /* ToolbarWindowController.m */,
-			);
-			name = Toolbar;
-			sourceTree = "<group>";
-		};
-		FCCFB2C0097FA42B009EA2B6 /* Preferences */ = {
-			isa = PBXGroup;
-			children = (
-				DEC1DE000000000000000004 /* PrefsPageRecord.h */,
-				DEC1DE000000000000000005 /* PrefsPageRecord.m */,
-				FCCFB2C1097FA42B009EA2B6 /* Preferences.h */,
-				FCCFB2C2097FA42B009EA2B6 /* Preferences.m */,
-				FCCFB2C3097FA42B009EA2B6 /* PrefsPanelController.h */,
-				FCCFB2C4097FA42B009EA2B6 /* PrefsPanelController.m */,
-				FCCFB2C5097FA42B009EA2B6 /* PrefsPageBase.h */,
-				FCCFB2C6097FA42B009EA2B6 /* PrefsPageBase.m */,
-				FCCFB2C7097FA42B009EA2B6 /* TreeMapPrefPage.h */,
-				FCCFB2C8097FA42B009EA2B6 /* TreeMapPrefPage.m */,
-				FCCFB2C9097FA42B009EA2B6 /* GeneralPrefPage.h */,
-				FCCFB2CA097FA42B009EA2B6 /* GeneralPrefPage.m */,
-			);
-			name = Preferences;
-			sourceTree = "<group>";
-		};
-		FCCFB2CD097FA42B009EA2B6 /* Helper Classes */ = {
-			isa = PBXGroup;
-			children = (
-				FCCFB2CE097FA42B009EA2B6 /* Timing.m */,
-				FCCFB2CF097FA42B009EA2B6 /* Timing.h */,
-				FCCFB2D0097FA42B009EA2B6 /* FileSizeFormatter.h */,
-				FCCFB2D1097FA42B009EA2B6 /* FileSizeFormatter.m */,
-				FCCFB2D2097FA42B009EA2B6 /* FileSizeTransformer.h */,
-				FCCFB2D3097FA42B009EA2B6 /* FileSizeTransformer.m */,
-				FC4C4FF40981520A004CCA22 /* AppsForItem.h */,
-				FC4C4FF50981520A004CCA22 /* AppsForItem.m */,
-			);
-			name = "Helper Classes";
-			sourceTree = "<group>";
-		};
-		FCCFB2D4097FA42B009EA2B6 /* InfoPanel */ = {
-			isa = PBXGroup;
-			children = (
-				FCCFB2D5097FA42B009EA2B6 /* DIXFileInfoView.h */,
-				FCCFB2D6097FA42B009EA2B6 /* DIXFileInfoView.m */,
-				FCCFB2D7097FA42B009EA2B6 /* InfoPanelController.h */,
-				FCCFB2D8097FA42B009EA2B6 /* InfoPanelController.m */,
-			);
-			name = InfoPanel;
-			sourceTree = "<group>";
-		};
-		FCCFB2D9097FA42B009EA2B6 /* SelectionList */ = {
-			isa = PBXGroup;
-			children = (
-				FCCFB2DA097FA42B009EA2B6 /* SelectionListController.h */,
-				FCCFB2DB097FA42B009EA2B6 /* SelectionListController.m */,
-				FCCFB2DC097FA42B009EA2B6 /* FileKindsPopupController.h */,
-				FCCFB2DD097FA42B009EA2B6 /* FileKindsPopupController.m */,
-				FCCFB2DE097FA42B009EA2B6 /* SelectionListTableController.h */,
-				FCCFB2DF097FA42B009EA2B6 /* SelectionListTableController.m */,
-			);
-			name = SelectionList;
-			sourceTree = "<group>";
-		};
-		FCCFB2E0097FA42B009EA2B6 /* DrivesPanel */ = {
-			isa = PBXGroup;
-			children = (
-				FCCFB2E1097FA42B009EA2B6 /* DrivesPanelController.h */,
-				FCCFB2E2097FA42B009EA2B6 /* DrivesPanelController.m */,
-				FCCFB2E3097FA42B009EA2B6 /* VolumeNameTransformer.h */,
-				FCCFB2E4097FA42B009EA2B6 /* VolumeNameTransformer.m */,
-				FCCFB2E5097FA42B009EA2B6 /* VolumeUsageTransformer.h */,
-				FCCFB2E6097FA42B009EA2B6 /* VolumeUsageTransformer.m */,
-			);
-			name = DrivesPanel;
-			sourceTree = "<group>";
-		};
-		FCCFB2E7097FA42B009EA2B6 /* TreeMapView Classes */ = {
-			isa = PBXGroup;
-			children = (
-				FCCFB2E8097FA42B009EA2B6 /* TreeMapViewController.m */,
-				FCCFB2E9097FA42B009EA2B6 /* TreeMapViewController.h */,
-			);
-			name = "TreeMapView Classes";
-			sourceTree = "<group>";
-		};
-		FCCFB2EA097FA42B009EA2B6 /* FileKindsTableView Classes */ = {
-			isa = PBXGroup;
-			children = (
-				FCCFB2EB097FA42B009EA2B6 /* FileKindsTableController.m */,
-				FCCFB2EC097FA42B009EA2B6 /* FileKindsTableController.h */,
-			);
-			name = "FileKindsTableView Classes";
-			sourceTree = "<group>";
-		};
-		FCCFB2ED097FA42B009EA2B6 /* FilesOutlineView Classes */ = {
-			isa = PBXGroup;
-			children = (
-				FCCFB2EE097FA42B009EA2B6 /* FilesOutlineViewController.h */,
-				FCCFB2EF097FA42B009EA2B6 /* FilesOutlineViewController.m */,
-			);
-			name = "FilesOutlineView Classes";
-			sourceTree = "<group>";
-		};
-		FCCFB2F0097FA42B009EA2B6 /* Main Classes */ = {
-			isa = PBXGroup;
-			children = (
-				FCCFB2F3097FA42B009EA2B6 /* FSItemIndex.h */,
-				FCCFB2F4097FA42B009EA2B6 /* FSItemIndex.m */,
-				FCCFB2F5097FA42B009EA2B6 /* LoadingPanelController.h */,
-				FCCFB2F6097FA42B009EA2B6 /* LoadingPanelController.m */,
-				FCCFB2F7097FA42B009EA2B6 /* FSItem-Utilities.h */,
-				FCCFB2F8097FA42B009EA2B6 /* FSItem-Utilities.m */,
-				FC2A42882219C89900A484D7 /* AppController.h */,
-				FC2A42892219C89900A484D7 /* AppController.m */,
-				FCCFB2F9097FA42B009EA2B6 /* MyDocumentController.m */,
-				FCCFB2FA097FA42B009EA2B6 /* MyDocumentController.h */,
-				FCD5DAFB09CDD4260051C1CF /* MainWindow.h */,
-				FCD5DAFC09CDD4260051C1CF /* MainWindow.m */,
-				FCCFB2FB097FA42B009EA2B6 /* MainWindowController.m */,
-				FCCFB2FC097FA42B009EA2B6 /* MainWindowController.h */,
-				FCCFB2FD097FA42B009EA2B6 /* FSItem.h */,
-				FCCFB2FE097FA42B009EA2B6 /* FSItem.m */,
-				FCCFB2FF097FA42B009EA2B6 /* FileTypeColors.m */,
-				FCCFB300097FA42B009EA2B6 /* FileTypeColors.h */,
-				FCCFB301097FA42B009EA2B6 /* FileSystemDoc.m */,
-				FCCFB302097FA42B009EA2B6 /* FileSystemDoc.h */,
-			);
-			name = "Main Classes";
-			sourceTree = "<group>";
-		};
 		FCCFB329097FA44A009EA2B6 /* Toolbar */ = {
 			isa = PBXGroup;
 			children = (
@@ -611,6 +587,7 @@
 				FCCFB335097FA44A009EA2B6 /* ShowPackageContentsOpen.png */,
 			);
 			name = Toolbar;
+			path = "Resources/Toolbar";
 			sourceTree = "<group>";
 		};
 		FCCFB336097FA44A009EA2B6 /* Preferences */ = {
@@ -625,6 +602,16 @@
 				FCCFB339097FA44A009EA2B6 /* FinderCMPreferences.tiff */,
 			);
 			name = Preferences;
+			sourceTree = "<group>";
+		};
+		2A37F4C3FDCFA73011CA2CEA /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				1058C7A6FEA54F5311CA2CBB /* Linked Frameworks */,
+				1058C7A8FEA54F5311CA2CBB /* Other Frameworks */,
+			);
+			includeInIndex = 0;
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		FCD71DB4098413FF00590D16 /* Documentation */ = {
@@ -644,25 +631,6 @@
 			children = (
 			);
 			name = "Project References";
-			sourceTree = "<group>";
-		};
-		DEC0DE00000000000000003C /* TreeMapView */ = {
-			isa = PBXGroup;
-			children = (
-				DEC0DE000000000000000001 /* TreeMapView.h */,
-				DEC0DE000000000000000002 /* TreeMapView.m */,
-				DEC0DE000000000000000004 /* TMVItem.h */,
-				DEC0DE000000000000000005 /* TMVItem.m */,
-				DEC0DE000000000000000007 /* TMVCushionRenderer.h */,
-				DEC0DE000000000000000008 /* TMVCushionRenderer.m */,
-				DEC0DE00000000000000000A /* ZoomInfo.h */,
-				DEC0DE00000000000000000B /* ZoomInfo.m */,
-				DEC0DE00000000000000000D /* NSBitmapImageRep-CreationExtensions.h */,
-				DEC0DE00000000000000000E /* NSBitmapImageRep-CreationExtensions.m */,
-				DEC0DE000000000000000010 /* NSView-BackingCoordsHelpers.h */,
-				DEC0DE000000000000000011 /* NSView-BackingCoordsHelpers.m */,
-			);
-			path = TreeMapView;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -1009,6 +977,7 @@
 				GCC_VERSION = "";
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)",
+					"$(SRCROOT)/Source",
 				);
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
@@ -1043,6 +1012,7 @@
 				GCC_VERSION = "";
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)",
+					"$(SRCROOT)/Source",
 				);
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
@@ -1065,10 +1035,11 @@
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "Disk Inventory Next_Prefix.pch";
+				GCC_PREFIX_HEADER = "Source/App/Disk Inventory Next_Prefix.pch";
 				GCC_VERSION = "";
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)",
+					"$(SRCROOT)/Source",
 				);
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
@@ -1088,10 +1059,11 @@
 			buildSettings = {
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "Disk Inventory Next_Prefix.pch";
+				GCC_PREFIX_HEADER = "Source/App/Disk Inventory Next_Prefix.pch";
 				GCC_VERSION = "";
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)",
+					"$(SRCROOT)/Source",
 				);
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
