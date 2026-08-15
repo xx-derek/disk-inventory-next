@@ -60,6 +60,41 @@ test and a synthetic-click test before a real click found it. Useful assertions:
 rect lies inside the view's bounds, and a grid of points across the bounds all hit a cell
 whose rect contains that point.
 
+## Layout on disk
+
+Sources moved out of the repository root into `Source/` on 2026-08-15; before that date
+every `.h`/`.m` sat flat beside `Info.plist`, so paths in older commits will not match.
+The directories mirror the Xcode groups one-for-one — a file's group **is** its folder.
+
+```
+Source/App/                    main.m, the prefix header, MainWindow(Controller),
+                               MyDocumentController, AppController, ToolbarWindowController
+Source/Model/                  FSItem(+Utilities), FSItemIndex, FileSystemDoc, FileTypeColors
+Source/Controllers/            one controller per pane, plus the selection-list trio
+Source/Panels/                 Info, Drives and Loading panels, and the volume transformers
+Source/Preferences/            Preferences, PrefsPanelController, PrefsPageBase/Record, the pages
+Source/Views/                  DIXTableView, DIXOutlineView, ImageAndTextCell, GenericArrayController
+Source/Extensions/             NSAlert-, NSURL- and NSFileManager-Extensions
+Source/Helpers/                Timing, FileSizeFormatter, FileSizeTransformer, AppsForItem
+Source/TreeMapView/            the treemap widget — see its own section below
+Source/CocoaTech-Depreciated/  vendored NT* legacy
+Resources/                     Images.xcassets, the app icon, Toolbar/ and Preferences/ images
+```
+
+`Info.plist`, `version.plist`, the entitlements, `documentation/` and the five `.lproj`
+bundles stay at the root: the localized nibs are the app's UI and moving them buys nothing.
+
+Two build settings depend on this layout — update them together with any further move:
+
+- `GCC_PREFIX_HEADER = "Source/App/Disk Inventory Next_Prefix.pch"`.
+- `HEADER_SEARCH_PATHS` is `$(SRCROOT)` **and** `$(SRCROOT)/Source`. The second entry is
+  what makes `#import <TreeMapView/…>` resolve to `Source/TreeMapView/`.
+
+Plain `#import "Foo.h"` keeps working across directories because Xcode's header maps
+(`USE_HEADERMAP`, on by default) map every project header by bare filename. That only
+covers files that are *file references in the project* — a header that exists on disk but
+was never added to the project will not be found from another directory.
+
 ## Memory management: ARC
 
 `CLANG_ENABLE_OBJC_ARC = YES`. The project was manual retain/release until 2026-08-15;
@@ -178,8 +213,8 @@ touching both layers plus a `ViewOptionChangedNotification` post.
 
 ### Prefix header
 
-`Disk Inventory Next_Prefix.pch` is precompiled into every file and already imports Cocoa,
-Carbon, and `OmniBase`. It also defines the logging macro:
+`Source/App/Disk Inventory Next_Prefix.pch` is precompiled into every file and already
+imports Cocoa and Carbon. It also defines the logging macro:
 
 ```objc
 #define LOG(x, args...) { if (g_EnableLogging) NSLog(x, ## args); }
@@ -191,7 +226,7 @@ Use `LOG(...)` rather than bare `NSLog`; it is gated on the `EnableLogging` pref
 
 Modern macOS blocks Desktop/Documents/Downloads and similar. `FileSystemDoc
 checkForProtectedFolders:` detects them before scanning via
-`privacyProtectedFoldersInURL:` (in `Foundation Extensions/NSFileManager-Extensions`) and
+`privacyProtectedFoldersInURL:` (in `Source/Extensions/NSFileManager-Extensions`) and
 shows a one-time explanatory alert gated on `DontShowPrivacyWarningMessage`.
 `NSURL-Extensions` adds `stillExists` for revalidating URLs after a volume is ejected.
 Background and localized strings: `documentation/macOS privacy protected folders.txt`.
@@ -253,15 +288,16 @@ This is how `OASplitView` was removed. **Verify at runtime**, not by diffing: lo
 in a probe and assert the objects survived (see Tests). A structural nib edit that silently
 drops a connection will still build.
 
-## `TreeMapView/` — the replaced dependency
+## `Source/TreeMapView/` — the replaced dependency
 
 The app used to link four prebuilt frameworks. All four were Intel-only binaries with no
 headers, which made an Apple silicon build impossible, and none was in the repo. **The app
 now links only system frameworks.**
 
 The OmniGroup half was migrated away entirely (see [Where the Omni code went](#where-the-omni-code-went)).
-What remains is the treemap widget, in `TreeMapView/`, resolved by `HEADER_SEARCH_PATHS`
-(`$(SRCROOT)`) rather than a framework search path, so `#import <TreeMapView/…>` still works.
+What remains is the treemap widget, in `Source/TreeMapView/`, resolved by
+`HEADER_SEARCH_PATHS` (`$(SRCROOT)/Source`) rather than a framework search path, so
+`#import <TreeMapView/…>` still works.
 
 `TreeMapView` (the `NSView`), `TMVItem` (one cell — layout and hit testing),
 `TMVCushionRenderer` (shading), `ZoomInfo` (the zoom effect), plus two small categories.
@@ -307,7 +343,7 @@ compatibility layer** — if something looks like it is missing, it was inlined:
 | `OAPreferenceController` | folded into `PrefsPanelController` |
 | `OAPreferenceClient` | folded into `PrefsPageBase` |
 | `OAPreferenceClientRecord` | `PrefsPageRecord` |
-| `OAPasteboardHelper` | `CocoaTech-Depreciated/NTPasteboardHelper` |
+| `OAPasteboardHelper` | `Source/CocoaTech-Depreciated/NTPasteboardHelper` |
 | `OASplitView` | plain `NSSplitView` (`setPositionAutosaveName:` → `setAutosaveName:`) |
 | `+[NSString isEmptyString:]`, `-[NSDictionary boolForKey:]`, `-[NSMutableDictionary setBoolValue:forKey:]`, the two `NSMutableArray` sorts, `+horizontalEllipsisString`, `-[NSTableView setFont:]` | inlined at their call sites |
 | `OBPRECONDITION` | `NSAssert` (both compile out in release builds) |
@@ -317,10 +353,10 @@ the XIB and recompiling — see [Editing a nib without Interface Builder](#ui-fi
 Nothing else was ever nib-referenced, which is why the rest was a rename rather than a rewrite.
 
 Two Omni mechanisms are gone rather than reimplemented, so **`Info.plist` no longer drives
-them and `main.m` does**: `NSPrincipalClass` is plain `NSApplication` (was `OAApplication`),
+them and `Source/App/main.m` does**: `NSPrincipalClass` is plain `NSApplication` (was `OAApplication`),
 and `OFControllerClass` is removed. The factory defaults still live in `Info.plist`, now
 under the `Registrations` key (`AppRegistrationsKey` in `Preferences.h`, renamed from
-`OFRegistrations`), but `RegisterFactoryDefaults()` in `main.m` registers them before
+`OFRegistrations`), but `RegisterFactoryDefaults()` in `Source/App/main.m` registers them before
 `NSApplicationMain`. **Adding a preference means adding it there**, or bound controls will
 read nil. `PrefsPanelController` reads its page list from the same dict, keyed by its own
 class name, and skips any page whose class is not in the binary — which is why the disabled
@@ -331,7 +367,7 @@ it, since only `OFControllerClass` ever did.
 
 ## Vendored legacy code
 
-`CocoaTech-Depreciated/` holds third-party `NT*` classes (pasteboard, info view, ID3
+`Source/CocoaTech-Depreciated/` holds third-party `NT*` classes (pasteboard, info view, ID3
 helpers) kept for compatibility. Treat as legacy; prefer not to extend it.
 
 ## Naming
@@ -379,11 +415,11 @@ Licensed GPL-3 (`COPYING`). Source files inherited from upstream carry a GPL hea
 Tjark Derlien — preserve it when editing, never replace it. As a modified version, the
 README must keep its §5(a) modification notice and date.
 
-Files written for this fork (everything under `TreeMapView/`, `PrefsPageRecord`, plus
-`RegisterFactoryDefaults()` in `main.m`) carry the same GPL-3 header under "Disk Inventory
+Files written for this fork (everything under `Source/TreeMapView/`, `PrefsPageRecord`,
+plus `RegisterFactoryDefaults()` in `Source/App/main.m`) carry the same GPL-3 header under "Disk Inventory
 Next contributors" — they are not Derlien's work and should not be attributed to him. Match
 whichever header fits when adding a file.
 
 Before pulling in any third-party code, check that it is actually licensed. Being public on
 GitLab or GitHub is not a license; `treemapview-framework` is the cautionary example
-(see [`TreeMapView/`](#treemapview-and-omnicompat--the-two-replaced-dependencies) above).
+(see [`Source/TreeMapView/`](#sourcetreemapview--the-replaced-dependency) above).
