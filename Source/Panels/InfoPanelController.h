@@ -23,9 +23,13 @@
 	//holds the top-level objects of the nib this controller loads
 	NSArray *_nibTopLevelObjects;
 	IBOutlet DIXFileInfoView *_infoView;
-	IBOutlet NSWindow* _infoPanel;
+	//an NSPanel in all four nibs, and typed as one here because -init needs
+	//-setWorksWhenModal: — see the comment there
+	IBOutlet NSPanel* _infoPanel;
 	IBOutlet NSTextField* _displayNameTextField;
 	IBOutlet NSImageView* _iconImageView;
+	//holds the panel's width against its own contents — see -init
+	NSLayoutConstraint* _contentWidthConstraint;
 }
 
 + (InfoPanelController*) sharedController;

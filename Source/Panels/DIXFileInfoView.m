@@ -235,10 +235,39 @@ static const CGFloat kRowGap       = 6.0;
 	//itself, so there is never a horizontal scroller and long values wrap
 	//instead. Height is deliberately unconstrained: the grid's own content
 	//decides it, and that is what the scroll view scrolls.
+	//
+	//The width it fills to is a *preference*, not a requirement, and that
+	//matters more than it looks. Every view from the panel's content view down
+	//to here is pinned leading and trailing to its superview, so a required
+	//equality at this last link put the whole chain - content view,
+	//DIXFileInfoView, scroll view, clip view, grid - on one required width, and
+	//an empty NSGridView asks for almost none. Emptying the grid therefore
+	//*required* the panel to collapse, and AppKit obliged: a panel the user had
+	//widened snapped to about 90 points the moment the selection was cleared,
+	//and nothing brought it back. Zooming the treemap does exactly that, since
+	//-zoomIntoItem: has to clear the selection - the item zoomed to becomes the
+	//treemap's root.
+	//
+	//Preferring to fill lets the grid be narrower than the clip view when its
+	//contents cannot fill it, which is the one case that was breaking the
+	//panel. The trailing edge is still a hard limit, so a long value has to
+	//wrap and cannot bring back the horizontal scroller.
+	//
+	//This is necessary and not sufficient: on its own it stops the collapse
+	//being *required* without stopping it happening, because the engine then
+	//settles the panel on its content's fitting width instead. InfoPanelController
+	//holds the width; both halves were measured separately, and either one alone
+	//leaves the panel collapsing to 90.
 	[_grid setTranslatesAutoresizingMaskIntoConstraints: NO];
+
+	NSLayoutConstraint *fillsWidth =
+		[[_grid trailingAnchor] constraintEqualToAnchor: [[_scrollView contentView] trailingAnchor]];
+	[fillsWidth setPriority: NSLayoutPriorityDefaultHigh];
+
 	[NSLayoutConstraint activateConstraints: @[
 		[[_grid leadingAnchor] constraintEqualToAnchor: [[_scrollView contentView] leadingAnchor]],
-		[[_grid trailingAnchor] constraintEqualToAnchor: [[_scrollView contentView] trailingAnchor]],
+		[[_grid trailingAnchor] constraintLessThanOrEqualToAnchor: [[_scrollView contentView] trailingAnchor]],
+		fillsWidth,
 		[[_grid topAnchor] constraintEqualToAnchor: [[_scrollView contentView] topAnchor]],
 	]];
 }

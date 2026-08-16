@@ -708,6 +708,14 @@ NSString *OldItem = @"OldItem";
 	FSItem *oldZoomedItem = [self zoomedItem];
     
     //reset selection as the currently selected item might not be a child of the item to zoom in
+    //
+    //Selecting the item zoomed into instead - symmetric with -zoomOutOneStep,
+    //which does re-select what it came from - looks tempting and raises
+    //NSInternalInconsistencyException "the given item is no ancestor of self"
+    //from -[FSItem(Utilities) fsItemPathFromAncestor:], by way of
+    //-[TreeMapViewController onDocumentSelectionChanged]: after the zoom that
+    //item *is* the root, so there is no path from the root down to it. Clearing
+    //the selection here is load-bearing.
     [self setSelectedItem: nil];
 
     [_zoomStack addObject: item];
