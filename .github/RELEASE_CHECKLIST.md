@@ -61,6 +61,17 @@ Each item says how confident we already are:
 - [ ] Eject a volume mid-scan, or scan a disconnecting network share. Should fail
       gracefully, not crash.
 - [ ] Refresh (all, and selection).
+- [ ] **Scan a whole volume and check the item count is plausible**, not roughly double.
+      A directory that mirrors its own volume will be walked twice if the guard against it
+      regresses — `/.nofollow` is one, at the root of the boot volume — and every harness in
+      this repository scans a *folder*, where no such directory exists. Nothing but a scan
+      rooted at a volume root catches it. *(fixed and verified; see CLAUDE.md)*
+- [ ] **Watch memory during a whole-volume scan.** About 830 MB for 2.3M items is what it
+      should look like; it was 2.7 GB before an item stopped keeping an NSURL. A figure in
+      the gigabytes means something has regressed.
+- [ ] **Turn "Show Physical File Size" off and check the totals change.** They used to
+      not: every scan reported allocated sizes whatever the preference said, and no rescan
+      corrected it. Over `/usr/share`, 280 MB allocated against 550 MB logical.
 
 ## Treemap
 
@@ -101,6 +112,14 @@ Each item says how confident we already are:
 ## Info panel — *rebuilt, probe only*
 
 - [ ] Opens, and follows the selection.
+- [ ] **Resize it by dragging its corner.** It should stop at a readable minimum, and the
+      size should survive quitting and reopening. *(probe only — a minimum binds the
+      interactive resize loop and nothing a probe can drive, so this has never been
+      dragged)*
+- [ ] **Widen it, then zoom the treemap in and out.** It must keep the width it was given;
+      it used to snap to a stub and stay there.
+- [ ] **Use it while a scan is running** — resize, scroll and close it. It was inert for
+      the whole of a scan.
 - [ ] Check a plain file, a folder, an application bundle (should show Version), an alias
       or symlink (should show Resolved), and something with a very long path (should wrap,
       not truncate).
@@ -114,7 +133,8 @@ Each item says how confident we already are:
 - [ ] Both pages align consistently; help text reads as secondary.
 - [ ] **Scan concurrency**: the pop-up under "Scanning:" offers 1-8 and defaults to 2.
       Set it to 1 and confirm a scan still completes (that is the serial walk); set it
-      to 8 and confirm a scan is faster and still correct. *(probe only)*
+      to 8 and confirm a scan is faster and still correct. *(probe only at 1 and 8; the
+      default of 2 has been used by hand)*
 - [ ] **Cancel a scan at each end of that range** - 1 and 8. Cancellation crosses
       queues now, so it is worth exercising at both. *(confirmed by hand from the
       panel at the default of 2; the probe cancels cleanly at 1, 5, 50, 500 and
@@ -156,6 +176,25 @@ Run with `AppleLanguages`, e.g.
 - [ ] Download the artifact **through a browser**, so it really gets quarantined, and
       follow the install instructions in the release notes exactly as written.
 - [ ] Confirm the app opens on a Mac that has never had the source on it.
+
+## What the next release changes
+
+The changelog carries released versions only, so this is what a `## Unreleased` section
+would have said — write it into [CHANGELOG.md](../CHANGELOG.md) when the version is cut,
+and keep adding here in the meantime. Worth having straight before the notes are written,
+because two of these are corrections rather than improvements and one of them reached
+users.
+
+- **File sizes were wrong in 1.0.0** whenever "Show Physical File Size" was off, by about
+  half, and no rescan corrected them. That is the headline.
+- **Scanning is roughly 2.5x quicker**, the treemap lays out about six times quicker, and a
+  whole-volume scan holds about 830 MB where it used to hold 2.7 GB.
+- **Scan concurrency is a new setting**, 1 to 8, two by default.
+- The Info panel works during a scan, opens wide enough to read, and remembers its size.
+- The drives panel's capacity bars are fixed.
+- A bug that made a whole-volume scan count the disk twice was introduced and fixed between
+  releases. It was never in a released build, so it does not belong in the notes except as
+  a reason the volume-scan checks above exist.
 
 ## Open decisions
 

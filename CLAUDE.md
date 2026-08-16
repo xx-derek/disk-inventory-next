@@ -240,14 +240,20 @@ What that means for anything touching the walk:
 - **`refreshFileKindStatistics` stays on the main thread.** It posts KVO for
   `kindStatistics`, which bound controls observe, and `-reserveColorsForLargestKinds`
   mutates the `FileTypeColors` singleton other documents read while drawing. It is also
-  cheap next to the walk: measured over `/usr/share`, 20,179 items, the walk takes ~0.7 s
-  and the statistics pass 0.01 s.
+  cheap next to the walk: measured over `/usr/share`, 20,179 items, the statistics pass
+  takes 0.01 s against 0.16 s for the walk — it was 0.7 s for the walk when this was
+  written, which is the measure of what has happened to the walk since.
 
-**This did not make scanning faster** and was not meant to. On a warm cache the times are
-the same within run-to-run variance (0.63–0.71 s before, 0.67 s median after). What changed
-is that the main thread is no longer doing file I/O, so the panel animates, Cancel responds
-at once, and the application stays usable — where it used to be frozen between pumps, which
-on slow or network volumes is most of the time.
+**Moving the walk off the main thread did not make scanning faster** and was not meant to.
+On a warm cache the times were the same within run-to-run variance (0.63–0.71 s before,
+0.67 s median after). What it changed is that the main thread is no longer doing file I/O,
+so the panel animates, Cancel responds at once, and the application stays usable — where it
+used to be frozen between pumps, which on slow or network volumes is most of the time.
+
+Scanning *did* get faster afterwards, and separately: the same folder now takes about
+0.16 s and `/System/Library` went from 11.96 s to about 4.8 s. That came from asking
+LaunchServices for a file's type once per extension rather than once per file, dropping
+resource keys nothing read, and walking subtrees concurrently — not from the queue.
 
 One measured trap: waking the main thread every 50 ms *and* redrawing the path label every
 time cost about 7% of scan time. The label is throttled to 0.1 s separately from the wake
@@ -357,7 +363,11 @@ section label, then checkboxes, each optionally with explanatory text. Alignment
 property of the layout rather than of whoever last opened Interface Builder — which is how
 the two pages had drifted into different shapes, one of them with no label column at all.
 Adding a setting is one `-addCheckboxTitled:defaultsKey:help:` call plus its string in the
-four `Preferences.strings`, where it used to be eight nib bundles.
+four `Preferences.strings`, where it used to be eight nib bundles. There is one other
+control: `-addPopUpWithValues:defaultsKey:trailingTitle:help:`, a pop-up of numbers with a
+caption after it, used for `ScanConcurrency`. The values become the menu items' tags and
+the binding is `NSSelectedTagBinding`, so what is stored is the number chosen rather than
+where it sat in the menu.
 
 `-buildControlBox` returning nil still falls back to loading the page record's nib, so a
 page needing something a grid of checkboxes cannot express is not locked out.
