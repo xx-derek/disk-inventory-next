@@ -22,8 +22,12 @@ unsigned g_fileCount;
 unsigned g_folderCount;
 static unsigned g_packageCheckCount = 0;
 
-//global cache for kind names
+//global cache for kind names, keyed by UTI
 NSMutableDictionary *g_kindNameDictionary = nil;
+
+//and keyed by what decides the UTI, so most items never need one fetched -
+//see -setKindStringIncludingChildren:
+static NSMutableDictionary *g_kindNameByShape = nil;
 
 //exceptions
 NSString* FSItemLoadingCanceledException = @"FSItemLoadingCanceledException";
@@ -43,8 +47,7 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 
 - (id) initWithURL: (NSURL*)url
 			 parent: (FSItem*) parent
-	  setKindString: (BOOL) setKindString
-	usePhysicalSize: (BOOL) usePhysicalSize;
+	  setKindString: (BOOL) setKindString;
 
 - (void) setParent: (FSItem*) parent;
 - (void) onParentDealloc;
@@ -610,26 +613,70 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 	}
 	
  */
-    NSString *uti = [[self fileURL] cachedUTI];
-    
-    if ( g_kindNameDictionary == nil )
-        g_kindNameDictionary = [[NSMutableDictionary alloc] init];
+    //What this needs is the UTI, and asking a URL for one is the most expensive
+    //thing the whole walk does: LaunchServices answers NSURLTypeIdentifierKey by
+    //reading the item's HFS type and creator, which means opening it. Measured
+    //over /System/Library it is 1.55 s of an 8.0 s enumeration - more than any
+    //other key, and more than everything this method then does with the answer.
+    //
+    //But a tree has tens of thousands of files and a few dozen extensions, and
+    //the extension is what decides the type. So the first .dylib pays for the
+    //lookup and the rest share the answer.
+    //
+    //The key has to carry everything else that can change the type:
+    //
+    // - directory or not, because a ".app" folder is a bundle and a ".app" file
+    //   is not, and because a folder with no extension is just a folder;
+    // - not an alias or a symlink, whose type is its own whatever it is named -
+    //   NSURLIsAliasFileKey covers both, and unlike the type identifier it comes
+    //   from the cheap attribute batch (measured at about 1% of enumeration);
+    // - and an extensionless *file* is deliberately never cached, because with no
+    //   extension the type falls back to the executable bit, so two of them need
+    //   not agree.
+    NSURL *url = [self fileURL];
+    NSString *shapeKey = nil;
 
-    _kindName = [g_kindNameDictionary objectForKey: uti];
+    if ( ![url cachedIsAliasOrSymbolicLink] )
+    {
+        const BOOL isDirectory = [url cachedIsDirectory];
+        NSString *extension = [[url cachedName] pathExtension];
+
+        if ( isDirectory || [extension length] > 0 )
+            shapeKey = [NSString stringWithFormat: @"%c:%@",
+                                                   isDirectory ? 'd' : 'f',
+                                                   [extension lowercaseString]];
+    }
+
+    if ( g_kindNameByShape == nil )
+        g_kindNameByShape = [[NSMutableDictionary alloc] init];
+
+    _kindName = ( shapeKey != nil ) ? [g_kindNameByShape objectForKey: shapeKey] : nil;
 
     if ( _kindName == nil )
     {
-        //Copy* returns +1, so ownership is transferred to ARC rather than bridged
-        _kindName = CFBridgingRelease( UTTypeCopyDescription( (__bridge CFStringRef) uti ) );
-        
-        //remember kind name for similar files
-        if ( _kindName != nil )
-            [g_kindNameDictionary setObject: _kindName forKey: uti];
-     }
+        NSString *uti = [url cachedUTI];
 
-    if ( _kindName == nil )
-    {
-        _kindName = [[self fileURL] getCachedStringValue: NSURLLocalizedTypeDescriptionKey];
+        if ( g_kindNameDictionary == nil )
+            g_kindNameDictionary = [[NSMutableDictionary alloc] init];
+
+        _kindName = [g_kindNameDictionary objectForKey: uti];
+
+        if ( _kindName == nil )
+        {
+            //Copy* returns +1, so ownership is transferred to ARC rather than bridged
+            _kindName = CFBridgingRelease( UTTypeCopyDescription( (__bridge CFStringRef) uti ) );
+
+            //remember kind name for similar files
+            if ( _kindName != nil )
+                [g_kindNameDictionary setObject: _kindName forKey: uti];
+        }
+
+        if ( _kindName == nil )
+            _kindName = [url getCachedStringValue: NSURLLocalizedTypeDescriptionKey];
+
+        //so the next item of the same shape does not repeat the lookup
+        if ( _kindName != nil && shapeKey != nil )
+            [g_kindNameByShape setObject: _kindName forKey: shapeKey];
     }
     
     //let our childs do the same
@@ -922,7 +969,6 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 - (id) initWithURL: (NSURL*)url
             parent: (FSItem*) parent
      setKindString: (BOOL) setKindString
-   usePhysicalSize: (BOOL) usePhysicalSize
 {
     self = [super init];
 	
@@ -936,20 +982,17 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 	
     _fileURL = url;
 	
-	BOOL isFolder = [_fileURL isDirectory];
+	//the walk has just cached this URL's properties, so ask the side cache
+	//rather than going back to NSURL for something it already holds
+	BOOL isFolder = [_fileURL cachedIsDirectory];
 
-	if ( !isFolder )
-	{
-		//-physicalSize and -logicalSize hand back an NSNumber; passing it
-		//straight to -setSizeValue: stored the pointer as the size. Harmless in
-		//practice only because -recalculateSize:updateParent: overwrites every
-		//size before anything displays one.
-		 if ( usePhysicalSize )
-			[self setSizeValue: [[url physicalSize] unsignedLongLongValue]];
-		 else
-			[self setSizeValue: [[url logicalSize] unsignedLongLongValue]];
-	}
-    else
+	//No size is read here. Every file used to have one fetched through
+	//-physicalSize or -logicalSize - the *uncached* accessors, so a resource
+	//lookup each - and -recalculateSize:updateParent: overwrote all of them at
+	//the end of the walk before anything could display one. The lookup was
+	//pure waste, and it is why this initialiser no longer needs to be told
+	//which size mode is in force.
+	if ( isFolder )
         _childs = [[NSMutableArray<FSItem*> alloc] init];
 	
 	if ( setKindString )
@@ -1005,20 +1048,54 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 		}
 	}
     
-    NSArray<NSString*> *urlProperties = [NSArray<NSString*> arrayWithObjects:
-                                        //NSURLLocalizedNameKey,
-                                        NSURLNameKey,
-                                        NSURLIsVolumeKey,
-                                        NSURLIsPackageKey,
-                                        NSURLIsDirectoryKey,
-                                        //NSURLIsSymbolicLinkKey,
-                                        NSURLTypeIdentifierKey,
-                                        //NSURLLocalizedTypeDescriptionKey,
-                                        NSURLFileSizeKey,
-                                        NSURLTotalFileAllocatedSizeKey,
-                                        NSURLFileSizeKey,
-                                        NSURLTotalFileAllocatedSizeKey,
-                                        nil];
+    //Every key here is paid for twice per item: the enumerator prefetches them,
+    //and -cacheResourcesInArray: below fetches each one again. So the list is
+    //worth keeping honest.
+    //
+    //NSURLFileSizeKey and NSURLTotalFileAllocatedSizeKey used to be listed
+    //twice each, which simply did that work twice. Measured over /System/Library
+    //(435,460 items), enumerating and fetching every key: 8.99 s with the
+    //duplicates, 8.58 s without them.
+    //
+    //NSURLIsPackageKey is gone, which takes it to 8.41 s. Only a directory can
+    //be a package, and both callers ask only once past a directory test - this
+    //method returns early on ![self isFolder], and -setKindString: short-
+    //circuits on [fileDesc isDirectory] - so the answer was being computed for
+    //every file to be looked at for almost none of them. Nothing sees a
+    //different value: -getCachedResourceValue: falls back to a live fetch and
+    //caches it, so the folders that ask still get an answer.
+    //
+    //The larger cost is NSURLTypeIdentifierKey, and it is deliberately still
+    //here. It and NSURLIsPackageKey are both answered by LaunchServices, which
+    //reads the item's HFS type and creator - opening the file to do it - so
+    //they share that work and dropping only one saves little: without the type
+    //identifier as well the same walk is 6.69 s, against 8.41 s for dropping
+    //IsPackage alone. But the type identifier is what -setKindString: needs,
+    //and every item needs a kind eventually, for the statistics and the
+    //treemap's colours. Dropping it here would defer that cost rather than
+    //remove it, and lose the enumerator's batching with it. Worth revisiting
+    //only together with making kind determination lazy.
+    NSArray<NSString*> *urlProperties = @[ //NSURLLocalizedNameKey,
+                                           NSURLNameKey,
+                                           NSURLIsVolumeKey,
+                                           NSURLIsDirectoryKey,
+                                           //NSURLIsAliasFileKey covers a Finder alias and a symlink
+                                           //alike, and is what keeps those off the extension-keyed
+                                           //kind cache. It rides along in the cheap attribute batch;
+                                           //NSURLTypeIdentifierKey, which used to be here, does not -
+                                           //it is answered by LaunchServices, one file open each, and
+                                           //is now fetched only for the first item of a given shape.
+                                           NSURLIsAliasFileKey,
+                                           //NSURLLocalizedTypeDescriptionKey,
+                                           //NSURLTotalFileSizeKey rather than NSURLFileSizeKey: the
+                                           //two size accessors ask for TotalFileSize and
+                                           //TotalFileAllocatedSize, so prefetching FileSizeKey
+                                           //cached a key nothing reads first while leaving the one
+                                           //logical sizes actually want to be fetched per file,
+                                           //outside the enumerator's batch. It is also what
+                                           //-cachedPhysicalSize falls back to.
+                                           NSURLTotalFileSizeKey,
+                                           NSURLTotalFileAllocatedSizeKey ];
 
     // stack of directories (Path to directory currently beeing canned)
     NSMutableArray<FSItem*> *itemStack = [[NSMutableArray alloc] init];
@@ -1120,10 +1197,22 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
         
         FSItem *currentItem = [[FSItem alloc] initWithURL: currentUrl
                                                    parent: [itemStack lastObject]
-                                            setKindString: setKindStrings
-                                          usePhysicalSize: usePhysicalSize];
-        
-        if ( [currentUrl isFirmlink] )
+                                            setKindString: setKindStrings];
+
+        //-isDirectory, -isVolume and -isFirmlink are the *uncached* accessors,
+        //and this is the innermost loop of the whole scan. -cacheResourcesInArray:
+        //above has just put isDirectory and isVolume in this URL's side cache, so
+        //asking through -cachedIsDirectory / -cachedIsVolume reads a dictionary
+        //this method filled a few lines earlier instead of going back to NSURL.
+        //
+        //Both tests below only ever answer YES for a directory - a firmlink is
+        //one, and so is a volume's root - so a file need not be asked at all.
+        //That matters most for -isFirmlink, which is a lookup in a dictionary
+        //keyed by NSURL, so every item was paying to hash a URL to discover it
+        //was not one of the handful of firmlinks.
+        const BOOL isDirectory = [currentUrl cachedIsDirectory];
+
+        if ( isDirectory && [currentUrl isFirmlink] )
         {
             // tests show that firmlinks are not followed by NSDirectoryEnumerator, but
             // Apple tends to change thinks so we tell the enumerator to not enter the directory
@@ -1131,14 +1220,14 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
             [currentItem loadChildrenAndSetKindStrings: setKindStrings
                                        usePhysicalSize: usePhysicalSize];
         }
-        else if ( [currentUrl isVolume] )
+        else if ( isDirectory && [currentUrl cachedIsVolume] )
         {
             // on 10.15 Beta 7 the mount point /System/Volume/data is followed,
             // although this should not be the case according to the docs
             [dirEnum skipDescendants];
         }
-        
-        lastItemWasDir = [currentUrl isDirectory];
+
+        lastItemWasDir = isDirectory;
         
         lastDirItem = lastItemWasDir ? currentItem : nil;
         
@@ -1158,7 +1247,14 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
      }
     
     
-	[self recalculateSize:YES updateParent:NO];
+	//usePhysicalSize, not a hardcoded YES. It is threaded down from
+	//-fsItemShouldUsePhysicalFileSize: for exactly this, and passing YES
+	//regardless meant a scan always produced allocated sizes: with the
+	//preference off the tree still showed them, and went on showing them until
+	//the user toggled the preference, because -recalculateTotalSize is only
+	//ever called from -setShowPhysicalFileSize:. The default is on, which is
+	//why this was invisible unless you turned it off.
+	[self recalculateSize: usePhysicalSize updateParent: NO];
 }
 
 //compare the size of 2 FSItems

@@ -32,6 +32,8 @@
 	__unsafe_unretained TreeMapView *_view;
 	NSRect _rect;
 	NSMutableArray *_childRenderers;
+	//-isLeaf's answer, or <0 before it has been asked - see -isLeaf
+	int8_t _isLeafCache;
 	TMVCushionRenderer *_cushionRenderer;
 }
 

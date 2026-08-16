@@ -55,6 +55,7 @@ static const double TMVMinimumCellSize = 2.0;
 	_item = item;
 	_rect = NSZeroRect;
 	_childRenderers = nil;
+	_isLeafCache = -1;	//not asked yet
 	_cushionRenderer = [[TMVCushionRenderer alloc] init];
 
 	return self;
@@ -91,12 +92,27 @@ static const double TMVMinimumCellSize = 2.0;
 
 - (BOOL) isLeaf
 {
-	//the data source decides what counts as a folder; anything else is a leaf,
-	//and so is a folder that turned out to be empty
-	if ( ![_dataSource treeMapView: _view isNode: _item] )
-		return YES;
+	//Asked once, and remembered. A renderer stands for one data item for as long
+	//as it exists, and any reload builds the tree again from scratch, so the data
+	//source cannot change its answer underneath us.
+	//
+	//It is worth remembering because -calcLayout: asks at every cell on every
+	//pass, twice over, and for a file system data source neither callback is
+	//arithmetic: answering isNode: for an FSItem reaches an NSURL resource
+	//lookup, keyed by string. Sampling a layout of a 435,461-item tree found
+	//__CFStringHash and __CFURLResourceInfoPtr among the hottest symbols in what
+	//ought to be nothing but rectangles.
+	if ( _isLeafCache < 0 )
+	{
+		//the data source decides what counts as a folder; anything else is a leaf,
+		//and so is a folder that turned out to be empty
+		const BOOL leaf = ![_dataSource treeMapView: _view isNode: _item]
+						  || [_dataSource treeMapView: _view numberOfChildrenOfItem: _item] == 0;
 
-	return [_dataSource treeMapView: _view numberOfChildrenOfItem: _item] == 0;
+		_isLeafCache = leaf ? 1 : 0;
+	}
+
+	return _isLeafCache == 1;
 }
 
 - (NSUInteger) childCount
