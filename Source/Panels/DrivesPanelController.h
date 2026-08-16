@@ -21,13 +21,13 @@
 	//holds the top-level objects of the nib this controller loads
 	NSArray *_nibTopLevelObjects;
 	NSMutableArray *_volumes;
-	NSMutableArray *_progressIndicators;
 	IBOutlet NSTableView* _volumesTableView;
 	IBOutlet NSWindow* _volumesPanel;
 	IBOutlet NSButton* _openVolumeButton;
 	IBOutlet NSArrayController *_volumesController;
-    
-    unsigned long long _maxVolumeSize; // size of largest volumes
+
+	//runs only while the panel is on screen; see -refreshVolumeSizes
+	NSTimer *_sizeRefreshTimer;
 }
 
 + (DrivesPanelController*) sharedController;

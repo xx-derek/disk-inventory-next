@@ -17,6 +17,7 @@
 #import "FileSizeFormatter.h"
 #import "VolumeNameTransformer.h"
 #import "VolumeUsageTransformer.h"
+#import "VolumeUsageCell.h"
 #import "NSURL-Extensions.h"
 
 //NTStringShare is a private class in the CocoaFoundation framework; but as it is not fully thread safe,
@@ -30,10 +31,31 @@
 @interface DrivesPanelController(Private)
 
 - (void) rebuildVolumesArray;
-- (void) rebuildProgressIndicatorArray;
+- (void) refreshVolumeSizes;
 - (void) onVolumesChanged: (NSNotification*) notification;
+- (void) onPanelWillClose: (NSNotification*) notification;
 
 @end
+
+//How often the sizes are re-read while the panel is on screen. Free space moves
+//as the machine is used, and mount/unmount are the only other things that would
+//ever prompt a re-read — so without this the panel shows whatever was true when
+//it was first opened, for as long as it stays open.
+static const NSTimeInterval kSizeRefreshInterval = 5.0;
+
+//the resource values that go stale; the name, icon and format do not
+static NSArray<NSURLResourceKey> *VolumeSizeResourceKeys( void )
+{
+	static NSArray<NSURLResourceKey> *keys = nil;
+
+	if ( keys == nil )
+		keys = [NSArray arrayWithObjects: NSURLVolumeTotalCapacityKey
+										, NSURLVolumeAvailableCapacityKey
+										, NSURLVolumeSupportsVolumeSizesKey
+										, nil];
+
+	return keys;
+}
 
 
 @implementation DrivesPanelController
@@ -51,8 +73,6 @@
 - (id) init
 {
 	self = [super init];
-    
-    _maxVolumeSize = 0;
 
 	//register volume transformers needed in the volume tableview (before Nib is loaded!)
 	[NSValueTransformer setValueTransformer:[VolumeNameTransformer transformer] forName: @"volumeNameTransformer"];
@@ -104,6 +124,17 @@
 		FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
 		[[[_volumesTableView tableColumnWithIdentifier: @"totalSize"] dataCell] setFormatter: sizeFormatter];
 		[[[_volumesTableView tableColumnWithIdentifier: @"freeBytes"] dataCell] setFormatter: sizeFormatter];
+
+		//The usage column carries a capacity bar, not text. Swapping the cell here
+		//rather than in Interface Builder keeps it out of the four localized
+		//VolumesPanel nibs, which hold a placeholder NSTextFieldCell apiece.
+		[[_volumesTableView tableColumnWithIdentifier: @"usagePercent"] setDataCell: [[VolumeUsageCell alloc] init]];
+
+		//stops the refresh timer again when the panel goes away
+		[[NSNotificationCenter defaultCenter] addObserver: self
+												 selector: @selector(onPanelWillClose:)
+													 name: NSWindowWillCloseNotification
+												   object: _volumesPanel];
 	}
 	
 	[_volumesPanel makeFirstResponder: _volumesTableView];
@@ -114,8 +145,12 @@
 - (void) dealloc
 {
 	[[NSNotificationCenter defaultCenter] removeObserver: self];
+	[[[NSWorkspace sharedWorkspace] notificationCenter] removeObserver: self];
 
-	
+	//NSTimer retains its target, so a running timer would keep this alive rather
+	//than the other way round; it is stopped when the panel closes, and this is
+	//only the backstop
+	[_sizeRefreshTimer invalidate];
 }
 
 - (NSArray*) volumes
@@ -155,7 +190,18 @@
 
 - (void) showPanel
 {
+	//the panel may have been sitting closed for hours, so start from fresh
+	//numbers rather than showing the last ones and correcting them a tick later
+	[self refreshVolumeSizes];
+
 	[[self panel] orderFront: nil];
+
+	if ( _sizeRefreshTimer == nil )
+		_sizeRefreshTimer = [NSTimer scheduledTimerWithTimeInterval: kSizeRefreshInterval
+															 target: self
+														   selector: @selector(refreshVolumeSizes)
+														   userInfo: nil
+															repeats: YES];
 }
 
 - (NSWindow*) panel
@@ -173,8 +219,6 @@
 //fill array "_volumes" with mounted volumes and their images
 - (void) rebuildVolumesArray
 {
-    _maxVolumeSize = 0;
-    
     NSArray *volProps = [NSArray arrayWithObjects:NSURLLocalizedNameKey
                                                 , NSURLVolumeTotalCapacityKey
                                                 , NSURLVolumeAvailableCapacityKey
@@ -205,64 +249,34 @@
                   forKey: @"image"];
         
         [_volumes addObject: entry];
-        
-        if ( [[volumeURL volumeTotalCapacity] unsignedLongLongValue] > _maxVolumeSize)
-            _maxVolumeSize = [[volumeURL volumeTotalCapacity] unsignedLongLongValue];
     }
     NS_HANDLER
     NS_ENDHANDLER
-    
-    [self rebuildProgressIndicatorArray];
-    
+
     [self didChangeValueForKey: @"volumes"];
 }
 
-//keeps array of progress indicators (for graphical usage display) in sync with volumes array
-- (void) rebuildProgressIndicatorArray
+//Re-reads the sizes of the volumes already listed, without rebuilding the list.
+//
+//Doing it this way rather than calling -rebuildVolumesArray is what keeps the
+//selection: the entry dictionaries are mutated in place, so the array controller's
+//arrangedObjects is the same set of objects it was and nothing it has selected
+//goes away underneath it. A rebuild replaces every entry, and the user loses the
+//row they were about to open.
+- (void) refreshVolumeSizes
 {
-	if ( _progressIndicators == nil )
-		_progressIndicators = [[NSMutableArray alloc] initWithCapacity: [_volumes count]];
-	
-	unsigned i;
-	for ( i = 0; i < [_volumes count]; i++ )
-	{
-		NSProgressIndicator *progrInd = nil;
-		if ( i >= [_progressIndicators count] )
-		{
-			progrInd = [[NSProgressIndicator alloc] init];
-			[progrInd setStyle: NSProgressIndicatorStyleBar];
-			[progrInd setIndeterminate: NO];
-			
-			[_progressIndicators addObject: progrInd];
-		}
-		else
-			//reuse existing progress indicator
-			progrInd = [_progressIndicators objectAtIndex: i];
-		
-		NSURL *vol = [[_volumes objectAtIndex: i] objectForKey : @"volume"];
-        
-        if ( [vol getCachedBoolValue: NSURLVolumeSupportsVolumeSizesKey] )
-        {
-            double totalBytes = [[vol volumeTotalCapacity] doubleValue];
-            double freeBytes = [[vol volumeAvailableCapacity] doubleValue];
+    for ( NSDictionary *entry in _volumes )
+    {
+        NSURL *volumeURL = [entry objectForKey: @"volume"];
 
-            [progrInd setMinValue: 0];
-            [progrInd setMaxValue: totalBytes];
-            [progrInd setDoubleValue: (totalBytes - freeBytes)];
-        }
-        else
-        {
-            [progrInd setMinValue: 0];
-            [progrInd setMaxValue: 0];
-            [progrInd setDoubleValue: 0];
-        }
-	}
-	
-	while ( [_progressIndicators count] > [_volumes count] )
-	{
-		[[_progressIndicators lastObject] removeFromSuperviewWithoutNeedingDisplay];
-		[_progressIndicators removeLastObject];
-	}
+        [volumeURL recacheResourcesInArray: VolumeSizeResourceKeys()];
+        [volumeURL invalidateCachedVolumeSpaceUsed];
+    }
+
+    //The bars read the cache as they draw, so this is what puts the new numbers
+    //on screen — for the capacity/used/free column too, which re-runs
+    //volumeUsageTransformer over the same URLs when the table re-pulls its values.
+    [_volumesTableView reloadData];
 }
 
 #pragma mark --------NTVolumeMgr notifications-----------------
@@ -270,6 +284,14 @@
 - (void) onVolumesChanged: (NSNotification*) notification
 {
     [self rebuildVolumesArray];
+}
+
+#pragma mark --------NSWindow notifications-----------------
+
+- (void) onPanelWillClose: (NSNotification*) notification
+{
+    [_sizeRefreshTimer invalidate];
+    _sizeRefreshTimer = nil;
 }
 
 #pragma mark --------NSTableView notifications-----------------
@@ -284,43 +306,39 @@
 {
 	if ( [[tableColumn identifier] isEqualToString: @"usagePercent"] )
 	{
-		NSProgressIndicator *progrInd = [_progressIndicators objectAtIndex: row];
-		
-		//add progress indicator as subview of table view
-		if ( [progrInd superview] != tableView )
-			[tableView addSubview: progrInd];
-		
-		NSInteger colIndex = [tableView columnWithIdentifier: [tableColumn identifier]];
-		NSRect cellRect = [tableView frameOfCellAtColumn: colIndex row: row];
-		
-		//The old NSProgressIndicatorPreferredLargeThickness constant was a
-		//guess at the geometry; -sizeToFit asks the indicator itself, which is
-		//what the deprecation notice recommends.
-		[progrInd sizeToFit];
-		const CGFloat progrIndThickness = NSHeight( [progrInd frame] );
-		const CGFloat extraSpace = 16; //space before and after progress indicator (relative to left and right side of cell)
-		
-		//center it vertically in cell
-		NSAssert( NSHeight(cellRect) > progrIndThickness, @"rows need to be higher than progress indicator thickness" );
-		cellRect.origin.y += (NSHeight(cellRect) - progrIndThickness) / 2;
-		cellRect.size.height = progrIndThickness;
+		//The cell does the drawing and the clipping; all that is needed here is
+		//to tell it what this row's volume looks like. Nothing is added to the
+		//view hierarchy, so nothing can be left behind on a scroll or a remount.
+		VolumeUsageCell *usageCell = (VolumeUsageCell*)cell;
 
-		//add space before and after
-		cellRect.origin.x += extraSpace;
-		cellRect.size.width -= 2*extraSpace;
-        
-        NSURL *volURL = [[_volumes objectAtIndex: row] objectForKey : @"volume"];
-        if ( [volURL getCachedBoolValue: NSURLVolumeSupportsVolumeSizesKey] )
-        {
-            double fraction = [[volURL cachedVolumeTotalCapacity] doubleValue] / (double)_maxVolumeSize;
-            // each volume should at least be shown as 20% of the available space as it would be shown as too narrow (or not at all) otherwise
-            cellRect.size.width *= fmax(fraction, 0.2);
-        }
-        else
-            cellRect.size.width = 0; //no size information available; hide progress indicator
-        
-		[progrInd setFrame: cellRect];
-		[progrInd stopAnimation: nil];
+		NSURL *volURL = [[_volumes objectAtIndex: row] objectForKey : @"volume"];
+
+		const BOOL hasSizeInfo = [volURL getCachedBoolValue: NSURLVolumeSupportsVolumeSizesKey];
+		[usageCell setHasSizeInfo: hasSizeInfo];
+
+		if ( hasSizeInfo )
+		{
+			const double totalBytes = [[volURL cachedVolumeTotalCapacity] doubleValue];
+			const double freeBytes = [[volURL cachedVolumeAvailableCapacity] doubleValue];
+
+			//Both of those answer for the whole APFS container, so their
+			//difference is the same number for every volume sharing one.
+			//-cachedVolumeSpaceUsed answers for this volume alone; whatever is
+			//left over belongs to its siblings and is drawn muted. Where the file
+			//system will not say, it all counts as this volume's and the bar is
+			//exactly what it was before.
+			const double containerUsedBytes = totalBytes - freeBytes;
+			NSNumber *ownUsed = [volURL cachedVolumeSpaceUsed];
+
+			const double ownUsedBytes = ( ownUsed != nil && [ownUsed doubleValue] <= containerUsedBytes )
+										? [ownUsed doubleValue]
+										: containerUsedBytes;
+
+			//guarded because a volume can claim to support sizes and still report
+			//a capacity of zero, which would divide to a NaN here
+			[usageCell setUsedFraction: totalBytes > 0 ? ownUsedBytes / totalBytes : 0.0];
+			[usageCell setSharedUsedFraction: totalBytes > 0 ? ( containerUsedBytes - ownUsedBytes ) / totalBytes : 0.0];
+		}
 	}
 }
 

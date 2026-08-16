@@ -14,7 +14,13 @@
 
 #import "NSURL-Extensions.h"
 
+#include <sys/attr.h>
+
 NS_ASSUME_NONNULL_BEGIN
+
+//-volumeSpaceUsed is not an NSURL resource key, so like -cachedPath it needs a
+//key of its own in the cache dictionary.
+static NSString * const kVolumeSpaceUsedCacheKey = @"DIXVolumeSpaceUsedKey";
 
 NSMutableDictionary<NSURL*, NSURL*> * g_Firmlinks = nil;
 NSString *firmlinkListFile = @"/usr/share/firmlinks";
@@ -199,6 +205,68 @@ void LoadFirmlinks()
     return [self getStringValue:NSURLVolumeLocalizedFormatDescriptionKey];
 }
 
+// Returns NO where the file system does not implement ATTR_VOL_SPACEUSED —
+// network volumes most of all — and the caller then has to fall back on the
+// capacity-minus-free arithmetic.
+static BOOL SpaceUsedAtPath( const char *path, unsigned long long *spaceUsed )
+{
+    if ( path == NULL )
+        return NO;
+
+    struct attrlist attrs;
+    memset( &attrs, 0, sizeof(attrs) );
+    attrs.bitmapcount = ATTR_BIT_MAP_COUNT;
+    attrs.volattr = ATTR_VOL_INFO | ATTR_VOL_SPACEUSED;
+
+    struct
+    {
+        uint32_t length;
+        off_t spaceUsed;
+    } __attribute__((aligned(4), packed)) result;
+
+    if ( getattrlist( path, &attrs, &result, sizeof(result), 0 ) != 0 )
+        return NO;
+
+    *spaceUsed = (unsigned long long)result.spaceUsed;
+
+    return YES;
+}
+
+- (NSNumber*_Nullable) volumeSpaceUsed
+{
+    // NSURLVolumeTotalCapacityKey and NSURLVolumeAvailableCapacityKey both answer
+    // for the whole APFS container, so on a container holding several volumes
+    // their difference is the same number for every one of them. ATTR_VOL_SPACEUSED
+    // (10.13+) answers for one volume. Measured on a stock boot disk it separates
+    // the 12.6 GB system volume from the 184.6 GB data volume, where
+    // capacity-minus-free reports 211.9 GB for both.
+    const char *path = [self fileSystemRepresentation];
+    unsigned long long spaceUsed = 0;
+
+    if ( !SpaceUsedAtPath( path, &spaceUsed ) )
+        return nil;
+
+    // The boot volume is a firmlinked pair — a read-only system volume mounted at
+    // "/" and a writable data volume holding everything the user owns — which
+    // macOS presents as one volume and Finder reports as one. Only the system half
+    // is listed as a mounted volume, so without its partner it accounts for the
+    // 12.6 GB of macOS and none of the 184.6 GB of the user's own files, which
+    // would then look like they belonged to some other volume entirely.
+    //
+    // Identified by the mount point, and not by NSURLVolumeIsRootFileSystemKey:
+    // firmlinks make the data volume part of the root file system too, so that key
+    // answers YES for both halves and the data half would count itself twice.
+    if ( path != NULL && strcmp( path, "/" ) == 0 )
+    {
+        unsigned long long dataSpaceUsed = 0;
+
+        if ( SpaceUsedAtPath( "/System/Volumes/Data", &dataSpaceUsed ) )
+            spaceUsed += dataSpaceUsed;
+    }
+
+    return [NSNumber numberWithUnsignedLongLong: spaceUsed];
+}
+
 #pragma mark ----------------- helper functions -----------------------
 
 - (BOOL) getBoolValue: (NSString*) resourceName
@@ -354,10 +422,30 @@ void LoadFirmlinks()
     return [self getCachedStringValue: NSURLVolumeLocalizedFormatDescriptionKey];
 }
 
+- (NSNumber*_Nullable) cachedVolumeSpaceUsed
+{
+    // not an NSURL resource key, so this cannot go through getCachedNumberValue:
+    NSMutableDictionary *cache = [self resourceValueCache];
+
+    id cachedVal = [cache objectForKey: kVolumeSpaceUsedCacheKey];
+
+    if ( cachedVal == nil )
+    {
+        cachedVal = [self volumeSpaceUsed];
+
+        if ( cachedVal == nil )
+            cachedVal = [NSNull null]; // mark resource as not present
+
+        [cache setValue: cachedVal forKey: kVolumeSpaceUsedCacheKey];
+    }
+
+    return (cachedVal == (id)[NSNull null]) ? nil : cachedVal;
+}
+
 - (void) cacheResourcesInArray: (NSArray<NSURLResourceKey>*) resourceKeys
 {
     NSMutableDictionary *cache = [self resourceValueCache];
-    
+
     for (NSString *key in resourceKeys)
     {
         id val = nil;
@@ -365,9 +453,36 @@ void LoadFirmlinks()
 
         if ( val == nil )
             val = (id)[NSNull null]; // mark as "resource not present"
-        
+
         [cache setValue: val forKey: key];
     }
+}
+
+- (void) recacheResourcesInArray: (NSArray<NSURLResourceKey>*) resourceKeys
+{
+    NSMutableDictionary *cache = [self resourceValueCache];
+
+    for (NSURLResourceKey key in resourceKeys)
+    {
+        // NSURL keeps a cache of its own behind -getResourceValue:forKey:error:,
+        // so dropping this dictionary's copy alone would just read that one back.
+        // -removeAllCachedResourceValues would do it too, but it also discards
+        // temporary resource values — and the cache dictionary above is one.
+        [self removeCachedResourceValueForKey: key];
+
+        id val = nil;
+        [self getResourceValue: &val forKey: key error: nil];
+
+        if ( val == nil )
+            val = (id)[NSNull null]; // mark as "resource not present"
+
+        [cache setValue: val forKey: key];
+    }
+}
+
+- (void) invalidateCachedVolumeSpaceUsed
+{
+    [[self resourceValueCache] removeObjectForKey: kVolumeSpaceUsedCacheKey];
 }
 
 #pragma mark ----------------- helper functions -----------------------

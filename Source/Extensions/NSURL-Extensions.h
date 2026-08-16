@@ -49,6 +49,12 @@
 - (NSNumber*_Nullable) volumeAvailableCapacity;
 - (NSString*_Nonnull) volumeFormatName;
 
+// The bytes this one volume occupies, which on APFS is not "capacity minus free
+// space": every volume in a container reports the *container's* capacity and the
+// container's shared free space, so volumes sharing a container cannot be told
+// apart by those two numbers. Nil where the file system does not answer.
+- (NSNumber*_Nullable) volumeSpaceUsed;
+
 - (BOOL) isEqualToURL: (NSURL*_Nonnull) url;
 
 - (BOOL) getBoolValue: (NSString*_Nonnull) ressourceName;
@@ -79,10 +85,21 @@
 - (NSNumber*_Nullable) cachedVolumeTotalCapacity;
 - (NSNumber*_Nullable) cachedVolumeAvailableCapacity;
 - (NSString*_Nonnull) cachedVolumeFormatName;
+- (NSNumber*_Nullable) cachedVolumeSpaceUsed;
 
 
 // cache a list of resources
 - (void) cacheResourcesInArray: (NSArray<NSURLResourceKey>*_Nonnull) keys;
+
+// Re-read a list of resources that were cached earlier, dropping both this
+// cache and NSURL's own first, so the values come from the file system. Anything
+// long-lived that displays volume sizes needs this: free space changes while the
+// window is open, and a cache that is only ever filled once will not notice.
+- (void) recacheResourcesInArray: (NSArray<NSURLResourceKey>*_Nonnull) keys;
+
+// -volumeSpaceUsed is not an NSURL resource key, so it has its own cache slot
+// and -recacheResourcesInArray: cannot reach it.
+- (void) invalidateCachedVolumeSpaceUsed;
 
 - (NSMutableDictionary*_Nonnull) resourceValueCache;
 

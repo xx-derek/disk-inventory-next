@@ -38,6 +38,7 @@
 		FCCFB31A097FA42B009EA2B6 /* DrivesPanelController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2E2097FA42B009EA2B6 /* DrivesPanelController.m */; };
 		FCCFB31B097FA42B009EA2B6 /* VolumeNameTransformer.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2E4097FA42B009EA2B6 /* VolumeNameTransformer.m */; };
 		FCCFB31C097FA42B009EA2B6 /* VolumeUsageTransformer.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2E6097FA42B009EA2B6 /* VolumeUsageTransformer.m */; };
+		DE01CE1100000000000C0003 /* VolumeUsageCell.m in Sources */ = {isa = PBXBuildFile; fileRef = DE01CE1100000000000C0002 /* VolumeUsageCell.m */; };
 		FCCFB31D097FA42B009EA2B6 /* TreeMapViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2E8097FA42B009EA2B6 /* TreeMapViewController.m */; };
 		FCCFB31E097FA42B009EA2B6 /* FileKindsTableController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2EB097FA42B009EA2B6 /* FileKindsTableController.m */; };
 		FCCFB31F097FA42B009EA2B6 /* FilesOutlineViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2EF097FA42B009EA2B6 /* FilesOutlineViewController.m */; };
@@ -187,6 +188,8 @@
 		FCCFB2E4097FA42B009EA2B6 /* VolumeNameTransformer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VolumeNameTransformer.m; sourceTree = "<group>"; };
 		FCCFB2E5097FA42B009EA2B6 /* VolumeUsageTransformer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VolumeUsageTransformer.h; sourceTree = "<group>"; };
 		FCCFB2E6097FA42B009EA2B6 /* VolumeUsageTransformer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VolumeUsageTransformer.m; sourceTree = "<group>"; };
+		DE01CE1100000000000C0001 /* VolumeUsageCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VolumeUsageCell.h; sourceTree = "<group>"; };
+		DE01CE1100000000000C0002 /* VolumeUsageCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VolumeUsageCell.m; sourceTree = "<group>"; };
 		FCCFB2E8097FA42B009EA2B6 /* TreeMapViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TreeMapViewController.m; sourceTree = "<group>"; };
 		FCCFB2E9097FA42B009EA2B6 /* TreeMapViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TreeMapViewController.h; sourceTree = "<group>"; };
 		FCCFB2EB097FA42B009EA2B6 /* FileKindsTableController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FileKindsTableController.m; sourceTree = "<group>"; };
@@ -388,6 +391,8 @@
 				FCCFB2E4097FA42B009EA2B6 /* VolumeNameTransformer.m */,
 				FCCFB2E5097FA42B009EA2B6 /* VolumeUsageTransformer.h */,
 				FCCFB2E6097FA42B009EA2B6 /* VolumeUsageTransformer.m */,
+				DE01CE1100000000000C0001 /* VolumeUsageCell.h */,
+				DE01CE1100000000000C0002 /* VolumeUsageCell.m */,
 				FCCFB2F5097FA42B009EA2B6 /* LoadingPanelController.h */,
 				FCCFB2F6097FA42B009EA2B6 /* LoadingPanelController.m */,
 			);
@@ -674,6 +679,7 @@
 				FCCFB31A097FA42B009EA2B6 /* DrivesPanelController.m in Sources */,
 				FCCFB31B097FA42B009EA2B6 /* VolumeNameTransformer.m in Sources */,
 				FCCFB31C097FA42B009EA2B6 /* VolumeUsageTransformer.m in Sources */,
+				DE01CE1100000000000C0003 /* VolumeUsageCell.m in Sources */,
 				FC2A428A2219C89900A484D7 /* AppController.m in Sources */,
 				FCCFB31D097FA42B009EA2B6 /* TreeMapViewController.m in Sources */,
 				FCCFB31E097FA42B009EA2B6 /* FileKindsTableController.m in Sources */,
