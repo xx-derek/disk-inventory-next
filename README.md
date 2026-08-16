@@ -1,5 +1,8 @@
 # Disk Inventory Next
 
+[![Build](https://github.com/xx-derek/disk-inventory-next/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/xx-derek/disk-inventory-next/actions/workflows/build.yml)
+[![Release](https://github.com/xx-derek/disk-inventory-next/actions/workflows/release.yml/badge.svg)](https://github.com/xx-derek/disk-inventory-next/actions/workflows/release.yml)
+
 A macOS disk usage visualizer. It scans a volume or folder and shows where your space went
 as a **treemap** — every file is a rectangle sized in proportion to the space it occupies
 and colored by file type — alongside a sortable outline view and a breakdown by file kind.
