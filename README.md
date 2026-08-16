@@ -200,7 +200,7 @@ Two workflows under [`.github/workflows/`](.github/workflows):
   attaches a single universal `.zip` to a draft GitHub release.
 
 ```sh
-git tag v1.0.0 && git push github v1.0.0
+git tag v1.0.0 && git push origin v1.0.0
 ```
 
 The release is created as a **draft** so the artifact can be checked before it is public.

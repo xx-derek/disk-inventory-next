@@ -6,9 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Disk Inventory Next — a macOS disk usage visualizer (treemap + outline view), written in
 Objective-C/Cocoa. This is a renamed fork of Tjark Derlien's **Disk Inventory X** at
-`gitlab.com/tderlien/disk-inventory-x`; `origin` points at that GitLab upstream and
-`github` at this fork. The rename landed 2026-08-15; goals are current-macOS support and
-UI modernization. See README.md for the fork relationship and how to sync upstream.
+`gitlab.com/tderlien/disk-inventory-x`; `origin` is this fork on GitHub and `upstream`
+that GitLab repository. (The two were named the other way round until 2026-08-17, so
+older instructions may have them reversed — check `git remote -v` before pushing.) The
+rename landed 2026-08-15; goals are current-macOS support and UI modernization. See
+README.md for the fork relationship and how to sync upstream.
 
 Anything still named "Disk Inventory X" is either upstream history or a deliberate
 historical record — see [Naming](#naming) below before "fixing" it.
