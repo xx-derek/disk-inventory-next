@@ -64,6 +64,7 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 - (void) loadChildrenAndSetKindStrings: (BOOL) setKindStrings
 					   usePhysicalSize: (BOOL) usePhysicalSize;
 
+
 - (void) loadChildrenConcurrentlyWithKindStrings: (BOOL) setKindStrings
 								 usePhysicalSize: (BOOL) usePhysicalSize;
 
@@ -159,12 +160,18 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
     self = [super init];
     
     _type = FileFolderItem;
-    
-    _fileURL = url;
-    
+
+    //the root is the one item that keeps a URL: there is no parent to build one
+    //from, and there is exactly one of it
+    _rootURL = url;
+    _name = [url lastPathComponent];
+
     if ( [url isDirectory] )
+    {
+        _flags |= kFSItemIsFolder;
         _childs = [[NSMutableArray alloc] init];
-    
+    }
+
     _parent = nil; //we are the root item
     
     return self;
@@ -234,19 +241,32 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 	return _type != FileFolderItem;
 }
 
+//Built from the chain rather than stored, for everything but the root. Costs one
+//URL per ancestor and is called for one-off work - revealing in the Finder, the
+//Info panel, dragging, an icon - never in a loop over the tree. Anything the
+//tree is asked for in bulk (name, size, kind, folder-ness) is an ivar.
 - (NSURL *) fileURL
 {
-	if ( ![self isSpecialItem] )
-		return _fileURL;
-	else
+	if ( [self isSpecialItem] )
 		return [[self root] fileURL];
+
+	if ( _rootURL != nil )
+		return _rootURL;
+
+	return [[[self parent] fileURL] URLByAppendingPathComponent: _name
+													isDirectory: [self isFolder]];
 }
 
 - (void) setFileURL: (NSURL*) url
 {
 	NSAssert( ![self isSpecialItem], @"free and other space items don't habe a NTFileDesc object");
-	
-	_fileURL = url;
+
+	//Only meaningful for a root, which is the only item that stores one; below
+	//that an item's URL is its parent's plus its name, so the name is what moves.
+	if ( _rootURL != nil )
+		_rootURL = url;
+
+	_name = [url lastPathComponent];
 }
 
 /*- (unsigned) hash
@@ -306,27 +326,33 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 
 - (BOOL) isFolder
 {
-	if ( ![self isSpecialItem] )
-	{
-		return [[self fileURL] cachedIsDirectory];
-	}
-	else
-		return NO;
+	return ( _flags & kFSItemIsFolder ) != 0;
 }
 
 - (BOOL) isPackage
 {
-	if ( ![self isSpecialItem] )
-		return [[self fileURL] cachedIsPackage];
-	else
+	if ( [self isSpecialItem] || ![self isFolder] )
 		return NO;
+
+	//Resolved when first asked and then remembered. Only a folder can be one,
+	//and answering means asking LaunchServices, which opens the file - so this
+	//is deliberately not gathered for every item during the walk.
+	if ( ( _flags & kFSItemPackageResolved ) == 0 )
+	{
+		if ( [[self fileURL] isPackage] )
+			_flags |= kFSItemIsPackage;
+
+		_flags |= kFSItemPackageResolved;
+	}
+
+	return ( _flags & kFSItemIsPackage ) != 0;
 }
 
 - (BOOL)isAlias
 {
 	if ( ![self isSpecialItem] )
 	{
-		return [[self fileURL] cachedIsAliasOrSymbolicLink];
+		return ( _flags & kFSItemIsAlias ) != 0;
 	}
 	else
 		return NO;
@@ -493,11 +519,9 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 			}
 			else
 			{
-				//File
-				if ( usePhysicalSize )
-					size = [[[self fileURL] cachedPhysicalSize] unsignedLongLongValue];
-				else
-					size = [[[self fileURL] cachedLogicalSize] unsignedLongLongValue];
+				//File: both sizes were read when the item was made, so this
+				//needs no file system access and works after the URL is gone
+				size = usePhysicalSize ? _physicalSize : _logicalSize;
 			}
 			break;
 			
@@ -646,13 +670,12 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
     // - and an extensionless *file* is deliberately never cached, because with no
     //   extension the type falls back to the executable bit, so two of them need
     //   not agree.
-    NSURL *url = [self fileURL];
     NSString *shapeKey = nil;
 
-    if ( ![url cachedIsAliasOrSymbolicLink] )
+    if ( ( _flags & kFSItemIsAlias ) == 0 )
     {
-        const BOOL isDirectory = [url cachedIsDirectory];
-        NSString *extension = [[url cachedName] pathExtension];
+        const BOOL isDirectory = [self isFolder];
+        NSString *extension = [[self name] pathExtension];
 
         if ( isDirectory || [extension length] > 0 )
             shapeKey = [NSString stringWithFormat: @"%c:%@",
@@ -669,7 +692,9 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 
     if ( _kindName == nil )
     {
-        NSString *uti = [url cachedUTI];
+        //the one place the kind derivation still needs a URL, and only for the
+        //first item of a given shape
+        NSString *uti = [[self fileURL] UTI];
 
         if ( uti != nil )
         {
@@ -693,7 +718,7 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
         }
 
         if ( _kindName == nil )
-            _kindName = [url getCachedStringValue: NSURLLocalizedTypeDescriptionKey];
+            _kindName = [[self fileURL] getStringValue: NSURLLocalizedTypeDescriptionKey];
 
         //so the next item of the same shape does not repeat the lookup
         if ( _kindName != nil && shapeKey != nil )
@@ -718,7 +743,7 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 	switch ( [self type] )
 	{
 		case FileFolderItem:
-			return [[self fileURL] cachedName];
+			return _name != nil ? _name : @"";
 		case FreeSpaceItem:
 			return @"FreeSpaceItem";
 		case OtherSpaceItem:
@@ -733,8 +758,8 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 {
 	if ( ![self isSpecialItem] )
 	{
-		if ( [self isRoot] ) 
-			return [[self fileURL] cachedPath];
+		if ( [self isRoot] )
+			return [_rootURL path];
 		else
 		{
 			//parent path + "/" + name
@@ -768,7 +793,7 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
         {
             NSString *name = [[self fileURL] cachedDisplayName];
             if ( name == nil )
-                name = [[self fileURL] cachedName];
+                name = [self name];
             if ( name == nil )
                 name = @"";
 			return name;
@@ -1066,18 +1091,31 @@ static NSArray<NSURLResourceKey>* ScanResourceKeys( void )
     
     //_hash = 0;	//will be generated on demand (see FSItem.hash)
 	
-    _fileURL = url;
-	
-	//the walk has just cached this URL's properties, so ask the side cache
-	//rather than going back to NSURL for something it already holds
-	BOOL isFolder = [_fileURL cachedIsDirectory];
+    //Everything this item will ever be asked for in bulk is taken from the URL
+    //here and kept as an ivar, so the URL itself need not be - it goes out of
+    //scope with the enumerator's autorelease pool, and the _FileCache
+    //CoreServices attached to it goes with it. That is where the memory was.
+    //Read straight from the URL, not through -cacheResourcesInArray:. That side
+    //dictionary existed because NSURL purges its own cache on a run-loop pass and
+    //the values were wanted again later; nothing wants them later now, and every
+    //one of them is read exactly once, here, while the enumerator's prefetch is
+    //still warm. It was 9.3 million dictionaries on a volume scan.
+    _name = [url name];
 
-	//No size is read here. Every file used to have one fetched through
-	//-physicalSize or -logicalSize - the *uncached* accessors, so a resource
-	//lookup each - and -recalculateSize:updateParent: overwrote all of them at
-	//the end of the walk before anything could display one. The lookup was
-	//pure waste, and it is why this initialiser no longer needs to be told
-	//which size mode is in force.
+    const BOOL isFolder = [url isDirectory];
+
+    if ( isFolder )
+        _flags |= kFSItemIsFolder;
+
+    if ( [url isAliasOrSymbolicLink] )
+        _flags |= kFSItemIsAlias;
+
+    //Both sizes, not the one the current mode wants: -recalculateSize: is run
+    //again when the preference is toggled, and going back to the file system for
+    //4.6 million files at that point is not an option now the URLs are gone.
+    _logicalSize  = [[url logicalSize] unsignedLongLongValue];
+    _physicalSize = [[url physicalSize] unsignedLongLongValue];
+
 	if ( isFolder )
         _childs = [[NSMutableArray<FSItem*> alloc] init];
 	
@@ -1128,6 +1166,39 @@ static const NSUInteger kDefaultConcurrentSubtreeWalks = 2;
 //gains little, which is what /Applications does (1.48x, where /System/Library
 //gets 2.23x). It is also the split that needs no changes to the tree building at
 //all, since each queue owns its own subtree and touches nobody else's array.
+//Whether a child is worth handing to an enumerator of its own.
+//
+//The answer is taken from a freshly made URL, not from the one the directory
+//enumerator handed back, because the two disagree. /.nofollow is a directory
+//that mirrors the entire root volume - its listing is /'s listing, itself
+//included - and the enumerator's batched attributes describe it as an ordinary
+//directory, isVolume NO, while stat'ing that path on its own answers YES.
+//
+//A flat walk never had to care: NSDirectoryEnumerator declines to descend into
+//it of its own accord. Walking subtrees separately bypasses whatever policy it
+//was applying, and this one cost the whole volume twice - a scan of / built
+//4,647,615 items where the volume holds 2,323,854, half of them under
+///.nofollow, with sizes and memory to match.
+//
+//The identifier test is the general form of the same thing: a child that is the
+//scan root over again is a mirror whatever it happens to be called.
+static BOOL ShouldWalkSubtreeSeparately( NSURL *childUrl, NSURL *rootUrl )
+{
+	NSURL *freshUrl = [NSURL fileURLWithPath: [childUrl path]];
+
+	NSNumber *isVolume = nil;
+	[freshUrl getResourceValue: &isVolume forKey: NSURLIsVolumeKey error: nil];
+
+	if ( [isVolume boolValue] )
+		return NO;
+
+	id childId = nil, rootId = nil;
+	[freshUrl getResourceValue: &childId forKey: NSURLFileResourceIdentifierKey error: nil];
+	[rootUrl getResourceValue: &rootId forKey: NSURLFileResourceIdentifierKey error: nil];
+
+	return !( childId != nil && rootId != nil && [childId isEqual: rootId] );
+}
+
 - (void) loadChildrenConcurrentlyWithKindStrings: (BOOL) setKindStrings
 								 usePhysicalSize: (BOOL) usePhysicalSize
 {
@@ -1168,15 +1239,13 @@ static const NSUInteger kDefaultConcurrentSubtreeWalks = 2;
 
 	for ( NSURL *currentUrl in dirEnum )
 	{
-		[currentUrl cacheResourcesInArray: urlProperties];
-
 		FSItem *child = [[FSItem alloc] initWithURL: currentUrl
 											 parent: self
 									  setKindString: setKindStrings];
 
-		//a volume mounted below this folder is somebody else's tree - the deep
-		//walk has always declined to follow one, and so does this
-		if ( [currentUrl cachedIsDirectory] && ![currentUrl cachedIsVolume] )
+		//a volume mounted below this folder is somebody else's tree, and a
+		//directory that turns out to be this one again is nobody's
+		if ( [child isFolder] && ShouldWalkSubtreeSeparately( currentUrl, [self fileURL] ) )
 			[subtrees addObject: child];
 	}
 
@@ -1304,8 +1373,6 @@ static const NSUInteger kDefaultConcurrentSubtreeWalks = 2;
     
     for ( NSURL *currentUrl in dirEnum)
     {
-        // cache all needed properties (NSURL purges all values upon next pass through the run loop)
-        [currentUrl cacheResourcesInArray: urlProperties];
         
         if ( [dirEnum level] > lastEnumLevel )
         {
@@ -1380,18 +1447,14 @@ static const NSUInteger kDefaultConcurrentSubtreeWalks = 2;
                                                    parent: [itemStack lastObject]
                                             setKindString: setKindStrings];
 
-        //-isDirectory, -isVolume and -isFirmlink are the *uncached* accessors,
-        //and this is the innermost loop of the whole scan. -cacheResourcesInArray:
-        //above has just put isDirectory and isVolume in this URL's side cache, so
-        //asking through -cachedIsDirectory / -cachedIsVolume reads a dictionary
-        //this method filled a few lines earlier instead of going back to NSURL.
-        //
         //Both tests below only ever answer YES for a directory - a firmlink is
         //one, and so is a volume's root - so a file need not be asked at all.
+        //Folder-ness comes from the item, which read it while the enumerator's
+        //prefetch was warm, rather than from the URL a second time.
         //That matters most for -isFirmlink, which is a lookup in a dictionary
         //keyed by NSURL, so every item was paying to hash a URL to discover it
         //was not one of the handful of firmlinks.
-        const BOOL isDirectory = [currentUrl cachedIsDirectory];
+        const BOOL isDirectory = [currentItem isFolder];
 
         if ( isDirectory && [currentUrl isFirmlink] )
         {
@@ -1401,7 +1464,7 @@ static const NSUInteger kDefaultConcurrentSubtreeWalks = 2;
             [currentItem loadChildrenAndSetKindStrings: setKindStrings
                                        usePhysicalSize: usePhysicalSize];
         }
-        else if ( isDirectory && [currentUrl cachedIsVolume] )
+        else if ( isDirectory && [currentUrl isVolume] )
         {
             // on 10.15 Beta 7 the mount point /System/Volume/data is followed,
             // although this should not be the case according to the docs

@@ -31,8 +31,29 @@ typedef enum
 	FreeSpaceItem	//free space on volume
 } FSItemType;
 
+//Flags kept in one byte rather than as four BOOLs, because there are millions
+//of these. isPackage is resolved on demand and remembered, since only a folder
+//is ever asked and answering means going to LaunchServices.
+enum
+{
+	kFSItemIsFolder			= 1 << 0,
+	kFSItemIsAlias			= 1 << 1,
+	kFSItemIsPackage		= 1 << 2,
+	kFSItemPackageResolved	= 1 << 3,
+};
+
 @interface FSItem : NSObject {
-	NSURL *_fileURL;
+	//Only the root of a scan keeps a URL. Every other item keeps its name and
+	//builds one from the chain when asked - see -fileURL.
+	//
+	//A retained NSURL costs far more than it looks. Measured on a whole-volume
+	//scan of 4,646,058 items, which came to 5.3 GB: the NSURLs were 446 MB, the
+	//_FileCache CoreServices attaches to each one as soon as a resource value is
+	//read was 1,487 MB, and the dictionaries this code cached values in were
+	//1,169 MB - together 57% of the process, against 7% for the FSItems
+	//themselves. A name-only node measured 103 bytes an item against 1,129.
+	NSURL *_rootURL;			//root items only; nil for everything below
+	NSString *_name;			//everything below the root
 	//Unretained on purpose: _childs owns downwards, so a strong back-pointer
 	//would be a cycle on every node in the tree. __unsafe_unretained rather
 	//than __weak because a scan builds millions of these and -dealloc already
@@ -42,9 +63,16 @@ typedef enum
 	FSItemType _type;
     NSNumber *_size;
 	UInt64 _sizeValue;
+	//The two sizes a file reports, so -recalculateSize: can answer for either
+	//mode without going back to the file system. They used to be read back out
+	//of the URL's resource cache, which is one of the things that made keeping
+	//that cache unavoidable.
+	UInt64 _logicalSize;
+	UInt64 _physicalSize;
     NSString *_kindName;
     //unsigned _hash;
     NSMutableArray<FSItem*> *_childs;
+	uint8_t _flags;
 	__unsafe_unretained id _delegate;	//not retained
 }
 

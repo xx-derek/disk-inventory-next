@@ -177,7 +177,16 @@ header comments mark which document methods already post which notification.
 
 ### FSItem is the tree node
 
-`FSItem` wraps an `NSURL` and models one file, folder, or synthetic entry. `FSItemType`
+`FSItem` models one file, folder, or synthetic entry. It keeps a **name**, not a URL —
+only the root of a scan keeps one, and `-fileURL` builds the rest from the parent chain on
+demand. That is not a stylistic choice: a retained `NSURL` costs about 96 bytes, plus the
+320-byte `_FileCache` CoreServices attaches to it the moment a resource value is read, plus
+the path strings both hold. On a scan of `/` — 2.3 million items — those came to 57% of the
+process against 7% for the `FSItem`s themselves, and dropping them took the tree from about
+1,129 bytes an item to 214. So **anything the tree is asked for in bulk must be an ivar**
+(name, folder-ness, alias-ness, both file sizes, kind); `-fileURL` is for one-off work on
+one item — reveal in the Finder, the Info panel, dragging, an icon — and allocates a URL
+per ancestor each time it is called. `FSItemType`
 distinguishes real entries from the two synthetic ones the treemap draws:
 `FreeSpaceItem` (volume free space) and `OtherSpaceItem` (space used by files outside the
 scanned root). Code that walks the tree must handle these — check `isSpecialItem`.
@@ -203,10 +212,28 @@ What that means for anything touching the walk:
   up, and answers `![self _scanWasCancelled]`. The three option callbacks answer from
   snapshots taken in `-_beginScan`, so the queue never reads document state the main thread
   could be writing.
-- **All scans share one serial queue.** The walk touches process-wide state that is not
-  guarded — `FSItem`'s `g_kindNameDictionary`, the `g_fileCount`/`g_folderCount` counters —
-  so two documents opening at once must not walk simultaneously. This also matches the old
-  behaviour, where a second scan simply waited.
+- **All scans share one serial queue**, so two documents opening at once do not walk
+  simultaneously, which matches the old behaviour where a second scan simply waited.
+  *Within* one scan, subtrees are walked concurrently — the root is enumerated one level
+  deep and each subdirectory handed to a queue, up to the `ScanConcurrency` preference
+  (1–8, default 2; 1 is the serial walk). That is why the process-wide state the walk
+  touches is now guarded: `g_fileCount`/`g_folderCount` are atomic, the two kind-name
+  caches take a lock, and `LoadFirmlinks()` is a `dispatch_once`. Add anything
+  process-wide to the walk and it needs the same treatment.
+- **A directory that mirrors its own volume will be walked twice, and one exists.**
+  `/.nofollow` sits at the root of the boot volume and its listing *is* the root's listing,
+  itself included. A flat `NSDirectoryEnumerator` declines to descend into it unprompted,
+  so this never mattered until subtrees got enumerators of their own — at which point a
+  scan of `/` built 4,647,615 items where the volume holds 2,323,854, with the size and the
+  memory to match. **The guard has to read a freshly made `NSURL`, not the one the
+  enumerator handed back**: asked about `.nofollow` the enumerator's batched attributes say
+  `NSURLIsVolumeKey` is false — they describe the entry as its parent sees it — while
+  stat'ing that path on its own says true. `ShouldWalkSubtreeSeparately()` does both that
+  and an `NSURLFileResourceIdentifierKey` comparison against the scan root, which is the
+  general form: `/.nofollow`'s identifier is byte-for-byte `/`'s.
+- **Nothing catches this except a scan whose root is a volume root.** No folder contains a
+  mirror of its volume, so `/usr/share`, `/Applications` and `/System/Library` all pass
+  while `/` is twice its true size. Test the walk against `/`, not only against folders.
 - **The exception is carried back by hand.** The walk uses exceptions as ordinary control
   flow, and one raised on the queue cannot be caught on the main thread; the block catches
   it and `-_runScanBlockOffMainThread:` returns it to be re-raised.
