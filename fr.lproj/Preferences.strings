@@ -3,23 +3,24 @@
    here when they were rebuilt in code. */
 
 /* toolbar */
-"General" = "Général";
-"Treemap" = "Carte";
-"Finder Plugin" = "Plugin Finder";
 
-"Settings…" = "Réglages…";
 
 /* pages */
 "Animated Zooming" = "Zoom animé";
 "File kind colors:" = "Couleurs des types de fichier :";
 "Files View" = "Vue des fichiers";
+"Finder Plugin" = "Plugin Finder";
+"General" = "Général";
+"How many folders inside the one being scanned are read at the same time. Higher is usually faster on an internal drive; choose 1 to scan everything in order, which can be better over a network." = "Combien de dossiers situés dans celui qui est analysé sont lus en même temps. Une valeur plus élevée est généralement plus rapide sur un disque interne ; choisissez 1 pour tout analyser dans l'ordre, ce qui peut convenir davantage sur un réseau.";
 "If set, e.g. PDF files opened by the Finder with Acrobat or Preview are be regarded to have the same kind." = "Si activé, par exemple les fichiers PDF ouverts par le Finder avec Acrobat ou Aperçu sont considérés comme ayant le même type.";
 "Ignore Creator Code" = "Ignorer le code créateur";
 "Kind Statistic Drawer" = "Volet de statistique de type";
 "Preferences" = "Préférences";
 "Restore Defaults" = "Valeurs par défaut";
+"Scanning:" = "Analyse :";
 "Selection List" = "Liste de sélection";
 "Settings" = "Réglages";
+"Settings…" = "Réglages…";
 "Show Free Space" = "Afficher l'espace libre";
 "Show Other Space" = "Cacher autre espace";
 "Show Package Contents" = "Afficher le contenu du paquet";
@@ -28,8 +29,10 @@
 "The physical size is the space that a file occupies on a drive. Many applications show the logical size, which is the size of a file's content." = "La taille physique est l'espace qu'occupe un fichier sur un disque. Beaucoup d'applications affichent la taille logique, qui est la taille du contenu du fichier.";
 "This shows free space like a file in the treemap. It helps to see the size relations between the opened folder and the free space on the drive." = "L'espace libre s'affiche comme un fichier dans la carte. Cela permet de constater les tailles comparées entre le dossier ouvert et l'espace libre sur le disque.";
 "This shows space used by not shown files and folders like a file in the treemap. It helps to see how the opened folder compares in size to the rest of the files on the same drive. This option is only available if not a whole drive is shown." = "L'espace utilisé par les fichiers et dossiers non affichés est montré sur la carte. Cela permet de comparer les tailles entre le dossier ouvert et le reste des fichiers sur le même disque. Cette option n'est disponible si ce n'est pas un volume entier qui est sélectionné.";
+"Treemap" = "Carte";
 "Turn this off if the animation is too slow on your machine or if you don't like it." = "Désactiver si l'animation est trop lente sur votre ordinateur ou vous ne l'aimez pas.";
 "Use small font in:" = "Utiliser une petite police dans :";
 "Use the same color for each file kind in all windows" = "Utiliser la même couleur pour chaque type de fichier dans toutes les fenêtres";
 "View settings for new windows:" = "Paramètres d'affichage pour les nouvelles fenêtres :";
 "Zooming:" = "Zoom :";
+"folders at a time" = "dossiers à la fois";

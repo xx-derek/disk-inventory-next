@@ -15,8 +15,20 @@
 //
 
 #import "GeneralPrefPage.h"
+
 #import "PrefsPageLayout.h"
 #import "Preferences.h"
+
+//the choices offered in the pop-up, from the bounds the preference declares
+static NSArray<NSNumber*>* ScanConcurrencyValues( void )
+{
+	NSMutableArray *values = [NSMutableArray array];
+
+	for ( NSInteger i = ScanConcurrencyMinimum; i <= ScanConcurrencyMaximum; i++ )
+		[values addObject: [NSNumber numberWithInteger: i]];
+
+	return values;
+}
 
 @implementation GeneralPrefPage
 
@@ -58,6 +70,18 @@
 	[layout addCheckboxTitled: @"Selection List"
 				  defaultsKey: UseSmallFontInSelectionList
 						 help: nil];
+
+	//Concurrency is a setting rather than a constant because it is the one part
+	//of the scan whose best value depends on the drive: a fast internal SSD
+	//likes several requests outstanding, a network share or a spinning disk can
+	//be made slower by them. One walks everything in order, as the scan did
+	//before this was settable.
+	[layout beginSectionWithLabel: @"Scanning:"];
+
+	[layout addPopUpWithValues: ScanConcurrencyValues()
+				   defaultsKey: ScanConcurrency
+				 trailingTitle: @"folders at a time"
+						  help: @"How many folders inside the one being scanned are read at the same time. Higher is usually faster on an internal drive; choose 1 to scan everything in order, which can be better over a network."];
 
 	//This one had no label column in the nib and so broke the alignment of
 	//everything above it; it gets a section of its own now.

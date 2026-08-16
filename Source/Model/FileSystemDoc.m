@@ -318,10 +318,6 @@ NSString *OldItem = @"OldItem";
 		
         return NO;
     }
-    @finally
-    {
-        _directoryStack = nil;
-    }
         
    return YES;
 }
@@ -952,6 +948,11 @@ static NSString * const ScannedItemCountsKey = @"ScannedItemCounts";
 	_scanIgnoreCreatorCode   = [self ignoreCreatorCode];
 	_scanLookIntoPackages    = [self showPackageContents];
 	_scanUsePhysicalFileSize = [self showPhysicalFileSize];
+
+	//Clamped rather than trusted: this is a number out of user defaults, and a
+	//hand-edited or stale one must not turn into an unbounded number of queues.
+	const NSInteger wanted = [[NSUserDefaults standardUserDefaults] integerForKey: ScanConcurrency];
+	_scanConcurrency = (NSUInteger) MIN( MAX( wanted, ScanConcurrencyMinimum ), ScanConcurrencyMaximum );
 }
 
 - (void) _setScanCurrentPath: (NSString*) path
@@ -1115,27 +1116,37 @@ static NSString * const ScannedItemCountsKey = @"ScannedItemCounts";
 	if ( _progressController == nil )
 		return YES; //YES == continue loading
 	
-	if ( _directoryStack == nil )
-		_directoryStack = [[NSMutableArray alloc] initWithCapacity: 20];
-	
-	NSParameterAssert( [_directoryStack lastObject] == [item parent] );
-	[_directoryStack addObject: item];
+	//How deep this folder is used to be the height of a stack pushed here and
+	//popped in -fsItemExittingFolder:, guarded by an assertion that the folder
+	//arriving was a child of the one on top. That assertion was a fair statement
+	//of the old walk: strictly depth-first, and on one thread. Subtrees are now
+	//walked concurrently, so folders arrive interleaved and no single stack can
+	//describe them.
+	//
+	//Counting the item's own parents needs no shared state, cannot disagree with
+	//the item it describes, and costs a pointer chase per folder against a walk
+	//that opens a directory. The old stack held this folder as well as its
+	//ancestors, so its count was one more than the number of parents.
+	NSUInteger depth = 0;
+	for ( FSItem *ancestor = [item parent]; ancestor != nil && depth < 4; ancestor = [ancestor parent] )
+		depth++;
 
 	//we display only folders 4 levels deep and we don't go into packages
-	if ( [_directoryStack count] <= 4 )
+	if ( depth < 4 )
 	{
 		FSItem* parentItem = [item parent];
 		while ( parentItem != nil && ![parentItem isPackage] )
 			parentItem = [parentItem parent];
-		
+
 		if ( parentItem == nil )
 			[self _setScanCurrentPath: [item displayPath]];
 	}
 
-	//g_fileCount and g_folderCount are incremented as each FSItem is created,
-	//on this same thread, so reading them here needs no synchronising — only
-	//publishing the total to the main thread does. Folder granularity is plenty
-	//for a progress bar: a 20,000-item scan passes through here ~900 times.
+	//g_fileCount and g_folderCount are atomic, and incremented as each FSItem is
+	//created - on whichever queue created it. Reading them here is a snapshot
+	//that may be a few items stale, which a progress bar does not care about.
+	//Folder granularity is plenty: a 20,000-item scan passes through here ~900
+	//times.
 	[_scanLock lock];
 	_scanItemsDone = g_fileCount + g_folderCount;
 	[_scanLock unlock];
@@ -1149,9 +1160,11 @@ static NSString * const ScannedItemCountsKey = @"ScannedItemCounts";
 	if ( _progressController == nil )
 		return YES; //YES == continue loading
 	
-    NSAssert( [_directoryStack lastObject] == item, @"last stack object: %@, item: %@", [[_directoryStack lastObject] fileURL], [item fileURL] );
-	[_directoryStack removeLastObject];
-	
+	//nothing to unwind: -fsItemEnteringFolder: counts an item's depth from its
+	//own parents rather than from a stack kept here, so that concurrent subtree
+	//walks cannot interleave into nonsense
+	(void) item;
+
 	return YES;
 }
 
@@ -1171,6 +1184,11 @@ static NSString * const ScannedItemCountsKey = @"ScannedItemCounts";
 - (BOOL) fsItemShouldUsePhysicalFileSize: (FSItem*) item
 {
 	return _scanUsePhysicalFileSize;
+}
+
+- (NSUInteger) fsItemMaxConcurrentSubtreeWalks: (FSItem*) item
+{
+	return _scanConcurrency;
 }
 
 #pragma mark --------KVO-----------------

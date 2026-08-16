@@ -14,8 +14,11 @@
 
 //
 
-extern unsigned g_fileCount;
-extern unsigned g_folderCount;
+//Incremented as each item is created, on whichever queue created it - subtrees
+//are walked concurrently - so these are atomic. Readers get a snapshot that may
+//be a few items stale, which is all a progress bar needs.
+extern _Atomic unsigned g_fileCount;
+extern _Atomic unsigned g_folderCount;
 
 @interface NSString (ComparisonAdditions)
 - (NSComparisonResult) compareAsFilesystemName: (NSString*) other;
@@ -126,6 +129,7 @@ NSPasteboardType FSItemLegacyFilenamesPasteboardType( void );
 - (BOOL) fsItemShouldLookIntoPackages: (FSItem*) item; //set kind string in "loadChilds?";
 													   //default is NO (if not implemented by delegate)
 - (BOOL) fsItemShouldUsePhysicalFileSize: (FSItem*) item;
+- (NSUInteger) fsItemMaxConcurrentSubtreeWalks: (FSItem*) item; //1 walks in order; default if not implemented
 @end
 
 //Exception raised by FSItem

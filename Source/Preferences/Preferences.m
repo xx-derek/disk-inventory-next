@@ -23,6 +23,13 @@ NSString *UseSmallFontInSelectionList	= @"UseSmallFontInSelectionList";
 NSString *SplitWindowHorizontally		= @"SplitWindowHorizontally";
 NSString *AnimatedZooming				= @"AnimatedZooming";
 NSString *EnableLogging					= @"EnableLogging";
+NSString *ScanConcurrency				= @"ScanConcurrency";
+
+//The walk is I/O bound, and measurement flattens out well before eight: over
+///System/Library, 1.52x at two, 1.96x at four, 2.23x at eight and nothing after.
+//So the ceiling is where the gain stops, not where the hardware does.
+const NSInteger ScanConcurrencyMinimum = 1;
+const NSInteger ScanConcurrencyMaximum = 8;
 NSString *DontShowDonationMessage        = @"DontShowDonationMessage";
 NSString *DontShowPrivacyWarningMessage        = @"DontShowPrivacyWarningMessage";
 NSString *ShareKindColors				= @"ShareKindColors";

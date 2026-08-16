@@ -139,6 +139,8 @@ No data will be read.</string>
 				<false/>
 				<key>IgnoreCreatorCode</key>
 				<false/>
+				<key>ScanConcurrency</key>
+				<integer>2</integer>
 				<key>ShareKindColors</key>
 				<true/>
 				<key>ShowFreeSpace</key>

@@ -3,23 +3,24 @@
    here when they were rebuilt in code. */
 
 /* toolbar */
-"General" = "General";
-"Treemap" = "Treemap";
-"Finder Plugin" = "Finder Plugin";
 
-"Settings…" = "Settings…";
 
 /* pages */
 "Animated Zooming" = "Animated Zooming";
 "File kind colors:" = "File kind colors:";
 "Files View" = "Files View";
+"Finder Plugin" = "Finder Plugin";
+"General" = "General";
+"How many folders inside the one being scanned are read at the same time. Higher is usually faster on an internal drive; choose 1 to scan everything in order, which can be better over a network." = "How many folders inside the one being scanned are read at the same time. Higher is usually faster on an internal drive; choose 1 to scan everything in order, which can be better over a network.";
 "If set, e.g. PDF files opened by the Finder with Acrobat or Preview are be regarded to have the same kind." = "If set, e.g. PDF files opened by the Finder with Acrobat or Preview are be regarded to have the same kind.";
 "Ignore Creator Code" = "Ignore Creator Code";
 "Kind Statistic Drawer" = "Kind Statistic Drawer";
 "Preferences" = "Preferences";
 "Restore Defaults" = "Restore Defaults";
+"Scanning:" = "Scanning:";
 "Selection List" = "Selection List";
 "Settings" = "Settings";
+"Settings…" = "Settings…";
 "Show Free Space" = "Show Free Space";
 "Show Other Space" = "Show Other Space";
 "Show Package Contents" = "Show Package Contents";
@@ -28,8 +29,10 @@
 "The physical size is the space that a file occupies on a drive. Many applications show the logical size, which is the size of a file's content." = "The physical size is the space that a file occupies on a drive. Many applications show the logical size, which is the size of a file's content.";
 "This shows free space like a file in the treemap. It helps to see the size relations between the opened folder and the free space on the drive." = "This shows free space like a file in the treemap. It helps to see the size relations between the opened folder and the free space on the drive.";
 "This shows space used by not shown files and folders like a file in the treemap. It helps to see how the opened folder compares in size to the rest of the files on the same drive. This option is only available if not a whole drive is shown." = "This shows space used by not shown files and folders like a file in the treemap. It helps to see how the opened folder compares in size to the rest of the files on the same drive. This option is only available if not a whole drive is shown.";
+"Treemap" = "Treemap";
 "Turn this off if the animation is too slow on your machine or if you don't like it." = "Turn this off if the animation is too slow on your machine or if you don't like it.";
 "Use small font in:" = "Use small font in:";
 "Use the same color for each file kind in all windows" = "Use the same color for each file kind in all windows";
 "View settings for new windows:" = "View settings for new windows:";
 "Zooming:" = "Zooming:";
+"folders at a time" = "folders at a time";

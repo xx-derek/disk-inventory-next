@@ -28,6 +28,7 @@
 {
 	NSGridView *_grid;
 	NSMutableArray<NSButton*> *_checkboxes;
+	NSMutableArray<NSView*> *_controls;
 	NSMutableArray<NSTextField*> *_helpFields;
 	NSButton *_firstCheckbox;
 	NSButton *_lastCheckbox;
@@ -45,6 +46,15 @@
 - (void) addCheckboxTitled: (NSString*) title
 			   defaultsKey: (NSString*) defaultsKey
 					  help: (NSString*) help;
+
+//A pop-up of numbers bound to a user-defaults key, with a caption after it, so
+//a page can carry a small bounded choice as well as on/off. The values become
+//the menu items' tags, which is what the binding matches against, so the stored
+//preference is the number itself rather than a menu position.
+- (void) addPopUpWithValues: (NSArray<NSNumber*>*) values
+				defaultsKey: (NSString*) defaultsKey
+			  trailingTitle: (NSString*) trailingTitle
+					   help: (NSString*) help;
 
 //the finished page view
 - (NSView*) view;

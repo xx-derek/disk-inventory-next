@@ -27,9 +27,11 @@ NSString *firmlinkListFile = @"/usr/share/firmlinks";
 
 void LoadFirmlinks()
 {
-    if ( g_Firmlinks != nil )
-        return;
-    
+    //Read once, and once only: -isFirmlink is asked from every queue walking a
+    //subtree, and the old "build it if it is nil" would have had two of them
+    //building it at the same time, each into the other's half-filled dictionary.
+    static dispatch_once_t onceToken;
+    dispatch_once( &onceToken, ^{
     g_Firmlinks = [[NSMutableDictionary<NSURL*, NSURL*> alloc] init];
     
     // read everything from file
@@ -56,6 +58,7 @@ void LoadFirmlinks()
                 [g_Firmlinks setObject:firmlinkSrcURL forKey:firmlinkSrcURL];
         }
     }
+    });
 }
 
 

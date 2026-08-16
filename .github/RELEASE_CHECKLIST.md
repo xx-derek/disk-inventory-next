@@ -45,9 +45,12 @@ Each item says how confident we already are:
 
 - [ ] Scan a whole volume. *(confirmed)*
 - [ ] Scan a folder. *(confirmed)*
-- [ ] **Cancel a long scan.** *(never run — the one path where a mistake hangs the app
-      rather than merely looking wrong.)* Try it on a big volume and again on a network
-      share. The window should close cleanly and the app stay responsive.
+- [x] **Cancel a long scan.** *(confirmed by hand, after subtrees began being walked
+      concurrently — this is the one path where a mistake hangs the app rather than
+      merely looking wrong.)* Still worth repeating on a **network share**, which is
+      where a cancelled walk has the longest to wait on something, and which the
+      by-hand run is not known to have covered. The window should close cleanly and
+      the app stay responsive.
 - [ ] While a scan runs, confirm the app is genuinely usable: move the window, switch to
       another app and back, watch the progress bar animate smoothly rather than in jerks.
 - [ ] Progress percentage is sensible. *(confirmed)* The **first** scan of a folder shows
@@ -109,6 +112,13 @@ Each item says how confident we already are:
 
 - [ ] ⌘, opens it; the menu item and window read "Settings" on macOS 13+.
 - [ ] Both pages align consistently; help text reads as secondary.
+- [ ] **Scan concurrency**: the pop-up under "Scanning:" offers 1-8 and defaults to 2.
+      Set it to 1 and confirm a scan still completes (that is the serial walk); set it
+      to 8 and confirm a scan is faster and still correct. *(probe only)*
+- [ ] **Cancel a scan at each end of that range** - 1 and 8. Cancellation crosses
+      queues now, so it is worth exercising at both. *(confirmed by hand from the
+      panel at the default of 2; the probe cancels cleanly at 1, 5, 50, 500 and
+      5,000 folders)*
 - [ ] **Every checkbox actually changes behaviour** — this is the real test. Toggle each
       and confirm the effect in a new window: package contents, creator code, physical
       size, horizontal split, the three small-font options, shared kind colours, animated
@@ -126,9 +136,11 @@ Run with `AppleLanguages`, e.g.
 - [ ] **Settings pages in each language.** Their text was migrated out of deleted nibs
       into `Preferences.strings`; it resolved programmatically, but the layout was only
       ever seen in German.
-- [ ] **Have a speaker check five strings I invented**: "File kind colors:", "Zooming:",
-      "Restore Defaults", "Settings", "Settings…". The other settings text is the original
-      translators' work and should be sound.
+- [ ] **Have a speaker check the strings I invented**: "File kind colors:", "Zooming:",
+      "Restore Defaults", "Settings", "Settings…", and the three added for scan
+      concurrency - "Scanning:", "folders at a time", and its explanatory sentence,
+      whose German, Spanish and French are mine and not a translator's. The other
+      settings text is the original translators' work and should be sound.
 - [ ] The donation panel is **English only** — decide whether that ships.
 
 ## Menus and help

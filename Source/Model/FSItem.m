@@ -16,10 +16,11 @@
 
 #import "FSItem.h"
 #import "NSURL-Extensions.h"
+#import <os/lock.h>
 
 //for debugging and logging purposes
-unsigned g_fileCount;
-unsigned g_folderCount;
+_Atomic unsigned g_fileCount;
+_Atomic unsigned g_folderCount;
 static unsigned g_packageCheckCount = 0;
 
 //global cache for kind names, keyed by UTI
@@ -28,6 +29,12 @@ NSMutableDictionary *g_kindNameDictionary = nil;
 //and keyed by what decides the UTI, so most items never need one fetched -
 //see -setKindStringIncludingChildren:
 static NSMutableDictionary *g_kindNameByShape = nil;
+
+//Both dictionaries are process-wide and are now written from several queues at
+//once, since subtrees are walked concurrently. The lock is held only around the
+//dictionary itself, never across a UTTypeCopyDescription, and two queues racing
+//to describe the same type is harmless - they compute the same answer.
+static os_unfair_lock g_kindNameLock = OS_UNFAIR_LOCK_INIT;
 
 //exceptions
 NSString* FSItemLoadingCanceledException = @"FSItemLoadingCanceledException";
@@ -56,6 +63,9 @@ NSString* FSItemLoadingFailedException = @"FSItemLoadingFailedException";
 
 - (void) loadChildrenAndSetKindStrings: (BOOL) setKindStrings
 					   usePhysicalSize: (BOOL) usePhysicalSize;
+
+- (void) loadChildrenConcurrentlyWithKindStrings: (BOOL) setKindStrings
+								 usePhysicalSize: (BOOL) usePhysicalSize;
 
 - (void) setSize: (NSNumber*) size;
 - (void) setSizeValue: (unsigned long long) size;
@@ -128,8 +138,11 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 
 + (void) initialize
 {
-	//instantiate the dictionaries for global kind names cache
+	//instantiate the dictionaries for global kind names cache. Both are made here,
+	//under +initialize's own guarantees, rather than lazily on a walk that now has
+	//several queues in it.
 	g_kindNameDictionary = [[NSMutableDictionary alloc] init];
+	g_kindNameByShape = [[NSMutableDictionary alloc] init];
 }
 
 - (id) initWithPath: (NSString *) path
@@ -435,8 +448,8 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 		usePhysicalSize = [delegate fsItemShouldUsePhysicalFileSize: self];
 	
 	//use new optimized version of loadChilds
-	[self loadChildrenAndSetKindStrings: YES
-						usePhysicalSize: usePhysicalSize];
+	[self loadChildrenConcurrentlyWithKindStrings: YES
+								 usePhysicalSize: usePhysicalSize];
 	
 	LOG (@"package check count: %d", g_packageCheckCount);
 }
@@ -647,19 +660,23 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
                                                    [extension lowercaseString]];
     }
 
-    if ( g_kindNameByShape == nil )
-        g_kindNameByShape = [[NSMutableDictionary alloc] init];
-
-    _kindName = ( shapeKey != nil ) ? [g_kindNameByShape objectForKey: shapeKey] : nil;
+    if ( shapeKey != nil )
+    {
+        os_unfair_lock_lock( &g_kindNameLock );
+        _kindName = [g_kindNameByShape objectForKey: shapeKey];
+        os_unfair_lock_unlock( &g_kindNameLock );
+    }
 
     if ( _kindName == nil )
     {
         NSString *uti = [url cachedUTI];
 
-        if ( g_kindNameDictionary == nil )
-            g_kindNameDictionary = [[NSMutableDictionary alloc] init];
-
-        _kindName = [g_kindNameDictionary objectForKey: uti];
+        if ( uti != nil )
+        {
+            os_unfair_lock_lock( &g_kindNameLock );
+            _kindName = [g_kindNameDictionary objectForKey: uti];
+            os_unfair_lock_unlock( &g_kindNameLock );
+        }
 
         if ( _kindName == nil )
         {
@@ -667,8 +684,12 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
             _kindName = CFBridgingRelease( UTTypeCopyDescription( (__bridge CFStringRef) uti ) );
 
             //remember kind name for similar files
-            if ( _kindName != nil )
+            if ( _kindName != nil && uti != nil )
+            {
+                os_unfair_lock_lock( &g_kindNameLock );
                 [g_kindNameDictionary setObject: _kindName forKey: uti];
+                os_unfair_lock_unlock( &g_kindNameLock );
+            }
         }
 
         if ( _kindName == nil )
@@ -676,7 +697,11 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 
         //so the next item of the same shape does not repeat the lookup
         if ( _kindName != nil && shapeKey != nil )
+        {
+            os_unfair_lock_lock( &g_kindNameLock );
             [g_kindNameByShape setObject: _kindName forKey: shapeKey];
+            os_unfair_lock_unlock( &g_kindNameLock );
+        }
     }
     
     //let our childs do the same
@@ -964,6 +989,67 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 
 //================ implementation FSItem(Private) ======================================================
 
+//The resource keys the walk asks for. Shared by the two entry points below -
+//the concurrent shallow pass over a scan root, and the deep walk of one
+//subtree - so there is one list to keep honest rather than two.
+static NSArray<NSURLResourceKey>* ScanResourceKeys( void )
+{
+	//Every key here is paid for twice per item: the enumerator prefetches them,
+	//and -cacheResourcesInArray: below fetches each one again. So the list is
+	//worth keeping honest.
+	//
+	//NSURLFileSizeKey and NSURLTotalFileAllocatedSizeKey used to be listed
+	//twice each, which simply did that work twice. Measured over /System/Library
+	//(435,460 items), enumerating and fetching every key: 8.99 s with the
+	//duplicates, 8.58 s without them.
+	//
+	//NSURLIsPackageKey is gone, which takes it to 8.41 s. Only a directory can
+	//be a package, and both callers ask only once past a directory test - this
+	//method returns early on ![self isFolder], and -setKindString: short-
+	//circuits on [fileDesc isDirectory] - so the answer was being computed for
+	//every file to be looked at for almost none of them. Nothing sees a
+	//different value: -getCachedResourceValue: falls back to a live fetch and
+	//caches it, so the folders that ask still get an answer.
+	//
+	//The larger cost is NSURLTypeIdentifierKey, and it is deliberately still
+	//here. It and NSURLIsPackageKey are both answered by LaunchServices, which
+	//reads the item's HFS type and creator - opening the file to do it - so
+	//they share that work and dropping only one saves little: without the type
+	//identifier as well the same walk is 6.69 s, against 8.41 s for dropping
+	//IsPackage alone. But the type identifier is what -setKindString: needs,
+	//and every item needs a kind eventually, for the statistics and the
+	//treemap's colours. Dropping it here would defer that cost rather than
+	//remove it, and lose the enumerator's batching with it. Worth revisiting
+	//only together with making kind determination lazy.
+	static NSArray *keys = nil;
+	static dispatch_once_t once;
+	dispatch_once( &once, ^{
+		keys = @[ //NSURLLocalizedNameKey,
+                                           NSURLNameKey,
+                                           NSURLIsVolumeKey,
+                                           NSURLIsDirectoryKey,
+                                           //NSURLIsAliasFileKey covers a Finder alias and a symlink
+                                           //alike, and is what keeps those off the extension-keyed
+                                           //kind cache. It rides along in the cheap attribute batch;
+                                           //NSURLTypeIdentifierKey, which used to be here, does not -
+                                           //it is answered by LaunchServices, one file open each, and
+                                           //is now fetched only for the first item of a given shape.
+                                           NSURLIsAliasFileKey,
+                                           //NSURLLocalizedTypeDescriptionKey,
+                                           //NSURLTotalFileSizeKey rather than NSURLFileSizeKey: the
+                                           //two size accessors ask for TotalFileSize and
+                                           //TotalFileAllocatedSize, so prefetching FileSizeKey
+                                           //cached a key nothing reads first while leaving the one
+                                           //logical sizes actually want to be fetched per file,
+                                           //outside the enumerator's batch. It is also what
+                                           //-cachedPhysicalSize falls back to.
+                                           NSURLTotalFileSizeKey,
+                                           NSURLTotalFileAllocatedSizeKey ];
+	});
+
+	return keys;
+}
+
 @implementation FSItem(Private)
 
 - (id) initWithURL: (NSURL*)url
@@ -1020,6 +1106,148 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 	_parent = nil;
 }
 
+
+//How many subtrees to walk at once when the delegate does not say. The walk is
+//I/O bound - sampling it finds getattrlistbulk and the open(2) of each
+//directory, with userspace down to noise - so what this buys is several
+//requests outstanding at a time rather than several cores busy. Measured over
+///System/Library: 1.52x at two, 1.96x at four, 2.23x at eight, and flat after.
+//
+//The document answers with the ScanConcurrency preference instead, because the
+//best value depends on the drive rather than on the machine: an internal SSD
+//likes several requests in flight, a network share may not. Two is the default
+//there - a real gain, and a modest number of directories open at once.
+static const NSUInteger kDefaultConcurrentSubtreeWalks = 2;
+
+//The scan root is walked one level deep, and each subdirectory below it is then
+//walked whole, several at a time. Everything under a given subdirectory stays on
+//one queue, so the deep walk itself is untouched - it is the same method the
+//firmlink case has always called.
+//
+//Splitting only at the top level is crude: a root whose weight is in one child
+//gains little, which is what /Applications does (1.48x, where /System/Library
+//gets 2.23x). It is also the split that needs no changes to the tree building at
+//all, since each queue owns its own subtree and touches nobody else's array.
+- (void) loadChildrenConcurrentlyWithKindStrings: (BOOL) setKindStrings
+								 usePhysicalSize: (BOOL) usePhysicalSize
+{
+	if ( ![self isFolder] )
+		return;
+
+	id delegate = [self delegate];
+
+	if ( [delegate respondsToSelector: @selector(fsItemEnteringFolder:)]
+		 && ![delegate fsItemEnteringFolder: self] )
+	{
+		[NSException raise: FSItemLoadingCanceledException format: @""];
+	}
+
+	_childs = [[NSMutableArray alloc] init];
+
+	NSArray<NSURLResourceKey> *urlProperties = ScanResourceKeys();
+
+	NSDirectoryEnumerator *dirEnum =
+		[[NSFileManager defaultManager] enumeratorAtURL: [self fileURL]
+							 includingPropertiesForKeys: urlProperties
+												options: NSDirectoryEnumerationSkipsSubdirectoryDescendants
+										   errorHandler: ^(NSURL *url, NSError *error)
+		{
+			LOG(@"error listing '%@': %@", [url path], error);
+			return (BOOL) ![url isEqualToURL: [self fileURL]];
+		}];
+
+	NSUInteger concurrency = kDefaultConcurrentSubtreeWalks;
+
+	if ( [delegate respondsToSelector: @selector(fsItemMaxConcurrentSubtreeWalks:)] )
+		concurrency = [delegate fsItemMaxConcurrentSubtreeWalks: self];
+
+	if ( concurrency < 1 )
+		concurrency = 1;
+
+	NSMutableArray<FSItem*> *subtrees = [[NSMutableArray alloc] init];
+
+	for ( NSURL *currentUrl in dirEnum )
+	{
+		[currentUrl cacheResourcesInArray: urlProperties];
+
+		FSItem *child = [[FSItem alloc] initWithURL: currentUrl
+											 parent: self
+									  setKindString: setKindStrings];
+
+		//a volume mounted below this folder is somebody else's tree - the deep
+		//walk has always declined to follow one, and so does this
+		if ( [currentUrl cachedIsDirectory] && ![currentUrl cachedIsVolume] )
+			[subtrees addObject: child];
+	}
+
+	if ( concurrency > 1 && [subtrees count] > 1 )
+	{
+		dispatch_queue_t queue = dispatch_get_global_queue( QOS_CLASS_UTILITY, 0 );
+		dispatch_group_t group = dispatch_group_create();
+		dispatch_semaphore_t slots = dispatch_semaphore_create( (intptr_t) concurrency );
+
+		//A cancelled scan raises, and an exception raised on one of these queues
+		//cannot be caught by whoever called us - the same reason
+		//-_runScanBlockOffMainThread: carries one back by hand. So each subtree
+		//catches its own and the first is re-raised here, on the calling thread,
+		//where the existing machinery is waiting for it.
+		__block NSException *failure = nil;
+		NSLock *failureLock = [[NSLock alloc] init];
+
+		for ( FSItem *subtree in subtrees )
+		{
+			[failureLock lock];
+			const BOOL alreadyFailed = ( failure != nil );
+			[failureLock unlock];
+
+			//cancelling should stop handing out work, not merely stop doing it
+			if ( alreadyFailed )
+				break;
+
+			dispatch_semaphore_wait( slots, DISPATCH_TIME_FOREVER );
+
+			dispatch_group_async( group, queue, ^{
+				@autoreleasepool
+				{
+					@try
+					{
+						[subtree loadChildrenAndSetKindStrings: setKindStrings
+											   usePhysicalSize: usePhysicalSize];
+					}
+					@catch ( NSException *exception )
+					{
+						[failureLock lock];
+						if ( failure == nil )
+							failure = exception;
+						[failureLock unlock];
+					}
+				}
+
+				dispatch_semaphore_signal( slots );
+			});
+		}
+
+		dispatch_group_wait( group, DISPATCH_TIME_FOREVER );
+
+		if ( failure != nil )
+			[failure raise];
+	}
+	else
+	{
+		for ( FSItem *subtree in subtrees )
+			[subtree loadChildrenAndSetKindStrings: setKindStrings
+								   usePhysicalSize: usePhysicalSize];
+	}
+
+	if ( [delegate respondsToSelector: @selector(fsItemExittingFolder:)]
+		 && ![delegate fsItemExittingFolder: self] )
+	{
+		[NSException raise: FSItemLoadingCanceledException format: @""];
+	}
+
+	[self recalculateSize: usePhysicalSize updateParent: NO];
+}
+
 - (void) loadChildrenAndSetKindStrings: (BOOL) setKindStrings
 					   usePhysicalSize: (BOOL) usePhysicalSize
 {
@@ -1048,54 +1276,7 @@ static BOOL PasteboardTypeMatches( NSPasteboardType type, NSPasteboardType wante
 		}
 	}
     
-    //Every key here is paid for twice per item: the enumerator prefetches them,
-    //and -cacheResourcesInArray: below fetches each one again. So the list is
-    //worth keeping honest.
-    //
-    //NSURLFileSizeKey and NSURLTotalFileAllocatedSizeKey used to be listed
-    //twice each, which simply did that work twice. Measured over /System/Library
-    //(435,460 items), enumerating and fetching every key: 8.99 s with the
-    //duplicates, 8.58 s without them.
-    //
-    //NSURLIsPackageKey is gone, which takes it to 8.41 s. Only a directory can
-    //be a package, and both callers ask only once past a directory test - this
-    //method returns early on ![self isFolder], and -setKindString: short-
-    //circuits on [fileDesc isDirectory] - so the answer was being computed for
-    //every file to be looked at for almost none of them. Nothing sees a
-    //different value: -getCachedResourceValue: falls back to a live fetch and
-    //caches it, so the folders that ask still get an answer.
-    //
-    //The larger cost is NSURLTypeIdentifierKey, and it is deliberately still
-    //here. It and NSURLIsPackageKey are both answered by LaunchServices, which
-    //reads the item's HFS type and creator - opening the file to do it - so
-    //they share that work and dropping only one saves little: without the type
-    //identifier as well the same walk is 6.69 s, against 8.41 s for dropping
-    //IsPackage alone. But the type identifier is what -setKindString: needs,
-    //and every item needs a kind eventually, for the statistics and the
-    //treemap's colours. Dropping it here would defer that cost rather than
-    //remove it, and lose the enumerator's batching with it. Worth revisiting
-    //only together with making kind determination lazy.
-    NSArray<NSString*> *urlProperties = @[ //NSURLLocalizedNameKey,
-                                           NSURLNameKey,
-                                           NSURLIsVolumeKey,
-                                           NSURLIsDirectoryKey,
-                                           //NSURLIsAliasFileKey covers a Finder alias and a symlink
-                                           //alike, and is what keeps those off the extension-keyed
-                                           //kind cache. It rides along in the cheap attribute batch;
-                                           //NSURLTypeIdentifierKey, which used to be here, does not -
-                                           //it is answered by LaunchServices, one file open each, and
-                                           //is now fetched only for the first item of a given shape.
-                                           NSURLIsAliasFileKey,
-                                           //NSURLLocalizedTypeDescriptionKey,
-                                           //NSURLTotalFileSizeKey rather than NSURLFileSizeKey: the
-                                           //two size accessors ask for TotalFileSize and
-                                           //TotalFileAllocatedSize, so prefetching FileSizeKey
-                                           //cached a key nothing reads first while leaving the one
-                                           //logical sizes actually want to be fetched per file,
-                                           //outside the enumerator's batch. It is also what
-                                           //-cachedPhysicalSize falls back to.
-                                           NSURLTotalFileSizeKey,
-                                           NSURLTotalFileAllocatedSizeKey ];
+    NSArray<NSString*> *urlProperties = ScanResourceKeys();
 
     // stack of directories (Path to directory currently beeing canned)
     NSMutableArray<FSItem*> *itemStack = [[NSMutableArray alloc] init];

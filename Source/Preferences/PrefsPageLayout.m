@@ -44,6 +44,7 @@ static const CGFloat kMinimumHelpTextWidth = 320.0;
 		return nil;
 
 	_checkboxes = [[NSMutableArray alloc] init];
+	_controls = [[NSMutableArray alloc] init];
 	_helpFields = [[NSMutableArray alloc] init];
 
 	_grid = [[NSGridView alloc] initWithFrame: NSZeroRect];
@@ -122,6 +123,71 @@ static const CGFloat kMinimumHelpTextWidth = 320.0;
 	NSGridRow *helpRow = [_grid addRowWithViews: @[ [NSGridCell emptyContentView], helpField ]];
 
 	//tighter to the checkbox it explains than to the next setting
+	[helpRow setTopPadding: -2.0];
+	[helpRow setBottomPadding: 4.0];
+}
+
+
+- (void) addPopUpWithValues: (NSArray<NSNumber*>*) values
+				defaultsKey: (NSString*) defaultsKey
+			  trailingTitle: (NSString*) trailingTitle
+					   help: (NSString*) help
+{
+	NSPopUpButton *popUp = [[NSPopUpButton alloc] initWithFrame: NSZeroRect pullsDown: NO];
+
+	for ( NSNumber *value in values )
+	{
+		[popUp addItemWithTitle: [value stringValue]];
+		//the tag carries the value, so the binding below stores the number the
+		//user chose and not where it happened to sit in the menu
+		[[popUp lastItem] setTag: [value integerValue]];
+	}
+
+	[popUp sizeToFit];
+	[popUp setTranslatesAutoresizingMaskIntoConstraints: NO];
+	[[popUp widthAnchor] constraintEqualToConstant: NSWidth( [popUp frame] )].active = YES;
+
+	//as the checkboxes do: the shared controller is what makes a change take
+	//effect at once and what lets Restore Defaults show up without a reload
+	[popUp bind: NSSelectedTagBinding
+	   toObject: [NSUserDefaultsController sharedUserDefaultsController]
+	withKeyPath: [@"values." stringByAppendingString: defaultsKey]
+		options: nil];
+
+	NSTextField *caption =
+		[NSTextField labelWithString: NSLocalizedStringFromTable( trailingTitle, PrefsStringsTable, @"" )];
+
+	NSStackView *row = [NSStackView stackViewWithViews: @[ popUp, caption ]];
+	[row setOrientation: NSUserInterfaceLayoutOrientationHorizontal];
+	[row setAlignment: NSLayoutAttributeCenterY];
+	[row setSpacing: 6.0];
+
+	NSView *labelCell = ( _pendingSectionLabel != nil )
+						? (NSView*) [self labelWithString: _pendingSectionLabel]
+						: [NSGridCell emptyContentView];
+	_pendingSectionLabel = nil;
+
+	[_grid addRowWithViews: @[ labelCell, row ]];
+
+	[_controls addObject: popUp];
+
+	if ( _firstCheckbox == nil )
+		_firstCheckbox = (NSButton*) popUp;
+	_lastCheckbox = (NSButton*) popUp;
+
+	if ( [help length] == 0 )
+		return;
+
+	NSTextField *helpField =
+		[NSTextField wrappingLabelWithString: NSLocalizedStringFromTable( help, PrefsStringsTable, @"" )];
+
+	[helpField setFont: [NSFont systemFontOfSize: [NSFont smallSystemFontSize]]];
+	[helpField setTextColor: [NSColor secondaryLabelColor]];
+	[helpField setSelectable: NO];
+
+	[_helpFields addObject: helpField];
+
+	NSGridRow *helpRow = [_grid addRowWithViews: @[ [NSGridCell emptyContentView], helpField ]];
 	[helpRow setTopPadding: -2.0];
 	[helpRow setBottomPadding: 4.0];
 }

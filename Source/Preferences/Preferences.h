@@ -24,6 +24,12 @@ extern NSString *UseSmallFontInSelectionList;
 extern NSString *SplitWindowHorizontally;
 extern NSString *AnimatedZooming;
 extern NSString *EnableLogging;
+
+//How many subdirectories of the folder being scanned are walked at once. 1 walks
+//everything in order, which is what the scan did before this was settable.
+extern NSString *ScanConcurrency;
+extern const NSInteger ScanConcurrencyMinimum;
+extern const NSInteger ScanConcurrencyMaximum;
 extern NSString *DontShowDonationMessage;
 extern NSString *DontShowPrivacyWarningMessage;
 extern NSString *ShareKindColors;
