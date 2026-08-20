@@ -16,6 +16,7 @@
 
 
 #import <Cocoa/Cocoa.h>
+#import "DIXScanHistory.h"
 #import "FSItem.h"
 #import "Preferences.h"
 #import "LoadingPanelController.h"
@@ -92,6 +93,7 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 	//overwrites it - see -previousScanSize.
 	unsigned long long _previousScanSize;
 	NSDate *_previousScanDate;
+	NSArray *_changesSinceLastScan;
 
 	//What the summary strip reports. The counts are derived from the tree and
 	//cached, rather than read from FSItem's g_fileCount/g_folderCount: those are
@@ -228,6 +230,9 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 //What the last scan of this folder found, and when, or zero and nil if this is
 //the first. Read at the moment the tree completes, because recording this scan
 //is what overwrites it.
+//What is a different size than it was, biggest first; empty on a first scan.
+- (NSArray<DIXScanChange*>*) changesSinceLastScan;
+
 - (unsigned long long) previousScanSize;
 - (NSDate*) previousScanDate;
 

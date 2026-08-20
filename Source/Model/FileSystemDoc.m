@@ -25,6 +25,7 @@
 #import "FSItem-Utilities.h"
 #import "NSFileManager-Extensions.h"
 #import "DIXRecentScans.h"
+#import "DIXScanHistory.h"
 #import "FSItemIndex.h"
 
 NSString *CollectFileKindStatisticsCanceledException = @"CollectFileKindStatisticsCanceledException";
@@ -322,6 +323,12 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 
 		_previousScanSize = [previous size];
 		_previousScanDate = [previous scannedAt];
+
+		//What changed, worked out against the last snapshot before this scan
+		//overwrites it. Held on the document because the window is not built yet.
+		_changesSinceLastScan = [[DIXScanHistory sharedHistory] changesForItem: rootItem];
+
+		[[DIXScanHistory sharedHistory] recordSnapshotForItem: rootItem];
 
 		//What the sidebar offers as somewhere you have already been. Recorded
 		//here rather than when the document opened, because only now is there a
@@ -1242,6 +1249,11 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 }
 
 #pragma mark --------the view mode-----------------
+
+- (NSArray<DIXScanChange*>*) changesSinceLastScan
+{
+	return _changesSinceLastScan;
+}
 
 - (unsigned long long) previousScanSize
 {

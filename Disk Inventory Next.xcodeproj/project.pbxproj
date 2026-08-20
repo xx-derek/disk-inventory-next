@@ -80,6 +80,7 @@
 		DEC8DE000000000000000C /* DIXSiblingsView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE000000000000000B /* DIXSiblingsView.m */; };
 		DEC8DE000000000000000F /* DIXTableHeaderView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE000000000000000E /* DIXTableHeaderView.m */; };
 		DEC8DE0000000000000012 /* DIXRecentScans.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000011 /* DIXRecentScans.m */; };
+		DEC8DE0000000000000032 /* DIXScanHistory.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000031 /* DIXScanHistory.m */; };
 		DEC8DE0000000000000022 /* DIXScanPickerController.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000021 /* DIXScanPickerController.m */; };
 /* End PBXBuildFile section */
 
@@ -257,6 +258,8 @@
 		DEC8DE000000000000000E /* DIXTableHeaderView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXTableHeaderView.m; sourceTree = "<group>"; };
 		DEC8DE0000000000000010 /* DIXRecentScans.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXRecentScans.h; sourceTree = "<group>"; };
 		DEC8DE0000000000000011 /* DIXRecentScans.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXRecentScans.m; sourceTree = "<group>"; };
+		DEC8DE0000000000000030 /* DIXScanHistory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXScanHistory.h; sourceTree = "<group>"; };
+		DEC8DE0000000000000031 /* DIXScanHistory.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXScanHistory.m; sourceTree = "<group>"; };
 		DEC8DE0000000000000020 /* DIXScanPickerController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXScanPickerController.h; sourceTree = "<group>"; };
 		DEC8DE0000000000000021 /* DIXScanPickerController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXScanPickerController.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -373,6 +376,8 @@
 				DEC8DE0000000000000002 /* DIXVolumeList.m */,
 				DEC8DE0000000000000010 /* DIXRecentScans.h */,
 				DEC8DE0000000000000011 /* DIXRecentScans.m */,
+				DEC8DE0000000000000030 /* DIXScanHistory.h */,
+				DEC8DE0000000000000031 /* DIXScanHistory.m */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -688,6 +693,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DEC8DE0000000000000012 /* DIXRecentScans.m in Sources */,
+				DEC8DE0000000000000032 /* DIXScanHistory.m in Sources */,
 				DEC8DE0000000000000022 /* DIXScanPickerController.m in Sources */,
 				DEC8DE000000000000000F /* DIXTableHeaderView.m in Sources */,
 				DEC8DE000000000000000C /* DIXSiblingsView.m in Sources */,
