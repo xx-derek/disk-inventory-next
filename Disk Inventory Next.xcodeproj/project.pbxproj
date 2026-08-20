@@ -75,6 +75,8 @@
 		DEC6DE000000000000000005 /* CoreImage.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DEC6DE000000000000000004 /* CoreImage.framework */; };
 		DEC2DE000000000000000003 /* NSAlert-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC2DE000000000000000002 /* NSAlert-Extensions.m */; };
 		DEC4DE000000000000000003 /* NSImage-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC4DE000000000000000002 /* NSImage-Extensions.m */; };
+		DEC7DE000000000000000003 /* DIXTheme.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC7DE000000000000000002 /* DIXTheme.m */; };
+		DEC7DE000000000000000006 /* DIXControls.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC7DE000000000000000005 /* DIXControls.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -245,6 +247,10 @@
 		DEC2DE000000000000000002 /* NSAlert-Extensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSAlert-Extensions.m"; sourceTree = "<group>"; };
 		DEC4DE000000000000000001 /* NSImage-Extensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSImage-Extensions.h"; sourceTree = "<group>"; };
 		DEC4DE000000000000000002 /* NSImage-Extensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSImage-Extensions.m"; sourceTree = "<group>"; };
+		DEC7DE000000000000000001 /* DIXTheme.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXTheme.h; sourceTree = "<group>"; };
+		DEC7DE000000000000000002 /* DIXTheme.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXTheme.m; sourceTree = "<group>"; };
+		DEC7DE000000000000000004 /* DIXControls.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXControls.h; sourceTree = "<group>"; };
+		DEC7DE000000000000000005 /* DIXControls.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXControls.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -316,6 +322,7 @@
 				DEC3DE000000000000000006 /* Views */,
 				DEC3DE000000000000000007 /* Extensions */,
 				DEC3DE000000000000000008 /* Helpers */,
+				DEC7DE000000000000000007 /* Theme */,
 				DEC0DE00000000000000003C /* TreeMapView */,
 			);
 			path = Source;
@@ -448,6 +455,17 @@
 				FCB2FDC32375F4E100DC4806 /* NSFileManager-Extensions.m */,
 			);
 			path = Extensions;
+			sourceTree = "<group>";
+		};
+		DEC7DE000000000000000007 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				DEC7DE000000000000000001 /* DIXTheme.h */,
+				DEC7DE000000000000000002 /* DIXTheme.m */,
+				DEC7DE000000000000000004 /* DIXControls.h */,
+				DEC7DE000000000000000005 /* DIXControls.m */,
+			);
+			path = Theme;
 			sourceTree = "<group>";
 		};
 		DEC3DE000000000000000008 /* Helpers */ = {
@@ -647,6 +665,8 @@
 			files = (
 				DEC2DE000000000000000003 /* NSAlert-Extensions.m in Sources */,
 				DEC4DE000000000000000003 /* NSImage-Extensions.m in Sources */,
+				DEC7DE000000000000000003 /* DIXTheme.m in Sources */,
+				DEC7DE000000000000000006 /* DIXControls.m in Sources */,
 				DEC1DE000000000000000003 /* ToolbarWindowController.m in Sources */,
 				DEC1DE000000000000000006 /* PrefsPageRecord.m in Sources */,
 				DEC5DE000000000000000003 /* PrefsPageLayout.m in Sources */,

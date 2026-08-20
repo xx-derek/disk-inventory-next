@@ -138,6 +138,9 @@ NSString *CollectFileKindStatisticsCanceledException = @"CollectFileKindStatisti
 - (BOOL) _scanWasCancelled;
 - (void) _cancelScan;
 - (void) _beginScan;
+
+- (void) _recalculateBasketSize;
+- (void) _pruneReclaimBasket;
 @end
 
 @interface FileSystemDoc(Private)
@@ -175,6 +178,9 @@ NSString *ViewOptionChangedNotification = @"ViewOptionsChangedNotification";
 NSString *ChangedViewOption = @"ChangedViewOption";
 NSString *NewItem = @"NewItem";
 NSString *OldItem = @"OldItem";
+NSString *ReclaimBasketChangedNotification = @"ReclaimBasketChanged";
+NSString *DIXKindFilterOption = @"DIXKindFilter";
+NSString *DIXViewModeOption = @"DIXViewMode";
 
 @implementation FileSystemDoc
 
@@ -187,9 +193,15 @@ NSString *OldItem = @"OldItem";
         // If an error occurs here, send a [self release] message and return nil.
 		
         _zoomStack = [[NSMutableArray alloc] init];
-		
+
 		_viewOptions = [[NSMutableDictionary alloc] initWithDefaults];
-		
+
+		_basketItems = [[NSMutableSet alloc] init];
+
+		//Map until the window controller has a width to judge by; it promotes
+		//this to Both once it knows the content is wide enough.
+		_viewMode = DIXViewModeMap;
+
 		NSUserDefaultsController *sharedDefsController = [NSUserDefaultsController sharedUserDefaultsController];
 		[sharedDefsController addObserver: self
 							   forKeyPath: [@"values." stringByAppendingString: ShareKindColors]
@@ -528,7 +540,10 @@ NSString *OldItem = @"OldItem";
     
 	//"checkTrash" may have editied the kind statistic, so notify observers but now
 	[self didChangeValueForKey: @"kindStatistics"];
-	
+
+	//the item just trashed may have been ticked for reclaiming
+	[self _pruneReclaimBasket];
+
 	//notify observers of the change
 	[[NSNotificationCenter defaultCenter] postNotificationName: FSItemsChangedNotification object: self];
 	
@@ -673,7 +688,11 @@ NSString *OldItem = @"OldItem";
 	{
 		if ( [_zoomStack lastObject] == item )
 			[_zoomStack replaceObjectAtIndex: ([_zoomStack count]-1) withObject: refreshedItem];
-		
+
+		//a refresh replaces FSItems wholesale, so anything in the basket that
+		//has gone from disk has to drop out before the change is announced
+		[self _pruneReclaimBasket];
+
 		//notify observers of the change
 		[[NSNotificationCenter defaultCenter] postNotificationName: FSItemsChangedNotification object: self];
 	}
@@ -810,6 +829,182 @@ NSString *OldItem = @"OldItem";
 	//keep info panel in sync
 	if ( [[InfoPanelController sharedController] panelIsVisible] )
 		[[InfoPanelController sharedController] showPanelWithFSItem: _selectedItem];
+}
+
+#pragma mark --------the kind filter-----------------
+
+- (NSString*) kindFilter
+{
+	return _kindFilter;
+}
+
+- (void) setKindFilter: (NSString*) kindName
+{
+	if ( _kindFilter == kindName || [_kindFilter isEqualToString: kindName] )
+		return;
+
+	_kindFilter = [kindName copy];
+
+	//A selection that the filter now hides would leave the inspector describing
+	//something the user cannot see.
+	if ( _selectedItem != nil && ![self itemPassesKindFilter: _selectedItem] )
+		[self setSelectedItem: nil];
+
+	[self postViewOptionChangedNotificationForOption: DIXKindFilterOption];
+}
+
+- (BOOL) itemPassesKindFilter: (FSItem*) item
+{
+	if ( _kindFilter == nil || item == nil )
+		return YES;
+
+	//Free and other space are not file kinds. Filtering them out would quietly
+	//change what the map's total stands for, which is the one number the whole
+	//window is built around.
+	if ( [item isSpecialItem] )
+		return YES;
+
+	//A folder passes when anything inside it does, or the filter would empty
+	//every branch and leave the map blank.
+	if ( [self itemIsNode: item] )
+		return YES;
+
+	return [[item kindName] isEqualToString: _kindFilter];
+}
+
+#pragma mark --------the reclaim basket-----------------
+
+- (NSSet<FSItem*>*) basketItems
+{
+	return ( _basketItems != nil ) ? [_basketItems copy] : [NSSet set];
+}
+
+- (BOOL) isItemInBasket: (FSItem*) item
+{
+	return item != nil && [_basketItems containsObject: item];
+}
+
+- (void) toggleBasketItem: (FSItem*) item
+{
+	if ( item == nil || [item isSpecialItem] )
+		return;
+
+	if ( _basketItems == nil )
+		_basketItems = [[NSMutableSet alloc] init];
+
+	if ( [_basketItems containsObject: item] )
+		[_basketItems removeObject: item];
+	else
+		[_basketItems addObject: item];
+
+	[self _recalculateBasketSize];
+
+	[[NSNotificationCenter defaultCenter] postNotificationName: ReclaimBasketChangedNotification
+														object: self];
+}
+
+//Used by the change view's "Review ..." button, which fills the basket in one
+//go rather than a notification per row.
+- (void) addItemsToBasket: (NSArray<FSItem*>*) items
+{
+	if ( [items count] == 0 )
+		return;
+
+	if ( _basketItems == nil )
+		_basketItems = [[NSMutableSet alloc] init];
+
+	for ( FSItem *item in items )
+	{
+		if ( ![item isSpecialItem] )
+			[_basketItems addObject: item];
+	}
+
+	[self _recalculateBasketSize];
+
+	[[NSNotificationCenter defaultCenter] postNotificationName: ReclaimBasketChangedNotification
+														object: self];
+}
+
+- (void) clearBasket
+{
+	if ( [_basketItems count] == 0 )
+		return;
+
+	[_basketItems removeAllObjects];
+	_basketSize = 0;
+
+	[[NSNotificationCenter defaultCenter] postNotificationName: ReclaimBasketChangedNotification
+														object: self];
+}
+
+- (NSUInteger) basketCount
+{
+	return [_basketItems count];
+}
+
+- (unsigned long long) basketSize
+{
+	return _basketSize;
+}
+
+- (void) _recalculateBasketSize
+{
+	//Summed rather than accumulated: an item's size can change under us when a
+	//folder in the basket is refreshed, and a running total would drift.
+	unsigned long long total = 0;
+
+	for ( FSItem *item in _basketItems )
+		total += [item sizeValue];
+
+	_basketSize = total;
+}
+
+//Called wherever the tree is mutated, before the change is announced. An item
+//that has been trashed or has gone with an ejected volume must not keep
+//contributing to the reclaim total - and must not be handed to -moveItemToTrash:
+//a second time.
+- (void) _pruneReclaimBasket
+{
+	if ( [_basketItems count] == 0 )
+		return;
+
+	NSMutableSet<FSItem*> *gone = [NSMutableSet set];
+
+	for ( FSItem *item in _basketItems )
+	{
+		if ( ![[item fileURL] stillExists] )
+			[gone addObject: item];
+	}
+
+	if ( [gone count] == 0 )
+	{
+		//sizes may still have moved even when the membership has not
+		[self _recalculateBasketSize];
+		return;
+	}
+
+	[_basketItems minusSet: gone];
+	[self _recalculateBasketSize];
+
+	[[NSNotificationCenter defaultCenter] postNotificationName: ReclaimBasketChangedNotification
+														object: self];
+}
+
+#pragma mark --------the view mode-----------------
+
+- (DIXViewMode) viewMode
+{
+	return _viewMode;
+}
+
+- (void) setViewMode: (DIXViewMode) mode
+{
+	if ( _viewMode == mode )
+		return;
+
+	_viewMode = mode;
+
+	[self postViewOptionChangedNotificationForOption: DIXViewModeOption];
 }
 
 - (NSString *)fileName

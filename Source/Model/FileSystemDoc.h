@@ -48,6 +48,17 @@
 
 @end
 
+//Which of the two views of the tree the window is showing. "Both" is the
+//default whenever the window is wide enough to hold sidebar, list and a usable
+//map; below that it falls back to Map. Map and List stay deliberate choices,
+//remembered per document.
+typedef NS_ENUM( NSInteger, DIXViewMode )
+{
+	DIXViewModeMap  = 0,
+	DIXViewModeList = 1,
+	DIXViewModeBoth = 2,
+};
+
 @interface FileSystemDoc : NSDocument
 {
     FSItem *_rootItem;
@@ -56,7 +67,18 @@
     NSMutableDictionary *_fileKindStatistics;	//dictionary: kind name -> FileKindStatistic
 	NSMutableDictionary *_viewOptions;
 	FileTypeColors *_kindColors;
-	
+
+	//The kind the map and the lists are narrowed to, or nil for all kinds.
+	NSString *_kindFilter;
+
+	//The items ticked for reclaiming, and the sum of their sizes. The set is
+	//the truth; the total is cached because the reclaim bar redraws far more
+	//often than the set changes.
+	NSMutableSet<FSItem*> *_basketItems;
+	unsigned long long _basketSize;
+
+	DIXViewMode _viewMode;
+
 	//these variables are used during the initial directory scan
 	LoadingPanelController *_progressController;
 
@@ -110,6 +132,38 @@
 
 - (void) refreshFileKindStatistics;
 
+#pragma mark --------the kind filter-----------------
+
+//The kind name the map and the lists are narrowed to, or nil for all kinds.
+//Setting it posts a "ViewOptionChangedNotification" naming DIXKindFilterOption.
+- (NSString*) kindFilter;
+- (void) setKindFilter: (NSString*) kindName;
+
+//YES when "item" should be drawn under the current filter. Special items are
+//always shown: free and other space are not file kinds, so filtering them out
+//would silently change what the total means.
+- (BOOL) itemPassesKindFilter: (FSItem*) item;
+
+#pragma mark --------the reclaim basket-----------------
+
+//The items ticked for reclaiming. Changes post a
+//"ReclaimBasketChangedNotification"; the userInfo is nil, since the basket is
+//read back through these accessors.
+- (NSSet<FSItem*>*) basketItems;
+- (BOOL) isItemInBasket: (FSItem*) item;
+- (void) toggleBasketItem: (FSItem*) item;
+- (void) addItemsToBasket: (NSArray<FSItem*>*) items;
+- (void) clearBasket;
+
+- (NSUInteger) basketCount;
+- (unsigned long long) basketSize;
+
+#pragma mark --------the view mode-----------------
+
+//Posts a "ViewOptionChangedNotification" naming DIXViewModeOption.
+- (DIXViewMode) viewMode;
+- (void) setViewMode: (DIXViewMode) mode;
+
 @end
 
 /* keys for Key Value Observing (KVO) */
@@ -123,3 +177,12 @@ extern NSString *ViewOptionChangedNotification; //the name of the changed option
 extern NSString *ChangedViewOption;
 extern NSString *NewItem;
 extern NSString *OldItem;
+
+//the reclaim basket gained or lost items, or was emptied; userInfo is nil
+extern NSString *ReclaimBasketChangedNotification;
+
+//Option names carried by ViewOptionChangedNotification for the two settings
+//that are not user defaults. The rest of the options are named by their
+//defaults key, which is why these are spelled like keys but are not registered.
+extern NSString *DIXKindFilterOption;
+extern NSString *DIXViewModeOption;
