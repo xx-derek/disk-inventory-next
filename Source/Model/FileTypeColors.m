@@ -66,6 +66,31 @@
         COLOR(0.88, 0.48, 0.90),    //magenta
         nil];
 
+    _modernColors = _predefinedColors;
+
+    //The original application's palette, kept whole rather than approximated:
+    //six saturated primaries and their pastel halves. It is not a worse version
+    //of the table above, it is the other half of a different design - those
+    //colours were drawn with an ambient floor of 0.10, where a cell ran from its
+    //full colour at the centre to near black at the rim, and the pure primaries
+    //are what survives that. Under the modern floor they look flat, and the
+    //modern pastels under the original floor wash out; the palette and the
+    //shading constants change together or neither does.
+    _classicColors = [[NSMutableArray alloc] initWithObjects:
+        COLOR(0, 0, 1),
+        COLOR(1, 0, 0),
+        COLOR(0, 1, 0),
+        COLOR(0, 1, 1),
+        COLOR(1, 0, 1),
+        COLOR(1, 1, 0),
+        COLOR(0.58, 0.58, 1),
+        COLOR(1, 0.58, 0.58),
+        COLOR(0.58, 1, 0.58),
+        COLOR(0.58, 1, 1),
+        COLOR(1, 0.58, 1),
+        COLOR(1, 1, 0.58),
+        nil];
+
 #undef COLOR
 
     unsigned i;
@@ -76,6 +101,25 @@
     }
     
     return self;
+}
+
+- (BOOL) usesClassicPalette
+{
+	return _usesClassicPalette;
+}
+
+//Swapping the table throws away every kind's assignment: the colours are handed
+//out in order as kinds are met, so the same scan has to be re-coloured or half
+//the map would keep the palette it was drawn with.
+- (void) setUsesClassicPalette: (BOOL) classic
+{
+	if ( _usesClassicPalette == classic )
+		return;
+
+	_usesClassicPalette = classic;
+	_predefinedColors = classic ? _classicColors : _modernColors;
+
+	[self reset];
 }
 
 - (void) reset

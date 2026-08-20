@@ -42,6 +42,14 @@
 				  defaultsKey: ShowOtherSpace
 						 help: @"This shows space used by not shown files and folders like a file in the treemap. It helps to see how the opened folder compares in size to the rest of the files on the same drive. This option is only available if not a whole drive is shown."];
 
+	[layout addCheckboxTitled: @"Label Large Cells"
+				  defaultsKey: LabelLargeCells
+						 help: @"Write the name and size into cells big enough to hold them."];
+
+	[layout addCheckboxTitled: @"Classic Cushion Shading"
+				  defaultsKey: ClassicCushions
+						 help: @"Draw cells as nested pillows, the way Disk Inventory X always has. Turned off, each cell is flat with a bevelled edge, which stays readable when the map is dense - a pillow stretched across a large cell reads as a glow rather than as a shape."];
+
 	[self setLayout: layout];
 
 	return [layout view];

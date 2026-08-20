@@ -22,6 +22,8 @@ NSString *UseSmallFontInFilesView		= @"UseSmallFontInFilesView";
 NSString *UseSmallFontInSelectionList	= @"UseSmallFontInSelectionList";
 NSString *SplitWindowHorizontally		= @"SplitWindowHorizontally";
 NSString *AnimatedZooming				= @"AnimatedZooming";
+NSString *LabelLargeCells				= @"LabelLargeCells";
+NSString *ClassicCushions				= @"ClassicCushions";
 NSString *EnableLogging					= @"EnableLogging";
 NSString *ScanConcurrency				= @"ScanConcurrency";
 

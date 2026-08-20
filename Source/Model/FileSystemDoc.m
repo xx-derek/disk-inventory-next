@@ -141,6 +141,9 @@ NSString *CollectFileKindStatisticsCanceledException = @"CollectFileKindStatisti
 
 - (void) _recalculateBasketSize;
 - (void) _pruneReclaimBasket;
+- (void) _recountItemsIfNeeded;
+- (void) _countItemsUnder: (FSItem*) item files: (NSUInteger*) files folders: (NSUInteger*) folders;
+- (void) _invalidateItemCounts;
 @end
 
 @interface FileSystemDoc(Private)
@@ -302,6 +305,11 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 
 		uint64_t doneFileKindStatsTime = getTime();
 		LOG (@"file kind statistics time:  %.2f seconds", subtractTime(doneFileKindStatsTime, doneLoadingTime));
+
+		//"scanned 2 minutes ago" in the summary strip is measured from here -
+		//when the tree is complete, not when the walk was started
+		_scanCompletedAt = [NSDate date];
+		[self _invalidateItemCounts];
 		
 		//the modal session must be ended in the same NS_DURING section (if no exception occured)
 		_progressController = nil;
@@ -543,6 +551,7 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 
 	//the item just trashed may have been ticked for reclaiming
 	[self _pruneReclaimBasket];
+	[self _invalidateItemCounts];
 
 	//notify observers of the change
 	[[NSNotificationCenter defaultCenter] postNotificationName: FSItemsChangedNotification object: self];
@@ -692,6 +701,7 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 		//a refresh replaces FSItems wholesale, so anything in the basket that
 		//has gone from disk has to drop out before the change is announced
 		[self _pruneReclaimBasket];
+		[self _invalidateItemCounts];
 
 		//notify observers of the change
 		[[NSNotificationCenter defaultCenter] postNotificationName: FSItemsChangedNotification object: self];
@@ -829,6 +839,66 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 	//keep info panel in sync
 	if ( [[InfoPanelController sharedController] panelIsVisible] )
 		[[InfoPanelController sharedController] showPanelWithFSItem: _selectedItem];
+}
+
+#pragma mark --------what the summary strip reports-----------------
+
+- (NSDate*) scanCompletedAt
+{
+	return _scanCompletedAt;
+}
+
+- (NSUInteger) fileCount
+{
+	[self _recountItemsIfNeeded];
+	return _fileCount;
+}
+
+- (NSUInteger) folderCount
+{
+	[self _recountItemsIfNeeded];
+	return _folderCount;
+}
+
+//Walks the tree the first time either count is asked for after a change. That
+//is one traversal of something already in memory - over /usr/share, 20,179
+//items, it is a rounding error next to the scan that built it - and it stays
+//right after a refresh or a trash, which a figure snapshotted at scan time
+//would not.
+- (void) _recountItemsIfNeeded
+{
+	if ( _countsAreValid )
+		return;
+
+	NSUInteger files = 0, folders = 0;
+
+	[self _countItemsUnder: _rootItem files: &files folders: &folders];
+
+	_fileCount = files;
+	_folderCount = folders;
+	_countsAreValid = YES;
+}
+
+- (void) _countItemsUnder: (FSItem*) item files: (NSUInteger*) files folders: (NSUInteger*) folders
+{
+	if ( item == nil || [item isSpecialItem] )
+		return;
+
+	//The root is the folder being looked at, not something inside it, so it is
+	//counted like any other folder - which is what makes the two figures add up
+	//to the item count the progress estimate remembers.
+	if ( [item isFolder] )
+		(*folders)++;
+	else
+		(*files)++;
+
+	for ( NSUInteger i = 0; i < [item childCount]; i++ )
+		[self _countItemsUnder: [item childAtIndex: i] files: files folders: folders];
+}
+
+- (void) _invalidateItemCounts
+{
+	_countsAreValid = NO;
 }
 
 #pragma mark --------the kind filter-----------------

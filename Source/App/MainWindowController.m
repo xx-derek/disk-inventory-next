@@ -23,14 +23,35 @@
 #import "FileSizeTransformer.h"
 #import "AppsForItem.h"
 #import "NSURL-Extensions.h"
+#import "DIXSummaryStripView.h"
+#import "DIXStatusBarView.h"
+#import "DIXBreadcrumbView.h"
+#import "DIXInspectorView.h"
+#import "NSImage-Extensions.h"
+#import "DIXTheme.h"
 
 NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibilityChanged";
 
-//used the first time the pane is reopened, if it was never measured while open
-static const CGFloat kDefaultKindStatisticsWidth = 200.0;
+//Used the first time a pane is opened, when nothing has been remembered for it.
+//The widths come from the design; DIXTheme holds them because the sidebar and
+//the inspector are described there too.
+#define kDefaultKindStatisticsWidth  ([DIXTheme sidebarWidth])
+#define kDefaultFileListWidth        ([DIXTheme fileListWidth])
 
 @interface MainWindowController()
 - (void) setKindStatisticsVisible: (BOOL) visible animated: (BOOL) animated;
+- (NSToolbarItem*) buildBreadcrumbItem;
+- (NSToolbarItem*) buildViewModeItem;
+- (NSToolbarItem*) buildInspectorToggleItem;
+- (void) updateBreadcrumb;
+- (void) updateBreadcrumbSizingItem: (NSToolbarItem*) item;
+- (void) updateViewModeControl;
+- (void) applyViewMode;
+- (void) updateStatusBarHintForViewMode;
+- (void) chooseInitialViewMode;
+- (void) updateInspector;
+- (void) placePaneDividers;
+- (NSToolbarItem*) toolbarItemWithIdentifier: (NSString*) identifier;
 - (void) animateKindStatisticsDividerTo: (CGFloat) targetWidth completion: (void (^)(void)) completion;
 @end
 
@@ -120,7 +141,9 @@ static const CGFloat kDefaultKindStatisticsWidth = 200.0;
 	}
 	
 	//NSSplitView remembers the divider position itself
-	[_splitter setAutosaveName: @"MainWindowSplitter"];
+	//see -buildSidePanes: the widths are this window's to remember, not the
+	//split view's, because the frame changes that follow would undo a restore
+	[_splitter setDelegate: self];
 
 	[self buildSidePanes];
 }
@@ -160,15 +183,29 @@ static const CGFloat kDefaultKindStatisticsWidth = 200.0;
 	[_kindStatisticsSplitView setVertical: YES];
 	[_kindStatisticsSplitView setDividerStyle: NSSplitViewDividerStyleThin];
 	[_kindStatisticsSplitView setDelegate: self];
-	[_kindStatisticsSplitView setAutosaveName: @"MainWindowKindStatisticsSplit"];
+	//No autosave name on this one, deliberately. NSSplitView restores its saved
+	//positions when it is named, but this window then sets the split view's
+	//frame twice - once to take over the splitter's space, once to squeeze it
+	//between the summary strip and the status bar - and every frame change
+	//redistributes the subviews in proportion, which overwrote what had just
+	//been restored. The widths are kept in a default of this window's own
+	//instead, and applied once the window has its real size.
+	[_kindStatisticsSplitView setDelegate: self];
 
 	[_splitter removeFromSuperview];
 
 	[_selectionListSplitView addSubview: _splitter];
 	[_selectionListSplitView addSubview: _selectionListPane];
 
+	//A third column: statistics, the outline and map, then the inspector. The
+	//inspector is a peer of the other two rather than a floating window, which
+	//is the whole point - it describes the selection next to it instead of over
+	//it, and cannot be left behind on another space.
+	_inspectorView = [[DIXInspectorView alloc] initWithFrame: paneFrame];
+
 	[_kindStatisticsSplitView addSubview: _kindStatisticsPane];
 	[_kindStatisticsSplitView addSubview: _selectionListSplitView];
+	[_kindStatisticsSplitView addSubview: _inspectorView];
 
 	[_kindStatisticsSplitView setFrame: paneFrame];
 	[_kindStatisticsSplitView setAutoresizingMask: paneMask];
@@ -177,6 +214,539 @@ static const CGFloat kDefaultKindStatisticsWidth = 200.0;
 	//the statistics drawer was opened at launch; the selection list was not
 	[self setKindStatisticsVisible: YES];
 	[self setSelectionListVisible: NO];
+
+	[_inspectorView setTarget: self
+				 revealAction: @selector(showInFinder:)
+				   openAction: @selector(openFile:)
+				  trashAction: @selector(moveToTrash:)];
+
+	[self setInspectorVisible: YES];
+
+	[self buildWindowChrome];
+}
+
+//Installs the two code-built chrome views as siblings of the nib's views:
+//summary strip across the top of the content area, status bar along the bottom,
+//with the split view squeezed between them.
+- (void) buildWindowChrome
+{
+	NSView *contentView = [[self window] contentView];
+	const NSRect contentBounds = [contentView bounds];
+
+	const CGFloat statusHeight = [DIXStatusBarView preferredHeight];
+	const CGFloat stripHeight  = [DIXSummaryStripView preferredHeight];
+
+	_statusBarView = [[DIXStatusBarView alloc] initWithFrame:
+		NSMakeRect( NSMinX( contentBounds ), NSMinY( contentBounds ),
+					NSWidth( contentBounds ), statusHeight )];
+	[_statusBarView setAutoresizingMask: NSViewWidthSizable | NSViewMaxYMargin];
+	[contentView addSubview: _statusBarView];
+
+	_summaryStripView = [[DIXSummaryStripView alloc] initWithFrame:
+		NSMakeRect( NSMinX( contentBounds ), NSMaxY( contentBounds ) - stripHeight,
+					NSWidth( contentBounds ), stripHeight )];
+	[_summaryStripView setAutoresizingMask: NSViewWidthSizable | NSViewMinYMargin];
+	[contentView addSubview: _summaryStripView];
+
+	//the split view now owns only the band between the two chrome views
+	NSRect squeezed = contentBounds;
+	squeezed.origin.y = statusHeight;
+	squeezed.size.height = NSHeight( contentBounds ) - statusHeight - stripHeight;
+	[_kindStatisticsSplitView setFrame: squeezed];
+
+	//The status bar replaces the nib's two loose labels, which sat where it now
+	//stands. They are not outlets on this controller - TreeMapViewController
+	//owns them and no longer writes to them - so they are found by class: after
+	//-buildSidePanes moved the splitter, the only NSTextFields left as direct
+	//subviews are those two.
+	for ( NSView *subview in [contentView subviews] )
+	{
+		if ( [subview isKindOfClass: [NSTextField class]] )
+			[subview setHidden: YES];
+	}
+
+	//the strip's buttons drive the actions the menu already validates
+	[_summaryStripView setTarget: self
+					rescanAction: @selector(refreshAll:)
+					zoomInAction: @selector(zoomIn:)
+				   zoomOutAction: @selector(zoomOut:)];
+
+	[_statusBarView setHint: NSLocalizedString( @"Click a block to select it", @"status bar hint" )];
+
+	//Resynchronize the strip whenever the document changes underneath it. The
+	//document can be nil here only if this controller was created without one;
+	//object:nil would then observe every document, which the update tolerates
+	//by re-reading its own.
+	NSNotificationCenter *notificationCenter = [NSNotificationCenter defaultCenter];
+	FileSystemDoc *doc = [self document];
+
+	[notificationCenter addObserver: self
+						   selector: @selector(documentChangedForSummaryStrip:)
+							   name: FSItemsChangedNotification
+							 object: doc];
+	[notificationCenter addObserver: self
+						   selector: @selector(documentChangedForSummaryStrip:)
+							   name: ZoomedItemChangedNotification
+							 object: doc];
+	[notificationCenter addObserver: self
+						   selector: @selector(documentChangedForSummaryStrip:)
+							   name: GlobalSelectionChangedNotification
+							 object: doc];
+
+	[self updateSummaryStrip];
+
+	[self chooseInitialViewMode];
+}
+
+- (DIXStatusBarView*) statusBarView
+{
+	return _statusBarView;
+}
+
+#pragma mark -----------------the inspector-----------------------
+
+//A hidden subview is how NSSplitView collapses a pane - it keeps the subview and
+//gives it no space - which is the same mechanism the statistics pane uses.
+- (BOOL) isInspectorVisible
+{
+	return _inspectorView != nil && ![_inspectorView isHidden];
+}
+
+- (void) setInspectorVisible: (BOOL) visible
+{
+	if ( _inspectorView == nil || visible == [self isInspectorVisible] )
+		return;
+
+	//Remember the width so reopening restores it: the split view's own autosave
+	//records only a position it has been left at, and collapsing writes zero.
+	if ( !visible )
+		_inspectorWidth = NSWidth( [_inspectorView frame] );
+
+	[_inspectorView setHidden: !visible];
+	[_kindStatisticsSplitView adjustSubviews];
+
+	if ( visible )
+	{
+		[self placePaneDividers];
+		[self updateInspector];
+	}
+}
+
+//Divider 0 sits after the statistics pane, divider 1 before the inspector. Both
+//are placed rather than left to -adjustSubviews, which shares the width out in
+//proportion and so gave the statistics pane less than its own column headers
+//needed once there were three panes instead of two.
+//Where the three column widths are remembered. One key rather than three, so a
+//layout is written and read as a unit and a half-updated one cannot exist.
+static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
+
+//Written whenever a divider settles. NSSplitView sends this during window
+//resizes too, so widths are only recorded when every pane is showing and the
+//figures are plausible - otherwise a collapsed pane would be remembered as
+//zero and reopen at nothing.
+- (void) splitViewDidResizeSubviews: (NSNotification*) notification
+{
+	id splitView = [notification object];
+
+	if ( splitView != _kindStatisticsSplitView && splitView != _splitter )
+		return;
+
+	//Nothing is worth saving until the opening widths have been applied. The
+	//split view resizes several times while the window is being assembled, and
+	//saving then meant -placePaneDividers read back the arbitrary widths it was
+	//about to correct, and so never applied a default at all.
+	if ( !_paneWidthsPlaced )
+		return;
+
+	if ( ![self isKindStatisticsVisible] || ![self isInspectorVisible] )
+		return;
+
+	const CGFloat statistics = NSWidth( [_kindStatisticsPane frame] );
+	const CGFloat fileList   = NSWidth( [[_filesOutlineView enclosingScrollView] frame] );
+	const CGFloat inspector  = NSWidth( [_inspectorView frame] );
+
+	if ( statistics < 1.0 || inspector < 1.0 )
+		return;
+
+	[[NSUserDefaults standardUserDefaults] setObject: @[ @(statistics), @(fileList), @(inspector) ]
+											  forKey: kPaneWidthsKey];
+}
+
+- (void) placePaneDividers
+{
+	NSArray *saved = [[NSUserDefaults standardUserDefaults] arrayForKey: kPaneWidthsKey];
+	const BOOL haveSaved = [saved count] == 3;
+
+	CGFloat statistics = haveSaved ? [[saved objectAtIndex: 0] doubleValue]
+								   : kDefaultKindStatisticsWidth;
+	CGFloat fileList   = haveSaved ? [[saved objectAtIndex: 1] doubleValue]
+								   : kDefaultFileListWidth;
+	CGFloat inspector  = haveSaved ? [[saved objectAtIndex: 2] doubleValue]
+								   : [DIXInspectorView preferredWidth];
+
+	const CGFloat total = NSWidth( [_kindStatisticsSplitView bounds] );
+
+	if ( total > 0.0 )
+	{
+		//A window narrower than the sum would otherwise leave the map with
+		//nothing; the two side columns give way rather than the thing the
+		//window is for.
+		const CGFloat centreMinimum = 320.0;
+
+		if ( statistics + inspector + centreMinimum > total )
+		{
+			const CGFloat share = ( total - centreMinimum ) / ( statistics + inspector );
+
+			statistics = floor( statistics * MAX( share, 0.0 ) );
+			inspector  = floor( inspector  * MAX( share, 0.0 ) );
+		}
+
+		//The inspector first: it is measured from the trailing edge, so placing
+		//the statistics divider first would only move it again.
+		if ( [self isInspectorVisible] )
+			[_kindStatisticsSplitView setPosition: total - inspector ofDividerAtIndex: 1];
+
+		if ( [self isKindStatisticsVisible] )
+			[_kindStatisticsSplitView setPosition: statistics ofDividerAtIndex: 0];
+	}
+
+	//The outline against the map. Left to itself the split gave the outline
+	//whatever was left after the treemap, which at the window's opening width
+	//truncated every file name to an ellipsis.
+	if ( [_splitter isVertical] && NSWidth( [_splitter bounds] ) > fileList * 2.0 )
+		[_splitter setPosition: fileList ofDividerAtIndex: 0];
+
+	//from here on the widths are the user's, and worth remembering
+	_paneWidthsPlaced = YES;
+}
+
+- (IBAction) toggleInspector: (id) sender
+{
+	[self setInspectorVisible: ![self isInspectorVisible]];
+}
+
+- (void) updateInspector
+{
+	if ( ![self isInspectorVisible] )
+		return;
+
+	FileSystemDoc *doc = [self document];
+	FSItem *item = [doc selectedItem];
+
+	[_inspectorView setItem: item];
+
+	//The same conditions -validateMenuItem: applies to the menu items these
+	//buttons stand in for, so a button is never live when its menu item is not.
+	const BOOL real = item != nil && ![item isSpecialItem];
+
+	[_inspectorView setRevealEnabled: item != nil
+						 openEnabled: real && [item exists]
+						trashEnabled: real && item != [doc zoomedItem]];
+}
+
+#pragma mark -----------------toolbar items with custom views-----------------------
+
+//Two of the toolbar's items are views rather than buttons, and the plist has no
+//vocabulary for that - it describes an image, a label and an action. They are
+//built here and everything else is left to ToolbarWindowController, which is
+//also what keeps the generic class free of anything about this window.
+- (NSToolbarItem*) toolbar: (NSToolbar*) toolbar
+	 itemForItemIdentifier: (NSString*) identifier
+ willBeInsertedIntoToolbar: (BOOL) willInsert
+{
+	if ( [identifier isEqualToString: @"Breadcrumb"] )
+		return [self buildBreadcrumbItem];
+
+	if ( [identifier isEqualToString: @"ViewMode"] )
+		return [self buildViewModeItem];
+
+	if ( [identifier isEqualToString: @"ToggleInspector"] )
+		return [self buildInspectorToggleItem];
+
+	return [super toolbar: toolbar
+	itemForItemIdentifier: identifier
+willBeInsertedIntoToolbar: willInsert];
+}
+
+- (NSToolbarItem*) buildBreadcrumbItem
+{
+	NSToolbarItem *item = [[NSToolbarItem alloc] initWithItemIdentifier: @"Breadcrumb"];
+
+	_breadcrumbView = [[DIXBreadcrumbView alloc] initWithFrame: NSMakeRect( 0.0, 0.0, 240.0, 22.0 )];
+	[_breadcrumbView setTarget: self action: @selector(zoomOutTo:)];
+
+	[item setView: _breadcrumbView];
+
+	//No label under it. The breadcrumb stands where the window title would be
+	//and reads as a title; captioning it "Location" would be labelling the
+	//title bar. The palette label is still set, since the customization sheet
+	//has to call it something.
+	[item setLabel: @""];
+	[item setPaletteLabel: NSLocalizedString( @"Location", @"toolbar item label" )];
+
+	//The breadcrumb stands in for the window title, so it should not also be
+	//removable from the toolbar - a window with neither would say nowhere.
+	[item setVisibilityPriority: NSToolbarItemVisibilityPriorityHigh];
+
+	//Sized against the item in hand: -updateBreadcrumb looks the item up in the
+	//toolbar, and at this point it has not been inserted yet.
+	[self updateBreadcrumbSizingItem: item];
+
+	return item;
+}
+
+//The right-hand counterpart of NSToolbarToggleSidebarItem. AppKit has no
+//standard item for an inspector on macOS 11, so this is an ordinary one.
+- (NSToolbarItem*) buildInspectorToggleItem
+{
+	ToolbarItem *item = [[ToolbarItem alloc] initWithItemIdentifier: @"ToggleInspector"];
+
+	[item setLabel: NSLocalizedString( @"Inspector", @"toolbar item label" )];
+	[item setPaletteLabel: [item label]];
+	[item setToolTip: NSLocalizedString( @"Show or hide the inspector", @"toolbar item tooltip" )];
+	[item setImage: [NSImage imageForSymbolName: @"sidebar.right"
+					   accessibilityDescription: [item label]]];
+	[item setTarget: self];
+	[item setAction: @selector(toggleInspector:)];
+	[item setDelegate: self];
+
+	return item;
+}
+
+- (NSToolbarItem*) buildViewModeItem
+{
+	NSToolbarItem *item = [[NSToolbarItem alloc] initWithItemIdentifier: @"ViewMode"];
+
+	_viewModeControl = [NSSegmentedControl segmentedControlWithLabels:
+		@[ NSLocalizedString( @"Map",  @"view mode" ),
+		   NSLocalizedString( @"List", @"view mode" ),
+		   NSLocalizedString( @"Both", @"view mode" ) ]
+								   trackingMode: NSSegmentSwitchTrackingSelectOne
+										 target: self
+										 action: @selector(changeViewMode:)];
+
+	[_viewModeControl setTranslatesAutoresizingMaskIntoConstraints: YES];
+	[_viewModeControl sizeToFit];
+
+	[item setView: _viewModeControl];
+	[item setLabel: NSLocalizedString( @"View", @"toolbar item label" )];
+	[item setPaletteLabel: [item label]];
+
+	[self updateViewModeControl];
+
+	return item;
+}
+
+//"Macintosh HD › Users › derek › Movies". The zoom stack holds what has been
+//zoomed into; the root is not on it, and is prepended here because it is where
+//the scan began and the one place you always want to be able to get back to.
+- (void) updateBreadcrumb
+{
+	[self updateBreadcrumbSizingItem: nil];
+}
+
+//"item" is the toolbar item to resize, or nil to find it in the toolbar.
+- (void) updateBreadcrumbSizingItem: (NSToolbarItem*) item
+{
+	FileSystemDoc *doc = [self document];
+	FSItem *rootItem = [doc rootItem];
+
+	if ( _breadcrumbView == nil || rootItem == nil )
+		return;
+
+	NSMutableArray<NSString*> *titles = [NSMutableArray array];
+	NSMutableArray *items = [NSMutableArray array];
+
+	[titles addObject: [rootItem displayName]];
+	[items addObject: rootItem];
+
+	for ( FSItem *item in [doc zoomStack] )
+	{
+		[titles addObject: [item displayName]];
+		[items addObject: item];
+	}
+
+	[_breadcrumbView setSegmentTitles: titles representedObjects: items];
+
+	//The item's own width has to follow the path, or a deep breadcrumb is
+	//clipped to whatever width it was built at.
+	const CGFloat width = [_breadcrumbView fittingWidth];
+	const NSSize size = NSMakeSize( width, 22.0 );
+
+	NSRect frame = [_breadcrumbView frame];
+	frame.size = size;
+	[_breadcrumbView setFrame: frame];
+
+	//A view-based toolbar item does not measure its own view. -minSize/-maxSize
+	//are formally deprecated in favour of Auto Layout, but they are what works
+	//against a hand-laid-out view on the macOS 11 deployment target, and the
+	//alternative would put constraints in this window for one label's width.
+	if ( item == nil )
+		item = [self toolbarItemWithIdentifier: @"Breadcrumb"];
+
+	[item setMinSize: size];
+	[item setMaxSize: size];
+}
+
+- (NSToolbarItem*) toolbarItemWithIdentifier: (NSString*) identifier
+{
+	for ( NSToolbarItem *item in [[[self window] toolbar] items] )
+	{
+		if ( [[item itemIdentifier] isEqualToString: identifier] )
+			return item;
+	}
+
+	return nil;
+}
+
+//The toolbar carries the breadcrumb, which is a title, so the window's own
+//title is turned off rather than repeated beside it. Icon-only is the design's
+//toolbar: glyphs with no captions, which is also what leaves the breadcrumb
+//room to grow.
+- (void) windowDidLoad
+{
+	[super windowDidLoad];
+
+	//Deferred one turn of the run loop. The panes are built during
+	//-awakeFromNib, when the window is still the nib's 572 points wide, and
+	//even here it has not finished taking up its autosaved frame - measured,
+	//the split view was 530 points across at this point and 1430 by the time
+	//the window was on screen. A divider placed against the smaller figure is
+	//then redistributed in proportion, which put a 300pt inspector at 640.
+	//
+	//Once only: after this the split views' own autosave owns the layout, and
+	//placing the dividers again would undo a width the user had dragged to.
+	__weak MainWindowController *weakSelf = self;
+
+	dispatch_async( dispatch_get_main_queue(), ^{
+		[weakSelf placePaneDividers];
+	});
+
+	[[self window] setTitleVisibility: NSWindowTitleHidden];
+	[[[self window] toolbar] setDisplayMode: NSToolbarDisplayModeIconOnly];
+}
+
+#pragma mark -----------------view modes-----------------------
+
+- (IBAction) changeViewMode: (id) sender
+{
+	const NSInteger selected = [sender selectedSegment];
+
+	if ( selected < 0 )
+		return;
+
+	[[self document] setViewMode: (DIXViewMode) selected];
+
+	[self applyViewMode];
+}
+
+- (void) updateViewModeControl
+{
+	[_viewModeControl setSelectedSegment: (NSInteger) [[self document] viewMode]];
+}
+
+//The window has held the outline and the treemap side by side in one split view
+//since 2003 - that arrangement is already "Both". A mode is therefore not a new
+//layout but which of the two gets space, and NSSplitView gives a hidden subview
+//none, exactly as it does for the collapsible side panes.
+- (void) applyViewMode
+{
+	NSView *outlineView = [_filesOutlineView enclosingScrollView];
+
+	if ( outlineView == nil || _treeMapView == nil )
+		return;
+
+	const DIXViewMode mode = [[self document] viewMode];
+
+	[outlineView setHidden: ( mode == DIXViewModeMap )];
+	[_treeMapView setHidden: ( mode == DIXViewModeList )];
+
+	[_splitter adjustSubviews];
+
+	[self updateViewModeControl];
+	[self updateStatusBarHintForViewMode];
+}
+
+- (void) updateStatusBarHintForViewMode
+{
+	if ( _statusBarView == nil )
+		return;
+
+	//The hint describes what is actually on screen. It does not promise the
+	//design's area-drag or Quick Look, neither of which exists yet.
+	NSString *hint = ( [[self document] viewMode] == DIXViewModeList )
+		? NSLocalizedString( @"Select a row to see what it holds", @"status bar hint" )
+		: NSLocalizedString( @"Click a block to select it", @"status bar hint" );
+
+	[_statusBarView setHint: hint];
+}
+
+//Both is the default when the window is wide enough to hold the outline and a
+//usable map; below that it falls back to Map, because two cramped columns are
+//worse than one good one. Only chosen at load - once the mode has been set from
+//the toolbar it is the document's and is left alone.
+- (void) chooseInitialViewMode
+{
+	const CGFloat contentWidth = NSWidth( [[[self window] contentView] bounds] );
+
+	[[self document] setViewMode: ( contentWidth >= [DIXTheme bothModeMinimumContentWidth] )
+								  ? DIXViewModeBoth : DIXViewModeMap];
+
+	[self applyViewMode];
+}
+
+- (void) documentChangedForSummaryStrip: (NSNotification*) notification
+{
+	[self updateSummaryStrip];
+
+	//the breadcrumb is the zoom stack, so it follows the same notifications
+	[self updateBreadcrumb];
+
+	[self updateInspector];
+}
+
+//Feeds the summary strip from the document: the total, what it is made of and
+//how fresh it is, plus the enabled state of the two zoom buttons. Called once
+//after load and again whenever the items, the zoom or the selection change.
+- (void) updateSummaryStrip
+{
+	FileSystemDoc *doc = [self document];
+	FSItem *rootItem = [doc rootItem];
+
+	if ( _summaryStripView == nil || rootItem == nil )
+		return;
+
+	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
+
+	NSNumberFormatter *countFormatter = [[NSNumberFormatter alloc] init];
+	[countFormatter setNumberStyle: NSNumberFormatterDecimalStyle];
+
+	//"scanned 2 minutes ago"; anything under a minute is simply "now", because
+	//"37 seconds ago" is more precision than the statement carries
+	NSRelativeDateTimeFormatter *whenFormatter = [[NSRelativeDateTimeFormatter alloc] init];
+	[whenFormatter setDateTimeStyle: NSRelativeDateTimeFormatterStyleNamed];
+
+	NSDate *scannedAt = [doc scanCompletedAt];
+	NSTimeInterval age = scannedAt != nil ? -[scannedAt timeIntervalSinceNow] : 0;
+
+	NSString *scanned = [whenFormatter localizedStringFromTimeInterval: age < 60 ? 0 : -age];
+
+	NSString *subtitle = [NSString stringWithFormat:
+		NSLocalizedString( @"%@ files · %@ folders · scanned %@", @"summary strip subtitle" ),
+		[countFormatter stringFromNumber: @( [doc fileCount] )],
+		[countFormatter stringFromNumber: @( [doc folderCount] )],
+		scanned];
+
+	[_summaryStripView setTotal: [sizeFormatter stringForObjectValue: [rootItem size]]
+					   subtitle: subtitle];
+
+	//no scan history yet, so there is nothing truthful to say about growth
+	[_summaryStripView setDelta: nil caption: nil isGrowth: YES];
+
+	//the same conditions -validateMenuItem: applies to the zoom menu items
+	FSItem *selectedItem = [doc selectedItem];
+	[_summaryStripView setZoomInEnabled: selectedItem != nil && [selectedItem isFolder]
+						 zoomOutEnabled: [doc rootItem] != [doc zoomedItem]];
 }
 
 //A hidden subview is how NSSplitView collapses a pane: it keeps the subview and
@@ -319,10 +889,18 @@ static const CGFloat kDefaultKindStatisticsWidth = 200.0;
 constrainMinCoordinate: (CGFloat) proposedMin
 		  ofSubviewAt: (NSInteger) dividerIndex
 {
+	if ( splitView != _kindStatisticsSplitView )
+		return proposedMin;
+
+	//Divider 1 is the one before the inspector; dragging it left is what makes
+	//the inspector wider, so its minimum is what keeps the centre usable.
+	if ( dividerIndex == 1 )
+		return MAX( proposedMin, NSMinX( [_selectionListSplitView frame] ) + 320.0 );
+
 	//The minimum keeps the pane usable rather than letting it be dragged to a
 	//sliver, but it has to be lifted while collapsing or the slide would stop
 	//dead at 120 points instead of reaching zero.
-	if ( splitView == _kindStatisticsSplitView && !_animatingKindStatistics )
+	if ( !_animatingKindStatistics )
 		return MAX( proposedMin, 120.0 );
 
 	return proposedMin;
@@ -332,9 +910,16 @@ constrainMinCoordinate: (CGFloat) proposedMin
 constrainMaxCoordinate: (CGFloat) proposedMax
 		  ofSubviewAt: (NSInteger) dividerIndex
 {
+	if ( splitView != _kindStatisticsSplitView )
+		return MIN( proposedMax, NSHeight([splitView bounds]) - 150.0 );
+
+	//Below this the inspector's two-column attribute grid stops being readable,
+	//and its three header buttons start truncating their titles.
+	if ( dividerIndex == 1 )
+		return MIN( proposedMax, NSWidth([splitView bounds]) - 220.0 );
+
 	//and leave room for the outline and treemap
-	return ( splitView == _kindStatisticsSplitView ) ? MIN( proposedMax, NSWidth([splitView bounds]) - 250.0 )
-													 : MIN( proposedMax, NSHeight([splitView bounds]) - 150.0 );
+	return MIN( proposedMax, NSWidth([splitView bounds]) - 250.0 );
 }
 
 #pragma mark -----------------menu and toolbar actions-----------------------
@@ -408,7 +993,15 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 	FSItem *item = [sender representedObject];
 	
 	NSAssert( [doc rootItem] == [item root], @"item belongs to a different document" );
-	NSAssert( [[doc zoomStack] indexOfObjectIdenticalTo: item] != NSNotFound, @"item is not on the zoom stack" );
+
+	//The root is a legitimate destination and is deliberately not on the zoom
+	//stack, which holds only what has been zoomed *into*. -zoomOutToItem: has
+	//always accepted it; this assertion did not, so zooming all the way out
+	//tripped it in debug builds - reachable from the zoom-stack menu, whose
+	//first entry is the root, and now from the breadcrumb's first segment.
+	NSAssert( item == [doc rootItem]
+			  || [[doc zoomStack] indexOfObjectIdenticalTo: item] != NSNotFound,
+			  @"item is neither the root nor on the zoom stack" );
 	
     FSItem *currentZoomedItem = [doc zoomedItem];
 		
@@ -729,9 +1322,13 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 //Bumped when the drawer toggle gave way to the standard sidebar item and every
 //icon became an SF Symbol: a layout saved before that refers to items which no
 //longer exist, and would come back missing the sidebar button entirely.
+//
+//Bumped again for the breadcrumb and the view-mode control. An existing user's
+//saved layout has neither, and since the breadcrumb stands in for the window
+//title they would otherwise be left with a window that never says where it is.
 - (NSString *)toolbarAutosaveIdentifier
 {
-    return @"MainWindowToolbar-2";
+    return @"MainWindowToolbar-3";
 }
 
 #pragma mark -----------------NSWindow delegates-----------------------
@@ -756,6 +1353,9 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 	[_kindStatisticsAnimationTimer invalidate];
 	_kindStatisticsAnimationTimer = nil;
 	_animatingKindStatistics = NO;
+
+	//the summary strip observers registered in -buildWindowChrome
+	[[NSNotificationCenter defaultCenter] removeObserver: self];
 
 	if ( [[aNotification object] isMainWindow]
 		&& [[InfoPanelController sharedController] panelIsVisible] )

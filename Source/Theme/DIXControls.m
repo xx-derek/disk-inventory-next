@@ -167,6 +167,11 @@
 //redone whenever the button is enabled or disabled: an attributed title is not
 //dimmed by AppKit the way a plain one is, so a disabled button would otherwise
 //stay at full contrast and look live.
+//
+//The colour is +onAccent, not white. The dark accent (#ff5a3c) is light enough
+//that a white label on it fails, so there it is near-black instead - which is
+//also why the title has to be rebuilt when the appearance changes, since an
+//attributed string holds a resolved colour rather than a dynamic one.
 @interface DIXAccentButton : NSButton
 @end
 
@@ -174,8 +179,10 @@
 
 - (void) dix_applyTitleColor
 {
-	NSColor *color = [self isEnabled] ? [NSColor whiteColor]
-									  : [[NSColor whiteColor] colorWithAlphaComponent: 0.5];
+	NSColor *onAccent = [DIXTheme onAccent];
+
+	NSColor *color = [self isEnabled] ? onAccent
+									  : [onAccent colorWithAlphaComponent: 0.5];
 
 	NSMutableParagraphStyle *centred = [[NSMutableParagraphStyle alloc] init];
 	[centred setAlignment: NSTextAlignmentCenter];
@@ -200,6 +207,15 @@
 - (void) setTitle: (NSString*) title
 {
 	[super setTitle: title];
+	[self dix_applyTitleColor];
+}
+
+//An attributed title carries a colour that was resolved when it was built, so
+//unlike everything else drawn from the catalog it does not follow the
+//appearance on its own.
+- (void) viewDidChangeEffectiveAppearance
+{
+	[super viewDidChangeEffectiveAppearance];
 	[self dix_applyTitleColor];
 }
 
@@ -231,7 +247,7 @@
 
 	[separator setBoxType: NSBoxCustom];
 	[separator setBorderWidth: 0.0];
-	[separator setFillColor: [DIXTheme hairline]];
+	[separator setFillColor: [DIXTheme rowSeparator]];
 	[separator setTranslatesAutoresizingMaskIntoConstraints: NO];
 
 	[[[separator heightAnchor] constraintEqualToConstant: [DIXTheme hairlineThickness]] setActive: YES];

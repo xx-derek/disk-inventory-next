@@ -19,6 +19,8 @@
 #import "MainWindowController.h"
 #import "FileSizeFormatter.h"
 #import "FSItem-Utilities.h"
+#import "DIXTheme.h"
+#import "DIXStatusBarView.h"
 
 @interface TreeMapViewController(Private)
 
@@ -26,6 +28,13 @@
 - (void) onDocumentSelectionChanged;
 - (void) reloadData;
 
+@end
+
+@interface TreeMapViewController()
+- (void) applyTreeMapAppearance;
+- (NSColor*) dominantKindColorForItems: (NSArray*) items;
+- (NSString*) dominantKindForItems: (NSArray*) items;
+- (void) reportRemainder: (TMVItem*) cell inStatusBar: (DIXStatusBarView*) statusBar;
 @end
 
 @implementation TreeMapViewController
@@ -65,7 +74,21 @@
 															  forKeyPath: [@"values." stringByAppendingString: ShareKindColors]
 																 options: 0
 																 context: (__bridge void*) ShareKindColors];
-	
+
+	[[NSUserDefaultsController sharedUserDefaultsController] addObserver: self
+															  forKeyPath: [@"values." stringByAppendingString: LabelLargeCells]
+																 options: 0
+																 context: (__bridge void*) LabelLargeCells];
+
+	[[NSUserDefaultsController sharedUserDefaultsController] addObserver: self
+															  forKeyPath: [@"values." stringByAppendingString: ClassicCushions]
+																 options: 0
+																 context: (__bridge void*) ClassicCushions];
+
+	//The widget knows nothing about the application's palette, so the colours
+	//it draws over the cushions come from here.
+	[self applyTreeMapAppearance];
+
 	//create "free space" and "other space" items
 	//(don't use [self rootItem] as we want the root, not the zoomed item)
 	FSItem *rootItem =  [[self document] rootItem];
@@ -165,28 +188,279 @@
 - (void) treeMapView: (TreeMapView*) view willDisplayItem: (id) item withRenderer: (TMVItem*) renderer
 {
     FSItem *fsItem = ( item == nil ? [self rootItem] : item );
-	
-	NSColor *color = nil;
-	
+
 	switch ( [fsItem type] )
 	{
 		case FileFolderItem:
-			color = [[[self document] fileTypeColors] colorForItem: fsItem];
+			[renderer setCellStyle: TMVCellStyleCushion];
+			[renderer setCushionColor: [[[self document] fileTypeColors] colorForItem: fsItem]];
 			break;
-		//The two synthetic cells are deliberately neutral, so they read as "not a
-		//file kind" against a palette that is entirely coloured. Free space is
-		//the lightest thing on the map; other space is a mid grey. It used to be
-		//0.2, which was fine beside saturated primaries but is a black hole in
-		//amongst pastels.
+
+		//The two synthetic cells are deliberately neutral, so they read as "not
+		//a file kind" against a palette that is entirely coloured. They are also
+		//drawn plain rather than shaded: a cushion is what says "this is a file",
+		//and giving free space one made it look like the largest file on the
+		//disk.
+		//Both carry their own label colour. The cushions stay light in either
+		//appearance so one dark ink serves all of them, but these two do not:
+		//free space is the darkest thing on a dark map, and dark ink on it is
+		//invisible. Setting the colour is also what tells the view to lay their
+		//labels out the way the design does, at the bottom left over two lines.
 		case FreeSpaceItem:
-			color = [TMVCushionRenderer normalizeColor: [NSColor colorWithCalibratedWhite: 1.0 alpha: 1.0]];
+			//an absence, not a tile: a pale fill inside a dashed outline
+			[renderer setCellStyle: TMVCellStyleOutlined];
+			[renderer setCushionColor: [DIXTheme freeSpaceFill]];
+			[renderer setOutlineColor: [DIXTheme freeSpaceDash]];
+			[renderer setLabelColor: [DIXTheme secondaryText]];
 			break;
+
 		case OtherSpaceItem:
-			color = [TMVCushionRenderer normalizeColor: [NSColor colorWithCalibratedWhite: 0.5 alpha: 1.0]];
+			[renderer setCellStyle: TMVCellStyleFlat];
+			[renderer setCushionColor: [DIXTheme neutralFill]];
+			//a mid grey in both appearances, so the label has to invert with the
+			//appearance rather than pick a side
+			[renderer setLabelColor: [DIXTheme ink]];
 			break;
 	}
-	
-	[renderer setCushionColor: color];
+}
+
+#pragma mark --------remainder cells-----------------
+
+//A remainder's fill: the dominant kind moved toward a light neutral, so a block
+//of them reads as a group and not as one big file - with a cap on how light the
+//result may be.
+//
+//The cap is the point. The twelve-colour palette runs out and everything past
+//it gets a pale grey ramp, which is what most remainders end up mostly made of;
+//lightening one of those produced a white block, and where the cell was thin, a
+//white line ruled across the map. Blending toward a *light neutral* rather than
+//toward white also means a kind that is already paler than the target gets
+//darker instead of lighter, which is the right direction for exactly those greys.
+static const CGFloat TMVRemainderNeutral       = 0.86;
+static const CGFloat TMVRemainderMaxBrightness = 0.82;
+
+static NSColor* RemainderFillColor( NSColor *kindColor )
+{
+	NSColor *tint = [kindColor blendedColorWithFraction: 0.45
+											   ofColor: [NSColor colorWithWhite: TMVRemainderNeutral
+																		  alpha: 1.0]];
+
+	NSColor *rgb = [tint colorUsingColorSpace: [NSColorSpace sRGBColorSpace]];
+
+	if ( rgb == nil )
+		return tint;
+
+	CGFloat hue = 0.0, saturation = 0.0, brightness = 0.0, alpha = 1.0;
+
+	[rgb getHue: &hue saturation: &saturation brightness: &brightness alpha: &alpha];
+
+	if ( brightness <= TMVRemainderMaxBrightness )
+		return tint;
+
+	return [NSColor colorWithHue: hue
+					  saturation: saturation
+					  brightness: TMVRemainderMaxBrightness
+						   alpha: alpha];
+}
+
+//The dominant kind decides the tint, so a remainder reads as "mostly this" and
+//keeps the sidebar legend's promise that a colour means a kind. Lightened,
+//because it is a group rather than a file and must not be mistaken for one.
+- (void) treeMapView: (TreeMapView*) view
+	willDisplayRemainderItems: (NSArray*) items
+				 withRenderer: (TMVItem*) renderer
+{
+	NSColor *kindColor = [self dominantKindColorForItems: items];
+
+	//Both derived from the kind colour and from nothing else, so they are the
+	//same in either appearance - which is what the rest of the map does, kind
+	//colours being data. Blending toward DIXTheme's surface and ink instead, as
+	//this did first, went wrong twice over: -blendedColorWithFraction: resolves
+	//its operands there and then, so the pair was frozen at whichever appearance
+	//built the cell; and ink *inverts* to near-white in dark, so the border meant
+	//to be a step darker came out a step lighter. A dense scan was laced with
+	//white lines, and thin remainders were nothing but border.
+	//
+	//Resolving a colour is safe *here*, unlike there: a kind colour is data and
+	//is the same in both appearances, so there is nothing to freeze.
+	[renderer setCushionColor: RemainderFillColor( kindColor )];
+
+	//the hatch and the border, one step darker than the fill
+	[renderer setOutlineColor: [kindColor blendedColorWithFraction: 0.30
+														   ofColor: [NSColor blackColor]]];
+}
+
+- (NSColor*) dominantKindColorForItems: (NSArray*) items
+{
+	NSString *kind = [self dominantKindForItems: items];
+
+	if ( kind == nil )
+		return [DIXTheme neutralFill];
+
+	return [[[self document] fileTypeColors] colorForKind: kind];
+}
+
+//By size, not by count: the cell's area is bytes, so the kind that names it
+//should be the one those bytes mostly are.
+- (NSString*) dominantKindForItems: (NSArray*) items
+{
+	NSMutableDictionary<NSString*, NSNumber*> *sizeByKind = [NSMutableDictionary dictionary];
+
+	for ( FSItem *item in items )
+	{
+		NSString *kind = [item kindName];
+
+		if ( [kind length] == 0 )
+			continue;
+
+		const unsigned long long running =
+			[[sizeByKind objectForKey: kind] unsignedLongLongValue] + [item sizeValue];
+
+		[sizeByKind setObject: @(running) forKey: kind];
+	}
+
+	__block NSString *dominant = nil;
+	__block unsigned long long best = 0;
+
+	[sizeByKind enumerateKeysAndObjectsUsingBlock: ^( NSString *kind, NSNumber *size, BOOL *stop )
+	{
+		if ( [size unsignedLongLongValue] > best )
+		{
+			best = [size unsignedLongLongValue];
+			dominant = kind;
+		}
+	}];
+
+	return dominant;
+}
+
+- (NSString*) treeMapView: (TreeMapView*) view labelForRemainderItems: (NSArray*) items
+{
+	NSNumberFormatter *counts = [[NSNumberFormatter alloc] init];
+	[counts setNumberStyle: NSNumberFormatterDecimalStyle];
+
+	return [NSString stringWithFormat:
+		NSLocalizedString( @"%@ smaller items", @"treemap, a merged remainder cell" ),
+		[counts stringFromNumber: @([items count])]];
+}
+
+- (NSString*) treeMapView: (TreeMapView*) view detailLabelForRemainderItems: (NSArray*) items
+{
+	unsigned long long total = 0;
+	for ( FSItem *item in items )
+		total += [item sizeValue];
+
+	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
+	NSString *size = [sizeFormatter stringForObjectValue: @(total)];
+
+	NSString *kind = [self dominantKindForItems: items];
+
+	if ( kind == nil )
+		return size;
+
+	return [NSString stringWithFormat:
+		NSLocalizedString( @"%@ · mostly %@", @"treemap, a merged remainder cell's detail" ),
+		size, kind];
+}
+
+//The share of the whole scan, as the design writes it: one decimal place.
+//NSNumberFormatterPercentStyle rounds to whole percent by default, which turned
+//13.96% into "14%" and every small file into "0%" - a figure that says nothing
+//about the thing it is describing.
+static NSString* ShareOfScanString( unsigned long long part, unsigned long long whole )
+{
+	if ( whole == 0 )
+		return nil;
+
+	NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
+
+	[formatter setNumberStyle: NSNumberFormatterPercentStyle];
+	[formatter setMaximumFractionDigits: 1];
+
+	return [formatter stringFromNumber: @( (double) part / whole )];
+}
+
+//The same three figures an ordinary cell reports - size, share of the scan,
+//what it is - for a thing that has no name of its own.
+- (void) reportRemainder: (TMVItem*) cell inStatusBar: (DIXStatusBarView*) statusBar
+{
+	if ( statusBar == nil )
+		return;
+
+	NSArray *items = [cell mergedItems];
+
+	unsigned long long total = 0;
+	for ( FSItem *item in items )
+		total += [item sizeValue];
+
+	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
+
+	NSMutableString *detail =
+		[NSMutableString stringWithString: [sizeFormatter stringForObjectValue: @(total)]];
+
+	//share of the whole scan, not of the folder it sits in - the same question
+	//the readout answers for every other cell
+	const unsigned long long scanSize =
+		[[[[self document] rootItem] size] unsignedLongLongValue];
+
+	NSString *share = ShareOfScanString( total, scanSize );
+
+	if ( share != nil )
+		[detail appendFormat: @" · %@", share];
+
+	NSString *kind = [self dominantKindForItems: items];
+
+	if ( kind != nil )
+	{
+		[detail appendFormat: NSLocalizedString( @" · mostly %@",
+												 @"status bar, what a merged cell is mostly made of" ),
+			kind];
+	}
+
+	[statusBar setItemName: [self treeMapView: _treeMapView labelForRemainderItems: items]
+					detail: detail
+				 kindColor: [self dominantKindColorForItems: items]];
+}
+
+#pragma mark --------cell labels-----------------
+
+- (NSString*) treeMapView: (TreeMapView*) view labelForItem: (id) item
+{
+    FSItem *fsItem = ( item == nil ? [self rootItem] : item );
+
+	return [fsItem displayName];
+}
+
+- (NSString*) treeMapView: (TreeMapView*) view detailLabelForItem: (id) item
+{
+    FSItem *fsItem = ( item == nil ? [self rootItem] : item );
+
+	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
+
+	return [sizeFormatter stringForObjectValue: [fsItem size]];
+}
+
+//Colours and toggles the widget cannot know about on its own. Called at set-up
+//and again whenever the label preference changes.
+- (void) applyTreeMapAppearance
+{
+	//the design's gutters are the colour of the surface the map is inset in
+	[_treeMapView setGutterColor: [DIXTheme surface]];
+	[_treeMapView setSelectionColor: [DIXTheme accent]];
+	[_treeMapView setDrawsCellLabels:
+		[[NSUserDefaults standardUserDefaults] boolForKey: LabelLargeCells]];
+	const BOOL classic = [[NSUserDefaults standardUserDefaults] boolForKey: ClassicCushions];
+
+	[_treeMapView setUsesClassicCushions: classic];
+
+	//The palette goes with the shading, not with the appearance: see
+	//FileTypeColors. Changing it drops every kind's assigned colour, so the map
+	//has to be re-asked for them.
+	if ( [[[self document] fileTypeColors] usesClassicPalette] != classic )
+	{
+		[[[self document] fileTypeColors] setUsesClassicPalette: classic];
+		[_treeMapView reloadData];
+	}
 }
 
 - (void) treeMapView: (TreeMapView*) view willShowMenuForEvent: (NSEvent*) event
@@ -215,40 +489,72 @@
 
 #pragma mark --------TreeMapView notifications-----------------
 
+//The hover readout goes to the window's status bar, which replaced the two
+//loose labels this controller used to write (the outlets remain connected but
+//the labels are hidden). The bar adds the one figure the labels never had:
+//the item's share of the scan, which is the number the treemap is drawing.
 - (void)treeMapViewItemTouched: (NSNotification*) notification
 {
     FSItem *fsItem = [[notification userInfo] objectForKey: TMVTouchedItem];
+	TMVItem *cell = [[notification userInfo] objectForKey: TMVTouchedCell];
 
-    if ( fsItem == nil )
+	NSWindowController *windowController = [[_treeMapView window] windowController];
+	DIXStatusBarView *statusBar = [windowController isKindOfClass: [MainWindowController class]]
+									? [(MainWindowController*) windowController statusBarView] : nil;
+
+	//A remainder stands for many items and so has no single one of its own. It
+	//is also the cell most worth describing, being the only thing that says
+	//those files are there at all - so it must not fall into the nil branch,
+	//which is what made pointing at one clear the readout instead of filling it.
+	if ( fsItem == nil && [cell isRemainder] )
+	{
+		[self reportRemainder: cell inStatusBar: statusBar];
+	}
+    else if ( fsItem == nil )
     {
-        [_fileNameTextField setStringValue: @""];
-        [_fileSizeTextField setStringValue: @""];
+		[statusBar clearItem];
     }
     else
     {
-        NSString *displayName = [fsItem displayName];
 		FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
 		NSString *size = [sizeFormatter stringForObjectValue: [fsItem size]];
-		
+		NSString *detail = size;
+		NSColor *kindColor = nil;
+
 		if ( ![fsItem isSpecialItem] )
 		{
-			displayName = [displayName stringByAppendingFormat: @" (%@)", [fsItem displayFolderName]];        			
-			
-			[_fileSizeTextField setStringValue: [NSString stringWithFormat: @"%@, %@", [fsItem kindName], size]];
+			//share of the whole scan, not of the zoomed-in folder: the question
+			//the readout answers is what this item costs the disk
+			FileSystemDoc *doc = [self document];
+			unsigned long long scanSize = [[[doc rootItem] size] unsignedLongLongValue];
+
+			detail = [NSString stringWithFormat: @"%@ · %@", [fsItem kindName], size];
+
+			NSString *share =
+				ShareOfScanString( [[fsItem size] unsignedLongLongValue], scanSize );
+
+			if ( share != nil )
+				detail = [detail stringByAppendingFormat: @" · %@", share];
+
+			//the synthetic cells keep a nil colour: free and other space are
+			//not file kinds, and a chip would claim they are
+			kindColor = [[doc fileTypeColors] colorForItem: fsItem];
 		}
-		else
-		{
-			[_fileSizeTextField setStringValue: @""];
-			[_fileSizeTextField setStringValue: size];
-		}
-			
-        [_fileNameTextField setStringValue: displayName];
+
+		[statusBar setItemName: [fsItem displayName] detail: detail kindColor: kindColor];
     }
 }
 
 - (void) treeMapViewSelectionDidChange: (NSNotification*) notification
 {
-    FSItem *item = [(TreeMapView*)_treeMapView selectedItem];
+    TreeMapView *view = (TreeMapView*) _treeMapView;
+
+    //-selectedItem, not -enclosingItemByCellId:, would answer nil for a
+    //remainder, and clicking one would clear the selection instead of moving
+    //it. A remainder cannot be the document's selection - it stands for many
+    //items and is none of them - so the click lands on the folder they were
+    //merged out of, which the outline and the inspector can show.
+    FSItem *item = [view enclosingItemByCellId: [view selectedCellId]];
 
     FileSystemDoc *doc = [self document];
 
@@ -259,6 +565,77 @@
     {
         [doc setSelectedItem: item];
     }
+}
+
+//What the map had to aggregate this layout, put where a figure that contradicts
+//the summary strip has to go. The cells cannot sum to the scan total once
+//anything is merged, and the rule is that the difference is stated rather than
+//left for someone to notice.
+- (void) treeMapViewLayoutChanged: (NSNotification*) notification
+{
+	NSWindowController *windowController = [[[self document] windowControllers] firstObject];
+
+	DIXStatusBarView *statusBar = [windowController isKindOfClass: [MainWindowController class]]
+									? [(MainWindowController*) windowController statusBarView] : nil;
+
+	if ( statusBar == nil )
+		return;
+
+	TreeMapView *view = (TreeMapView*) _treeMapView;
+	const NSUInteger count = [view mergedItemCount];
+
+	if ( count == 0 )
+	{
+		[statusBar setIdleSummary: nil detail: nil];
+		return;
+	}
+
+	const unsigned long long merged = [view mergedItemWeight];
+
+	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
+
+	//"items" and "separately", both deliberate. A merged entry is not always a
+	//file - a folder with nothing worth subdividing is packed in whole - and a
+	//folded folder is not "too small to draw", it is too small to draw as a
+	//structure. Always plural: a remainder replaces at least two children.
+	NSString *summary = [NSString stringWithFormat:
+		NSLocalizedString( @"%@ items are too small to draw separately",
+						   @"status bar, what the treemap had to merge" ),
+		[NSNumberFormatter localizedStringFromNumber: @( count )
+										 numberStyle: NSNumberFormatterDecimalStyle]];
+
+	NSMutableString *detail =
+		[NSMutableString stringWithString: [sizeFormatter stringForObjectValue: @(merged)]];
+
+	const unsigned long long scanSize = [[[[self document] rootItem] size] unsignedLongLongValue];
+
+	NSString *share = ShareOfScanString( merged, scanSize );
+
+	if ( share != nil )
+	{
+		[detail appendFormat: NSLocalizedString( @" · %@ of this scan",
+												 @"status bar, the merged share of the whole scan" ),
+			share];
+	}
+
+	[statusBar setIdleSummary: summary detail: detail];
+}
+
+- (void) treeMapView: (TreeMapView*) view doubleClickedCellId: (TMVCellId) cellId
+{
+	FSItem *item = [view enclosingItemByCellId: cellId];
+
+	//Zooming into a file would leave an empty map, and the two synthetic cells
+	//have no children to show. A remainder resolves to the folder that holds it,
+	//which is the one worth zooming into: at the larger scale its merged items
+	//get rects of their own, or re-form as a smaller remainder further in.
+	if ( item == nil || [item isSpecialItem] || ![item isFolder] )
+		return;
+
+	//-zoomIntoItem: already declines to zoom into what is on top of the stack,
+	//so double-clicking a remainder whose folder is the zoom root does nothing -
+	//correctly. At that scale those items genuinely do not fit.
+	[[self document] zoomIntoItem: item];
 }
 
 #pragma mark --------document notifications-----------------
@@ -329,6 +706,8 @@
 	
     [[NSNotificationCenter defaultCenter] removeObserver: self];
 	[[NSUserDefaultsController sharedUserDefaultsController] removeObserver: self forKeyPath: [@"values." stringByAppendingString: ShareKindColors]];
+	[[NSUserDefaultsController sharedUserDefaultsController] removeObserver: self forKeyPath: [@"values." stringByAppendingString: LabelLargeCells]];
+	[[NSUserDefaultsController sharedUserDefaultsController] removeObserver: self forKeyPath: [@"values." stringByAppendingString: ClassicCushions]];
 }
 
 @end
@@ -342,6 +721,15 @@
 		[_treeMapView invalidateCanvasCache];
 		[_treeMapView setNeedsDisplay: YES];
 	}
+	else if ( context == (__bridge void*) LabelLargeCells
+			  || context == (__bridge void*) ClassicCushions )
+	{
+		//Labels are an overlay, so the shaded bitmap underneath is still good;
+		//the shading model is baked into it, and -setUsesClassicCushions:
+		//invalidates the cache itself when the value actually changes.
+		[self applyTreeMapAppearance];
+		[_treeMapView setNeedsDisplay: YES];
+	}
 	else if ( object == [self document] )
 	{
 		if ( [keyPath isEqualToString: DocKeySelectedItem] )
@@ -351,15 +739,21 @@
 
 - (void) onDocumentSelectionChanged
 {
+	TreeMapView *view = (TreeMapView*) _treeMapView;
 	FSItem *item = [[self document] selectedItem];
-	
-	if ( item == (FSItem*) [_treeMapView selectedItem] )
+
+	//-enclosingItemByCellId:, not -selectedItem. A remainder has no item of its
+	//own, so -selectedItem answers nil, this guard never fired, and clicking one
+	//moved the selection straight off it and onto the parent folder's cell -
+	//outlining a whole folder when a small hatched block had been clicked. The
+	//remainder already stands for that item; it counts as selected.
+	if ( item == (FSItem*) [view enclosingItemByCellId: [view selectedCellId]] )
 		return;
 
 	if ( item == nil )
-		[_treeMapView selectItemByCellId: nil];
+		[view selectItemByCellId: nil];
 	else
-		[_treeMapView selectItemByPathToItem: [item fsItemPathFromAncestor: [self rootItem]]];
+		[view selectItemByPathToItem: [item fsItemPathFromAncestor: [self rootItem]]];
 }
 
 - (void) reloadData;

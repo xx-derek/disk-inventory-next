@@ -5,6 +5,8 @@
 	<key>allowedItemIdentifiers</key>
 	<array>
 		<string>NSToolbarToggleSidebarItem</string>
+		<string>ViewMode</string>
+		<string>Breadcrumb</string>
 		<string>ShowInfo</string>
 		<string>ShowPreferences</string>
 		<string>ShowPackageContents</string>
@@ -18,16 +20,25 @@
 		<string>NSToolbarSpaceItem</string>
 		<string>NSToolbarFlexibleSpaceItem</string>
 		<string>NSToolbarCustomizeToolbarItem</string>
+		<string>ToggleInspector</string>
 	</array>
 	<key>defaultItemIdentifiers</key>
 	<array>
 		<string>NSToolbarToggleSidebarItem</string>
+		<string>Breadcrumb</string>
+		<string>NSToolbarFlexibleSpaceItem</string>
+		<string>ViewMode</string>
 		<string>ZoomIn</string>
 		<string>ZoomOut</string>
-		<string>NSToolbarFlexibleSpaceItem</string>
+		<string>ToggleInspector</string>
 	</array>
 	<key>itemInfoByIdentifier</key>
 	<dict>
+		<key>Breadcrumb</key>
+		<dict>
+			<key>label</key>
+			<string>Location</string>
+		</dict>
 		<key>MoveToTrash</key>
 		<dict>
 			<key>action</key>
@@ -84,6 +95,16 @@
 			<string>gearshape</string>
 			<key>target</key>
 			<string>documentController</string>
+		</dict>
+		<key>ToggleInspector</key>
+		<dict>
+			<key>label</key>
+			<string>Inspector</string>
+		</dict>
+		<key>ViewMode</key>
+		<dict>
+			<key>label</key>
+			<string>View</string>
 		</dict>
 		<key>ZoomIn</key>
 		<dict>

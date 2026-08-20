@@ -93,3 +93,33 @@
 "Mount Point:" = "Punto de Montaje:";
 "Device:" = "Dispositivo:";
 " items" = " ítems";
+
+/* the summary strip above the treemap and the status bar below it */
+"Rescan" = "Volver a cargar";
+"Zoom In" = "Ampliar";
+"Zoom Out" = "Reducir";
+"%@ files · %@ folders · scanned %@" = "%@ archivos · %@ carpetas · analizado %@";
+"Click a block to select it" = "Haga clic en un bloque para seleccionarlo";
+
+/* the breadcrumb, the view-mode control and the list-mode hint */
+"Map" = "Mapa";
+"List" = "Lista";
+"Both" = "Ambos";
+"Location" = "Ubicación";
+"View" = "Vista";
+"Select a row to see what it holds" = "Seleccione una fila para ver lo que contiene";
+
+/* the inspector pane, which replaces the floating Info window */
+"Reveal" = "Mostrar";
+"Open" = "Abrir";
+"Trash" = "Papelera";
+"Nothing selected" = "Nada seleccionado";
+"Inspector" = "Información";
+"Show or hide the inspector" = "Mostrar u ocultar la información";
+
+/* the treemap's merged remainder cell */
+"%@ smaller items" = "%@ elementos más pequeños";
+"%@ · mostly %@" = "%@ · en su mayoría %@";
+" · mostly %@" = " · en su mayoría %@";
+"%@ items are too small to draw separately" = "%@ elementos son demasiado pequeños para dibujarlos por separado";
+" · %@ of this scan" = " · %@ de este análisis";

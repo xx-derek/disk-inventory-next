@@ -20,6 +20,9 @@
 @interface FileTypeColors : NSObject {
     NSMutableDictionary *_colors;
     NSMutableArray *_predefinedColors;
+    NSMutableArray *_modernColors;
+    NSMutableArray *_classicColors;
+    BOOL _usesClassicPalette;
 }
 
 + (FileTypeColors*) instance;
@@ -28,5 +31,10 @@
 - (NSColor *) colorForKind: (NSString*) kind;
 
 - (void) reset;
+
+//Which of the two kind palettes is in use. The classic one goes with the classic
+//cushion shading and its ambient floor; see the comment beside it.
+- (BOOL) usesClassicPalette;
+- (void) setUsesClassicPalette: (BOOL) classic;
 
 @end

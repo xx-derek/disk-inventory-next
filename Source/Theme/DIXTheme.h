@@ -15,42 +15,42 @@
 #import <Cocoa/Cocoa.h>
 
 //The design tokens, in one place, so a colour or a type size is never written
-//twice. The design was drawn light-only with literal hex values; everything
-//neutral here is instead a semantic NSColor, which lands close to the drawn
-//value in light mode and keeps dark mode working. Only the accent family is
-//literal, as asset-catalog colours with hand-picked dark variants.
+//twice. Every colour is an asset-catalog entry with an Any/Dark pair, taken
+//from the handoff's dark-mode table - which is a second token set, not a
+//filter: nothing is inverted or dimmed, and several roles move in opposite
+//directions between the two.
 //
-//Where a semantic colour is not an exact match for the design's hex the
-//comment says so. Those differences are deliberate: the platform's own value
-//is the one that stays right when Apple changes it, and a 1-2% neutral step
-//is not what makes the design read.
+//Nothing here branches on the appearance, and nor should any caller. The one
+//exception in the application is TMVCushionRenderer, whose constants are
+//numbers rather than colours; it reads the appearance when it builds its
+//bitmap and the view invalidates that on -viewDidChangeEffectiveAppearance.
 
 @interface DIXTheme : NSObject
 
 #pragma mark --------surfaces-----------------
 
-//The window's own background. Semantic, and the right thing to give a window.
+//The desk the window sits on.
 + (NSColor*) ground;
 
 //content surfaces: the treemap's inset, list backgrounds, cards
 + (NSColor*) surface;       // #ffffff
 
-//One step off the content surface, for chrome that is not content: status bar,
-//inspector, cards, toolbar fills. The design separates ground (#f3f2f2),
-//toolbar (#f6f5f4) and inspector (#faf9f8) by a percent or two.
-//
-//This one token is derived rather than semantic, and that is deliberate:
-//measured on macOS 26, -windowBackgroundColor, -controlBackgroundColor and
-//-textBackgroundColor all resolve to the same value (#ffffff light, #1e1e1e
-//dark), so no pair of semantic colours can express the step any more. AppKit
-//now draws that separation with NSVisualEffectView materials instead - so
-//prefer a material (.headerView, .sidebar, .contentBackground) where a view
-//can have one, and use this only for flat fills that cannot.
+//Chrome that is not content: the inspector and the status bar.
 + (NSColor*) chrome;
 
-//Sidebar fill. NSSplitViewItem +sidebarWithViewController: supplies the real
-//sidebar material on its own, so this is for sidebar-like fills elsewhere.
-+ (NSColor*) sidebar;       // ~#efedec
+//The toolbar band.
++ (NSColor*) toolbar;
+
+//A recessed well - a search field, the path chip in settings, the track behind
+//a segmented control. In dark it is *darker* than the surface, which is what
+//makes it read as recessed rather than raised.
++ (NSColor*) well;
+
+//A raised control's fill.
++ (NSColor*) controlFill;
+
+//Sidebar fill.
++ (NSColor*) sidebar;
 
 //the row highlight the design uses in the sidebar and the kinds legend
 + (NSColor*) selectedRowFill;   // ~#e2dedb / #e7e4e2
@@ -64,11 +64,12 @@
 
 #pragma mark --------lines-----------------
 
-//0.5pt pane borders and hairlines, and the 1pt separator between rows. The
-//design distinguishes #d9d6d4, #e6e3e1 and #eeecea; separatorColor is the
-//platform's single answer to all three and the thickness carries the
-//difference, which is what the eye reads anyway.
+//Pane borders - between the sidebar and the map, above the status bar.
 + (NSColor*) hairline;
+
+//The 1pt line between rows within a section. Lighter than a pane border; the
+//design gives them different values and they are no longer conflated.
++ (NSColor*) rowSeparator;
 
 //The 2pt rules between major sections. These are ink, not hairlines - the
 //design is explicit that softening them undoes it.
@@ -86,11 +87,21 @@
 + (NSColor*) accentPressed;     // #b8250e
 + (NSColor*) accentTint;        // #fdf1ef
 
+//What a label on an accent fill is drawn in. Not always white: the dark
+//accent (#ff5a3c) is light enough that white on it fails, so in dark mode a
+//label on the fill is near-black. Accent as *text* stays the accent.
++ (NSColor*) onAccent;          // #ffffff light / #1c1b1a dark
+
 //shrinkage in the change view; growth uses the accent
 + (NSColor*) positive;          // #3d7a3d
 
-//the flat fill for "other space" - neutral on purpose, since it is not a kind
-+ (NSColor*) neutralFill;       // ~#b9b5b2
+//The flat "elsewhere" tile - neutral on purpose, since it is not a file kind.
++ (NSColor*) neutralFill;
+
+//The free-space cell: a pale fill inside a dashed outline, drawn as an absence
+//rather than as a tile.
++ (NSColor*) freeSpaceFill;
++ (NSColor*) freeSpaceDash;
 
 #pragma mark --------type-----------------
 

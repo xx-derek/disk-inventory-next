@@ -79,6 +79,15 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 
 	DIXViewMode _viewMode;
 
+	//What the summary strip reports. The counts are derived from the tree and
+	//cached, rather than read from FSItem's g_fileCount/g_folderCount: those are
+	//process wide and reset by whichever document scanned last, so a window left
+	//open would start quoting another window's figures.
+	NSUInteger _fileCount;
+	NSUInteger _folderCount;
+	BOOL _countsAreValid;
+	NSDate *_scanCompletedAt;
+
 	//these variables are used during the initial directory scan
 	LoadingPanelController *_progressController;
 
@@ -131,6 +140,15 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 - (FileTypeColors*) fileTypeColors;
 
 - (void) refreshFileKindStatistics;
+
+#pragma mark --------what the summary strip reports-----------------
+
+//Counted over the tree on first ask and cached until the items change.
+- (NSUInteger) fileCount;
+- (NSUInteger) folderCount;
+
+//When the scan that built this tree finished, or nil if it never did.
+- (NSDate*) scanCompletedAt;
 
 #pragma mark --------the kind filter-----------------
 

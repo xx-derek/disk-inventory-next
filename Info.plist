@@ -139,6 +139,10 @@ No data will be read.</string>
 				<false/>
 				<key>IgnoreCreatorCode</key>
 				<false/>
+				<key>ClassicCushions</key>
+				<false/>
+				<key>LabelLargeCells</key>
+				<true/>
 				<key>ScanConcurrency</key>
 				<integer>2</integer>
 				<key>ShareKindColors</key>
@@ -196,6 +200,8 @@ No data will be read.</string>
 					<string>AnimatedZooming</string>
 					<string>ShowFreeSpace</string>
 					<string>ShowOtherSpace</string>
+					<string>LabelLargeCells</string>
+					<string>ClassicCushions</string>
 				</array>
 				<key>identifier</key>
 				<string>TreeMapPrefPage</string>

@@ -42,109 +42,118 @@ static NSColor* NamedColor( NSString *name, NSColor *fallback )
 
 @implementation DIXTheme
 
+//Every role below is an asset-catalog colour with an Any/Dark pair, taken from
+//the handoff's dark-mode table. That table supersedes the earlier decision to
+//map these onto semantic NSColors, and the reason is measurable: macOS 26
+//resolves -windowBackgroundColor, -controlBackgroundColor and
+//-textBackgroundColor to the same value (#ffffff light, #1e1e1e dark), while
+//the design leans on five distinct surfaces. Semantics cannot say what the
+//design says.
+//
+//The cost, recorded so it is a choice rather than an oversight: the sidebar no
+//longer separates itself with a material and no longer tints with the desktop.
+//Where a real material is wanted - a genuine NSVisualEffectView sidebar - it
+//can still be used over these, but the flat tones are now the specification.
+//
+//The semantic colours remain as fallbacks inside NamedColor(), so a colorset
+//that failed to compile degrades to something sensible rather than to nil.
+
 #pragma mark --------surfaces-----------------
 
 + (NSColor*) ground
 {
-	return [NSColor windowBackgroundColor];
+	return NamedColor( @"DIXGround", [NSColor windowBackgroundColor] );
 }
 
 + (NSColor*) surface
 {
-	return [NSColor controlBackgroundColor];
+	return NamedColor( @"DIXSurface", [NSColor controlBackgroundColor] );
 }
 
 + (NSColor*) chrome
 {
-	//A dynamic colour rather than a resolved one: the provider runs again for
-	//each appearance, so this keeps flipping. Resolving once and caching the
-	//result - which is what -blendedColorWithFraction:ofColor: would force -
-	//would freeze it at whatever appearance happened to be current first.
-	static NSColor *color = nil;
-	static dispatch_once_t once;
+	return NamedColor( @"DIXChrome", [NSColor windowBackgroundColor] );
+}
 
-	dispatch_once( &once, ^{
-		color = [NSColor colorWithName: @"DIXChrome"
-					   dynamicProvider: ^NSColor* ( NSAppearance *appearance )
-		{
-			NSAppearanceName matched =
-				[appearance bestMatchFromAppearancesWithNames: @[ NSAppearanceNameAqua,
-																  NSAppearanceNameDarkAqua ]];
-
-			//light chrome sits below the white content; dark chrome sits above
-			//the near-black content, which is the direction macOS itself moves
-			if ( [matched isEqualToString: NSAppearanceNameDarkAqua] )
-				return [NSColor colorWithSRGBRed: 0x2A / 255.0
-										   green: 0x2A / 255.0
-											blue: 0x2A / 255.0
-										   alpha: 1.0];
-
-			return [NSColor colorWithSRGBRed: 0xF4 / 255.0
-									   green: 0xF3 / 255.0
-										blue: 0xF2 / 255.0
-									   alpha: 1.0];
-		}];
-	});
-
-	return color;
++ (NSColor*) toolbar
+{
+	return NamedColor( @"DIXToolbar", [NSColor windowBackgroundColor] );
 }
 
 + (NSColor*) sidebar
 {
-	//Same value as -ground, and deliberately so: the design's ground and
-	//sidebar differ by about one percent, and on macOS that separation comes
-	//from the sidebar material rather than from a flat fill.
-	return [NSColor windowBackgroundColor];
+	return NamedColor( @"DIXSidebar", [NSColor windowBackgroundColor] );
+}
+
++ (NSColor*) well
+{
+	return NamedColor( @"DIXWell", [NSColor textBackgroundColor] );
+}
+
++ (NSColor*) controlFill
+{
+	return NamedColor( @"DIXControlFill", [NSColor controlColor] );
 }
 
 + (NSColor*) selectedRowFill
 {
 	//The neutral grey the design draws, not the emphasized blue: these rows are
 	//a legend and a source list, where selection is a state rather than a focus.
-	return [NSColor unemphasizedSelectedContentBackgroundColor];
+	return NamedColor( @"DIXSelectedRow", [NSColor unemphasizedSelectedContentBackgroundColor] );
 }
 
 #pragma mark --------text-----------------
 
 + (NSColor*) ink
 {
-	return [NSColor labelColor];
+	return NamedColor( @"DIXInk", [NSColor labelColor] );
 }
 
 + (NSColor*) bodyText
 {
-	//The design separates body copy (#56524f) from ink (#201e1d). AppKit makes
-	//that distinction with size and weight rather than with two blacks, and a
-	//third label colour between label and secondary would read as a bug in dark
-	//mode. Both map to labelColor on purpose.
-	return [NSColor labelColor];
+	//Its own value again. Under the semantic mapping this collapsed onto
+	//labelColor, because AppKit expresses the difference with weight and size
+	//rather than with two blacks; the design does give it a value of its own.
+	return NamedColor( @"DIXBodyText", [NSColor labelColor] );
 }
 
 + (NSColor*) secondaryText
 {
-	return [NSColor secondaryLabelColor];
+	return NamedColor( @"DIXSecondaryText", [NSColor secondaryLabelColor] );
 }
 
 + (NSColor*) tertiaryText
 {
-	return [NSColor tertiaryLabelColor];
+	return NamedColor( @"DIXTertiaryText", [NSColor tertiaryLabelColor] );
 }
 
 #pragma mark --------lines-----------------
 
 + (NSColor*) hairline
 {
-	return [NSColor separatorColor];
+	//Pane borders: between the sidebar and the map, above the status bar.
+	return NamedColor( @"DIXPaneBorder", [NSColor separatorColor] );
+}
+
++ (NSColor*) rowSeparator
+{
+	//1pt, between rows within a section - lighter than a pane border.
+	return NamedColor( @"DIXRowSeparator", [NSColor separatorColor] );
 }
 
 + (NSColor*) rule
 {
-	return [NSColor labelColor];
+	//The 2pt rules between major sections. Same value as ink in both
+	//appearances - the design's table lists them as one - but a distinct role,
+	//because a rule that stopped following the text colour would be a bug and
+	//not a redesign. Note it *inverts* in dark, to #f0eeec, and keeps its
+	//weight: never soften a rule to a hairline because dark contrast reads high.
+	return NamedColor( @"DIXInk", [NSColor labelColor] );
 }
 
 + (NSColor*) controlBorder
 {
-	return [NSColor separatorColor];
+	return NamedColor( @"DIXControlBorder", [NSColor separatorColor] );
 }
 
 #pragma mark --------accent-----------------
@@ -164,6 +173,11 @@ static NSColor* NamedColor( NSString *name, NSColor *fallback )
 	return NamedColor( @"DIXAccentTint", [NSColor controlBackgroundColor] );
 }
 
++ (NSColor*) onAccent
+{
+	return NamedColor( @"DIXOnAccent", [NSColor whiteColor] );
+}
+
 + (NSColor*) positive
 {
 	return NamedColor( @"DIXPositive", [NSColor systemGreenColor] );
@@ -171,15 +185,22 @@ static NSColor* NamedColor( NSString *name, NSColor *fallback )
 
 + (NSColor*) neutralFill
 {
-	//Literal rather than semantic, unlike everything else here. This is the
-	//"other space" tile, which sits inside the treemap against a fixed twelve
-	//hue palette - it belongs to that palette's world, not to the window
-	//chrome, and following the appearance would make it disappear into a dark
-	//background while the coloured cells beside it stayed put.
-	return [NSColor colorWithSRGBRed: 0xB9 / 255.0
-							   green: 0xB5 / 255.0
-								blue: 0xB2 / 255.0
-							   alpha: 1.0];
+	//The "elsewhere" tile. This was literal and commented as deliberately not
+	//following the appearance - the design's table overrides that and gives it
+	//#555250 in dark. The reasoning behind the old comment still holds for the
+	//*kind* colours, which really are data and really do not change; this tile
+	//is not one of them.
+	return NamedColor( @"DIXNeutralFill", [NSColor systemGrayColor] );
+}
+
++ (NSColor*) freeSpaceFill
+{
+	return NamedColor( @"DIXFreeSpace", [NSColor windowBackgroundColor] );
+}
+
++ (NSColor*) freeSpaceDash
+{
+	return NamedColor( @"DIXFreeSpaceDash", [NSColor separatorColor] );
 }
 
 #pragma mark --------type-----------------

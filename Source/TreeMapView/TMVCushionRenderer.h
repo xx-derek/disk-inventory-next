@@ -53,6 +53,18 @@ enum { TMVSurfaceCoefficientCount = 4 };
 //Scales a color so that its three components sum to a fixed brightness, keeping
 //the hue. Cushion shading multiplies the base color by a brightness that can
 //exceed 1, so base colors have to start out dim enough to leave headroom.
+//Whether cushions are shaded for a dark ground. Set by the view before it
+//builds its bitmap; global rather than per-renderer because a treemap holds
+//tens of thousands of these and they all shade the same way.
++ (BOOL) usesDarkShading;
+
+//Which of the two shading models to use, and the backing scale the rim's width
+//is expressed against. See -renderCushionInBitmap: for what they select between.
++ (BOOL) usesRimShading;
++ (void) setUsesRimShading: (BOOL) rim;
++ (void) setBackingScale: (double) scale;
++ (void) setUsesDarkShading: (BOOL) dark;
+
 + (NSColor*) normalizeColor: (NSColor*) color;
 + (void) normalizeColorRed: (double*) red green: (double*) green blue: (double*) blue;
 

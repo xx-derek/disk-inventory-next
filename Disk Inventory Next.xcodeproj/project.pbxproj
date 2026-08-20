@@ -77,6 +77,10 @@
 		DEC4DE000000000000000003 /* NSImage-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC4DE000000000000000002 /* NSImage-Extensions.m */; };
 		DEC7DE000000000000000003 /* DIXTheme.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC7DE000000000000000002 /* DIXTheme.m */; };
 		DEC7DE000000000000000006 /* DIXControls.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC7DE000000000000000005 /* DIXControls.m */; };
+		DEC8DE000000000000000003 /* DIXStatusBarView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE000000000000000002 /* DIXStatusBarView.m */; };
+		DEC8DE000000000000000006 /* DIXSummaryStripView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE000000000000000005 /* DIXSummaryStripView.m */; };
+		DEC8DE00000000000000000A /* DIXBreadcrumbView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE000000000000000009 /* DIXBreadcrumbView.m */; };
+		DEC8DE00000000000000000D /* DIXInspectorView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE00000000000000000C /* DIXInspectorView.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -251,6 +255,14 @@
 		DEC7DE000000000000000002 /* DIXTheme.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXTheme.m; sourceTree = "<group>"; };
 		DEC7DE000000000000000004 /* DIXControls.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXControls.h; sourceTree = "<group>"; };
 		DEC7DE000000000000000005 /* DIXControls.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXControls.m; sourceTree = "<group>"; };
+		DEC8DE000000000000000001 /* DIXStatusBarView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXStatusBarView.h; sourceTree = "<group>"; };
+		DEC8DE000000000000000002 /* DIXStatusBarView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXStatusBarView.m; sourceTree = "<group>"; };
+		DEC8DE000000000000000004 /* DIXSummaryStripView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXSummaryStripView.h; sourceTree = "<group>"; };
+		DEC8DE000000000000000005 /* DIXSummaryStripView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXSummaryStripView.m; sourceTree = "<group>"; };
+		DEC8DE000000000000000008 /* DIXBreadcrumbView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXBreadcrumbView.h; sourceTree = "<group>"; };
+		DEC8DE000000000000000009 /* DIXBreadcrumbView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXBreadcrumbView.m; sourceTree = "<group>"; };
+		DEC8DE00000000000000000B /* DIXInspectorView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXInspectorView.h; sourceTree = "<group>"; };
+		DEC8DE00000000000000000C /* DIXInspectorView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXInspectorView.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -322,6 +334,7 @@
 				DEC3DE000000000000000006 /* Views */,
 				DEC3DE000000000000000007 /* Extensions */,
 				DEC3DE000000000000000008 /* Helpers */,
+				DEC8DE000000000000000007 /* Window */,
 				DEC7DE000000000000000007 /* Theme */,
 				DEC0DE00000000000000003C /* TreeMapView */,
 			);
@@ -455,6 +468,21 @@
 				FCB2FDC32375F4E100DC4806 /* NSFileManager-Extensions.m */,
 			);
 			path = Extensions;
+			sourceTree = "<group>";
+		};
+		DEC8DE000000000000000007 /* Window */ = {
+			isa = PBXGroup;
+			children = (
+				DEC8DE000000000000000001 /* DIXStatusBarView.h */,
+				DEC8DE000000000000000002 /* DIXStatusBarView.m */,
+				DEC8DE000000000000000004 /* DIXSummaryStripView.h */,
+				DEC8DE000000000000000005 /* DIXSummaryStripView.m */,
+				DEC8DE000000000000000008 /* DIXBreadcrumbView.h */,
+				DEC8DE000000000000000009 /* DIXBreadcrumbView.m */,
+				DEC8DE00000000000000000B /* DIXInspectorView.h */,
+				DEC8DE00000000000000000C /* DIXInspectorView.m */,
+			);
+			path = Window;
 			sourceTree = "<group>";
 		};
 		DEC7DE000000000000000007 /* Theme */ = {
@@ -667,6 +695,10 @@
 				DEC4DE000000000000000003 /* NSImage-Extensions.m in Sources */,
 				DEC7DE000000000000000003 /* DIXTheme.m in Sources */,
 				DEC7DE000000000000000006 /* DIXControls.m in Sources */,
+				DEC8DE000000000000000003 /* DIXStatusBarView.m in Sources */,
+				DEC8DE000000000000000006 /* DIXSummaryStripView.m in Sources */,
+				DEC8DE00000000000000000A /* DIXBreadcrumbView.m in Sources */,
+				DEC8DE00000000000000000D /* DIXInspectorView.m in Sources */,
 				DEC1DE000000000000000003 /* ToolbarWindowController.m in Sources */,
 				DEC1DE000000000000000006 /* PrefsPageRecord.m in Sources */,
 				DEC5DE000000000000000003 /* PrefsPageLayout.m in Sources */,

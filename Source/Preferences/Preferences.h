@@ -33,6 +33,13 @@ extern const NSInteger ScanConcurrencyMaximum;
 extern NSString *DontShowDonationMessage;
 extern NSString *DontShowPrivacyWarningMessage;
 extern NSString *ShareKindColors;
+extern NSString *LabelLargeCells;
+
+//Cell shading: the nested-pillow cushion the application has always drawn, or
+//the design's flat cell with a bevelled edge. Off by default - the bevel is the
+//design's, and the separator now drawn between every pair of cells does the job
+//the cushion's depth cue used to do on its own.
+extern NSString *ClassicCushions;
 
 @interface NSUserDefaults(VersionDepedantValues)
 
