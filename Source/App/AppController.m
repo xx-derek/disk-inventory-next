@@ -13,7 +13,6 @@
 //
 
 #import "AppController.h"
-#import "DrivesPanelController.h"
 #import "Preferences.h"
 #import "PrefsPanelController.h"
 #import "FileSystemDoc.h"

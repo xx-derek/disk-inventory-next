@@ -45,7 +45,7 @@ extern NSString *DIXVolumeListChangedNotification;
 
 //The mounted volumes, in one place.
 //
-//This is DrivesPanelController's enumeration lifted out of it, because the
+//This is the retired Drives panel's enumeration, lifted out of it because the
 //sidebar and the volume picker both need the same list and neither should own
 //it. The workspace notifications it watches are process-wide, so it is a
 //singleton: two instances would mean two sets of observers rebuilding two arrays

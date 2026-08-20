@@ -20,7 +20,6 @@
 #import "NSAlert-Extensions.h"
 #import "NSURL-Extensions.h"
 #import "MainWindowController.h"
-#import "DrivesPanelController.h"
 #import "FileSizeFormatter.h"
 #import "Timing.h"
 #import "FSItem-Utilities.h"

@@ -34,10 +34,6 @@
 		FCCFB317097FA42B009EA2B6 /* SelectionListController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2DB097FA42B009EA2B6 /* SelectionListController.m */; };
 		FCCFB318097FA42B009EA2B6 /* FileKindsPopupController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2DD097FA42B009EA2B6 /* FileKindsPopupController.m */; };
 		FCCFB319097FA42B009EA2B6 /* SelectionListTableController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2DF097FA42B009EA2B6 /* SelectionListTableController.m */; };
-		FCCFB31A097FA42B009EA2B6 /* DrivesPanelController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2E2097FA42B009EA2B6 /* DrivesPanelController.m */; };
-		FCCFB31B097FA42B009EA2B6 /* VolumeNameTransformer.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2E4097FA42B009EA2B6 /* VolumeNameTransformer.m */; };
-		FCCFB31C097FA42B009EA2B6 /* VolumeUsageTransformer.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2E6097FA42B009EA2B6 /* VolumeUsageTransformer.m */; };
-		DE01CE1100000000000C0003 /* VolumeUsageCell.m in Sources */ = {isa = PBXBuildFile; fileRef = DE01CE1100000000000C0002 /* VolumeUsageCell.m */; };
 		FCCFB31D097FA42B009EA2B6 /* TreeMapViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2E8097FA42B009EA2B6 /* TreeMapViewController.m */; };
 		FCCFB31E097FA42B009EA2B6 /* FileKindsTableController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2EB097FA42B009EA2B6 /* FileKindsTableController.m */; };
 		FCCFB31F097FA42B009EA2B6 /* FilesOutlineViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2EF097FA42B009EA2B6 /* FilesOutlineViewController.m */; };
@@ -57,7 +53,6 @@
 		FCCFB37E097FA4C1009EA2B6 /* MainMenu.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB366097FA4C1009EA2B6 /* MainMenu.nib */; };
 		FCCFB37F097FA4C1009EA2B6 /* Preferences.strings in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB368097FA4C1009EA2B6 /* Preferences.strings */; };
 		FCCFB380097FA4C1009EA2B6 /* TreeMap.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB36A097FA4C1009EA2B6 /* TreeMap.nib */; };
-		FCCFB382097FA4C1009EA2B6 /* VolumesPanel.nib in Resources */ = {isa = PBXBuildFile; fileRef = FCCFB36E097FA4C1009EA2B6 /* VolumesPanel.nib */; };
 		FCD5DAFE09CDD4260051C1CF /* MainWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = FCD5DAFC09CDD4260051C1CF /* MainWindow.m */; };
 		FCFB17B621B876A400E3F8C4 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FCFB17B521B876A400E3F8C4 /* Images.xcassets */; };
 		DEC0DE000000000000000003 /* TreeMapView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC0DE000000000000000002 /* TreeMapView.m */; };
@@ -115,7 +110,6 @@
 		FC2B2B80277E43D10040ED6C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		FC2B2B81277E43D10040ED6C /* en */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = en; path = en.lproj/MainMenu.nib; sourceTree = "<group>"; };
 		FC2B2B82277E43D10040ED6C /* en */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = en; path = en.lproj/TreeMap.nib; sourceTree = "<group>"; };
-		FC2B2B83277E43D10040ED6C /* en */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = en; path = en.lproj/VolumesPanel.nib; sourceTree = "<group>"; };
 		FC2B2B86277E43D10040ED6C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Preferences.strings; sourceTree = "<group>"; };
 		FC2C2CA0238C802600D04E20 /* memory usage using NSURL.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "memory usage using NSURL.txt"; path = "documentation/memory usage using NSURL.txt"; sourceTree = "<group>"; };
 		FC2C2CA1238C802600D04E20 /* macOS privacy protected folders.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "macOS privacy protected folders.txt"; path = "documentation/macOS privacy protected folders.txt"; sourceTree = "<group>"; };
@@ -123,7 +117,6 @@
 		FC2D7D7721FE4ABB004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/LoadingPanel.nib; sourceTree = "<group>"; };
 		FC2D7D7821FE4ABB004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/MainMenu.nib; sourceTree = "<group>"; };
 		FC2D7D7921FE4ABB004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/TreeMap.nib; sourceTree = "<group>"; };
-		FC2D7D7A21FE4ABB004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/VolumesPanel.nib; sourceTree = "<group>"; };
 		FC2D7D7B21FE4ABB004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
 		FC2D7D7C21FE4ABB004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = de; path = de.lproj/Credits.rtf; sourceTree = "<group>"; };
 		FC2D7D7D21FE4ABC004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/InfoPlist.strings; sourceTree = "<group>"; };
@@ -135,7 +128,6 @@
 		FC42B8682202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/LoadingPanel.nib; sourceTree = "<group>"; };
 		FC42B8692202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/MainMenu.nib; sourceTree = "<group>"; };
 		FC42B86A2202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/TreeMap.nib; sourceTree = "<group>"; };
-		FC42B86B2202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/VolumesPanel.nib; sourceTree = "<group>"; };
 		FC42B86C2202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		FC42B86D2202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = es; path = es.lproj/Credits.rtf; sourceTree = "<group>"; };
 		FC42B86E2202405A0080570A /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/InfoPlist.strings; sourceTree = "<group>"; };
@@ -146,7 +138,6 @@
 		FCA1D0C02205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/LoadingPanel.nib; sourceTree = "<group>"; };
 		FCA1D0C12205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/MainMenu.nib; sourceTree = "<group>"; };
 		FCA1D0C22205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/TreeMap.nib; sourceTree = "<group>"; };
-		FCA1D0C32205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/VolumesPanel.nib; sourceTree = "<group>"; };
 		FCA1D0C42205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		FCA1D0C52205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = fr; path = fr.lproj/Credits.rtf; sourceTree = "<group>"; };
 		FCA1D0C62205FF2D004E9468 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
@@ -187,14 +178,6 @@
 		FCCFB2DD097FA42B009EA2B6 /* FileKindsPopupController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FileKindsPopupController.m; sourceTree = "<group>"; };
 		FCCFB2DE097FA42B009EA2B6 /* SelectionListTableController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SelectionListTableController.h; sourceTree = "<group>"; };
 		FCCFB2DF097FA42B009EA2B6 /* SelectionListTableController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SelectionListTableController.m; sourceTree = "<group>"; };
-		FCCFB2E1097FA42B009EA2B6 /* DrivesPanelController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DrivesPanelController.h; sourceTree = "<group>"; };
-		FCCFB2E2097FA42B009EA2B6 /* DrivesPanelController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DrivesPanelController.m; sourceTree = "<group>"; };
-		FCCFB2E3097FA42B009EA2B6 /* VolumeNameTransformer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VolumeNameTransformer.h; sourceTree = "<group>"; };
-		FCCFB2E4097FA42B009EA2B6 /* VolumeNameTransformer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VolumeNameTransformer.m; sourceTree = "<group>"; };
-		FCCFB2E5097FA42B009EA2B6 /* VolumeUsageTransformer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VolumeUsageTransformer.h; sourceTree = "<group>"; };
-		FCCFB2E6097FA42B009EA2B6 /* VolumeUsageTransformer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VolumeUsageTransformer.m; sourceTree = "<group>"; };
-		DE01CE1100000000000C0001 /* VolumeUsageCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VolumeUsageCell.h; sourceTree = "<group>"; };
-		DE01CE1100000000000C0002 /* VolumeUsageCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VolumeUsageCell.m; sourceTree = "<group>"; };
 		FCCFB2E8097FA42B009EA2B6 /* TreeMapViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TreeMapViewController.m; sourceTree = "<group>"; };
 		FCCFB2E9097FA42B009EA2B6 /* TreeMapViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TreeMapViewController.h; sourceTree = "<group>"; };
 		FCCFB2EB097FA42B009EA2B6 /* FileKindsTableController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FileKindsTableController.m; sourceTree = "<group>"; };
@@ -420,16 +403,8 @@
 				DEC6DE000000000000000002 /* DonationPanelController.m */,
 				FCCFB2D5097FA42B009EA2B6 /* DIXFileInfoView.h */,
 				FCCFB2D6097FA42B009EA2B6 /* DIXFileInfoView.m */,
-				FCCFB2E1097FA42B009EA2B6 /* DrivesPanelController.h */,
-				FCCFB2E2097FA42B009EA2B6 /* DrivesPanelController.m */,
 				DEC8DE0000000000000020 /* DIXScanPickerController.h */,
 				DEC8DE0000000000000021 /* DIXScanPickerController.m */,
-				FCCFB2E3097FA42B009EA2B6 /* VolumeNameTransformer.h */,
-				FCCFB2E4097FA42B009EA2B6 /* VolumeNameTransformer.m */,
-				FCCFB2E5097FA42B009EA2B6 /* VolumeUsageTransformer.h */,
-				FCCFB2E6097FA42B009EA2B6 /* VolumeUsageTransformer.m */,
-				DE01CE1100000000000C0001 /* VolumeUsageCell.h */,
-				DE01CE1100000000000C0002 /* VolumeUsageCell.m */,
 				FCCFB2F5097FA42B009EA2B6 /* LoadingPanelController.h */,
 				FCCFB2F6097FA42B009EA2B6 /* LoadingPanelController.m */,
 			);
@@ -564,7 +539,6 @@
 				FCCFB362097FA4C1009EA2B6 /* LoadingPanel.nib */,
 				FCCFB366097FA4C1009EA2B6 /* MainMenu.nib */,
 				FCCFB36A097FA4C1009EA2B6 /* TreeMap.nib */,
-				FCCFB36E097FA4C1009EA2B6 /* VolumesPanel.nib */,
 				FCCFB364097FA4C1009EA2B6 /* Localizable.strings */,
 				FCCFB34D097FA4C1009EA2B6 /* Credits.rtf */,
 				FCCFB360097FA4C1009EA2B6 /* InfoPlist.strings */,
@@ -699,7 +673,6 @@
 				FCCFB37F097FA4C1009EA2B6 /* Preferences.strings in Resources */,
 				FCCFB380097FA4C1009EA2B6 /* TreeMap.nib in Resources */,
 				FC2C2CA2238C802600D04E20 /* memory usage using NSURL.txt in Resources */,
-				FCCFB382097FA4C1009EA2B6 /* VolumesPanel.nib in Resources */,
 				FC4C4AC109802035004CCA22 /* Help in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -757,10 +730,6 @@
 				FCCFB318097FA42B009EA2B6 /* FileKindsPopupController.m in Sources */,
 				FCB2FDC42375F4E100DC4806 /* NSFileManager-Extensions.m in Sources */,
 				FCCFB319097FA42B009EA2B6 /* SelectionListTableController.m in Sources */,
-				FCCFB31A097FA42B009EA2B6 /* DrivesPanelController.m in Sources */,
-				FCCFB31B097FA42B009EA2B6 /* VolumeNameTransformer.m in Sources */,
-				FCCFB31C097FA42B009EA2B6 /* VolumeUsageTransformer.m in Sources */,
-				DE01CE1100000000000C0003 /* VolumeUsageCell.m in Sources */,
 				FC2A428A2219C89900A484D7 /* AppController.m in Sources */,
 				FCCFB31D097FA42B009EA2B6 /* TreeMapViewController.m in Sources */,
 				FCCFB31E097FA42B009EA2B6 /* FileKindsTableController.m in Sources */,
@@ -868,17 +837,6 @@
 				FC2B2B82277E43D10040ED6C /* en */,
 			);
 			name = TreeMap.nib;
-			sourceTree = "<group>";
-		};
-		FCCFB36E097FA4C1009EA2B6 /* VolumesPanel.nib */ = {
-			isa = PBXVariantGroup;
-			children = (
-				FC2D7D7A21FE4ABB004D0614 /* de */,
-				FC42B86B2202405A0080570A /* es */,
-				FCA1D0C32205FF2D004E9468 /* fr */,
-				FC2B2B83277E43D10040ED6C /* en */,
-			);
-			name = VolumesPanel.nib;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */

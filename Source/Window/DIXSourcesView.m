@@ -764,7 +764,7 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 	[self setHoveredRecent: -1];
 }
 
-//Deferred to the next turn of the run loop, the way DrivesPanelController opens
+//Deferred to the next turn of the run loop, the way the Drives panel opened
 //a volume: a scan takes long enough that starting one from inside the click
 //leaves the row drawn in its pressed state for the whole of it.
 - (void) openURL: (NSURL*) url

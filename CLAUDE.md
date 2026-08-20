@@ -411,10 +411,10 @@ Background and localized strings: `documentation/macOS privacy protected folders
 Every interface lives in compiled `.nib` bundles under the `.lproj` directories. They are
 not text and cannot be edited or diffed with normal tools — open them in Interface Builder.
 Localizations: `de`, `en`, `es`, `fr` (`English.lproj` is a legacy leftover holding only
-Help index files). Four nibs remain per language — `MainMenu`, `TreeMap`, `LoadingPanel`,
-`VolumesPanel`; the three preference-page nibs were deleted on 2026-08-15 when those pages
-moved into code, and `InfoPanel` on 2026-08-20 when the inspector replaced the floating Info
-window. A UI change means updating the `.nib` in each of the four languages plus
+Help index files). Three nibs remain per language — `MainMenu`, `TreeMap`, `LoadingPanel`.
+The three preference-page nibs were deleted on 2026-08-15 when those pages moved into code,
+`InfoPanel` on 2026-08-20 when the inspector replaced the floating Info window, and
+`VolumesPanel` on 2026-08-21 when the volume picker replaced the Drives panel. A UI change means updating the `.nib` in each of the four languages plus
 `Localizable.strings`.
 
 To change nib text without Interface Builder, round-trip through `ibtool`:

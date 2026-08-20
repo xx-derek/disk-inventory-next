@@ -18,7 +18,6 @@
 
 NSString *DIXRecentDocumentsChangedNotification = @"DIXRecentDocumentsChanged";
 #import "DonationPanelController.h"
-#import "DrivesPanelController.h"
 #import "DIXScanPickerController.h"
 #import "Preferences.h"
 #import "PrefsPanelController.h"
@@ -38,27 +37,8 @@ BOOL g_EnableLogging;
     [openPanel setCanChooseDirectories: YES];
     [openPanel setCanChooseFiles: NO];
     [openPanel setTreatsFilePackagesAsDirectories: YES];
-	
-//	if ( ![[DrivesPanelController sharedController] panelIsVisible] )
-	{
-		//volumes panel isn't (yet) loaded, so show the open panel the normal way (as a modal window)
-		return [openPanel runModal];
-	}
-/*	else
-	{
-		//the volumes panel is loaded, so display the open panel as a nice sheet
-		
-		[openPanel beginSheetForDirectory: nil
-									 file: nil
-						   modalForWindow: [[DrivesPanelController sharedController] panel]
-							modalDelegate: self
-						   didEndSelector: @selector(openPanelDidEnd:returnCode:contextInfo:)
-							  contextInfo: nil];
-		
-		//we will be called back after the sheet is closed, so return "Cancel" for now
-		return NSCancelButton;
-	}
-	*/
+
+    return [openPanel runModal];
 }
 
 - (void) openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
