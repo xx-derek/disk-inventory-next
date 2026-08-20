@@ -179,7 +179,7 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 	[_recentsScroll setAutohidesScrollers: YES];
 	[_recentsScroll setDrawsBackground: NO];
 	[_recentsScroll setBorderType: NSNoBorder];
-	[_recentsScroll setScrollerStyle: NSScrollerStyleOverlay];
+	[DIXControls useOverlayScrollersIn: _recentsScroll];
 	[_recentsScroll setTranslatesAutoresizingMaskIntoConstraints: YES];
 	[self addSubview: _recentsScroll];
 
@@ -195,6 +195,7 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 	[_chooseButton setAlignment: NSTextAlignmentLeft];
 	[_chooseButton setFont: [NSFont systemFontOfSize: 13.0]];
 	[_chooseButton setContentTintColor: [DIXTheme detailText]];
+	[self applyChooseButtonTitleColor];
 	[_chooseButton setTranslatesAutoresizingMaskIntoConstraints: YES];
 	[self addSubview: _chooseButton];
 
@@ -326,6 +327,13 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 		[_recents addObject: scan];
 		[_recentIcons addObject: [[NSWorkspace sharedWorkspace] iconForFile: [[scan url] path]]];
 	}
+
+	//The recents are drawn by the scroll view's document view, so the
+	//-setNeedsDisplay: the caller sends itself does not reach them. Without
+	//this these rows kept whatever "3 minutes ago" they were drawn with and
+	//only came right when something else happened to invalidate them - the
+	//refresh timer was redrawing everything except the one part that ages.
+	[_recentsView setNeedsDisplay: YES];
 }
 
 - (void) onVolumesChanged: (NSNotification*) notification
@@ -515,6 +523,36 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 											 kRecentRowHeight * (CGFloat) [_recents count] ) )];
 }
 
+//The design draws this row - folder glyph and label together - in the muted
+//tone, not in ink: it is an offer, not a heading. -contentTintColor colours the
+//symbol and leaves the title to the system's label colour, so the title has to
+//be attributed, and an attributed one holds a resolved colour and has to be
+//rebuilt when the appearance changes.
+- (void) applyChooseButtonTitleColor
+{
+	if ( _chooseButton == nil )
+		return;
+
+	__block NSColor *color = nil;
+
+	[[self effectiveAppearance] performAsCurrentDrawingAppearance: ^
+	{
+		color = [[DIXTheme detailText] colorUsingColorSpace: [NSColorSpace sRGBColorSpace]]
+				?: [DIXTheme detailText];
+	}];
+
+	[_chooseButton setAttributedTitle:
+		[[NSAttributedString alloc] initWithString: [_chooseButton title]
+										attributes: @{ NSForegroundColorAttributeName: color,
+													   NSFontAttributeName: [_chooseButton font] }]];
+}
+
+- (void) viewDidChangeEffectiveAppearance
+{
+	[super viewDidChangeEffectiveAppearance];
+	[self applyChooseButtonTitleColor];
+}
+
 - (void) drawRect: (NSRect) dirtyRect
 {
 
@@ -556,9 +594,6 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 		return;
 
 	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
-
-	NSRelativeDateTimeFormatter *whenFormatter = [[NSRelativeDateTimeFormatter alloc] init];
-	[whenFormatter setDateTimeStyle: NSRelativeDateTimeFormatterStyleNamed];
 
 	NSDictionary *nameAttributes = @{
 		NSFontAttributeName: [NSFont systemFontOfSize: 13.0 weight: NSFontWeightMedium],
@@ -650,7 +685,7 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 
 		NSString *detail = [NSString stringWithFormat: @"%@ · %@",
 			[scan abbreviatedPath],
-			[whenFormatter localizedStringForDate: [scan scannedAt] relativeToDate: [NSDate date]]];
+			[DIXRecentScan relativeTimeStringForDate: [scan scannedAt]]];
 
 		[detail drawInRect: NSMakeRect( nameX, detailY,
 										MAX( 0.0, NSMaxX( row ) - kPadding - nameX ), kRecentDetailLine )

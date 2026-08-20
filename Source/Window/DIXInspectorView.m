@@ -233,14 +233,12 @@ static const CGFloat kInfoBottomGap    =  24.0;
 	[[DIXTheme chrome] set];
 	NSRectFill( NSIntersectionRect( dirtyRect, [self bounds] ) );
 
-	//hairline down the leading edge, separating the pane from the map
-	NSRect line = [self bounds];
-	line.size.width = 1.0;
+	//No hairline down the leading edge. This pane is a split view subview and
+	//the divider beside it already draws one, in the same tone - two of them
+	//read as a 2pt border here where the sidebar, which draws none of its own,
+	//gets the single line the design has.
 
-	[[DIXTheme hairline] set];
-	NSRectFill( NSIntersectionRect( line, dirtyRect ) );
-
-	//And two across it: under the header block, and under the attribute rows.
+	//Two rules across it: under the header block, and under the attribute rows.
 	//Without them the three sections run together into one column of text, which
 	//is what the design uses these lines to prevent. They are the lighter
 	//content weight, not the pane border above - a division inside a pane should

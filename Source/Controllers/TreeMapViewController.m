@@ -533,6 +533,12 @@ static NSString* ShareOfScanString( unsigned long long part, unsigned long long 
 //and again whenever the label preference changes.
 - (void) applyTreeMapAppearance
 {
+	//The design marks the selected cell with an outline of its own and never
+	//rings the pane, so the widget's focus ring - which it draws around the
+	//whole view, since a treemap has no single focusable element - is off here
+	//rather than removed from the widget.
+	[_treeMapView setFocusRingType: NSFocusRingTypeNone];
+
 	//the design's gutters are the colour of the surface the map is inset in
 	[_treeMapView setGutterColor: [DIXTheme surface]];
 	[_treeMapView setSelectionColor: [DIXTheme accent]];

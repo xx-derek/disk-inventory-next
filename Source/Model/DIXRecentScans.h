@@ -23,6 +23,13 @@
 - (unsigned long long) size;
 - (NSDate*) scannedAt;
 
+//"8 seconds ago", "2 minutes ago". One wording for when something was scanned,
+//used by the sidebar rows and by the summary strip above the map, so the two
+//cannot say different things about the same scan - which they did: the strip
+//floored anything under a minute to "now" and then sat on it, while the row
+//beside it counted the minutes up.
++ (NSString*) relativeTimeStringForDate: (NSDate*) date;
+
 @end
 
 //The folders this application has scanned, most recent first, one entry each.

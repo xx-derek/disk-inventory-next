@@ -16,6 +16,7 @@
 
 #import "FilesOutlineViewController.h"
 #import "DIXTheme.h"
+#import "DIXControls.h"
 #import "DIXTableHeaderView.h"
 #import "FSItem.h"
 #import "FSItem-Utilities.h"
@@ -560,6 +561,24 @@ static NSImage* KindChipImage( NSColor *color )
 - (void) applyDesignAppearance
 {
 	[_outlineView setGridStyleMask: NSTableViewGridNone];
+
+	//Before -sizeToFit below, not after: an overlay scroller gives the clip
+	//view back the width a legacy one was standing in, and the columns are
+	//spread across whatever the table is at the time.
+	[DIXControls useOverlayScrollersIn: [_outlineView enclosingScrollView]];
+
+	//The selected row is marked by its accent fill and its leading bar; a ring
+	//round the whole pane on top of that is AppKit's idea, not the design's.
+	//Both the table and the scroll view have to be told - the ring is drawn by
+	//the scroll view, around the table inside it.
+	[_outlineView setFocusRingType: NSFocusRingTypeNone];
+	[[_outlineView enclosingScrollView] setFocusRingType: NSFocusRingTypeNone];
+
+	//The nib never set a border type, so this scroll view carried AppKit's
+	//default bezel: a line down all four sides of the list, drawn a point
+	//inside the divider or the strip's own hairline and reading as a second,
+	//doubled rule at every edge of the pane.
+	[[_outlineView enclosingScrollView] setBorderType: NSNoBorder];
 
 	//AppKit's header draws a bezel, a gradient and a separator per column; the
 	//design's is a flat band with one rule. Both the view and the cells have to

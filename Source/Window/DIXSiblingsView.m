@@ -126,9 +126,9 @@ static const NSUInteger kMaximumRows = 200;
 	_scrollView = [[NSScrollView alloc] initWithFrame: NSZeroRect];
 	[_scrollView setDocumentView: _rowsView];
 	[_scrollView setHasVerticalScroller: YES];
-	[_scrollView setAutohidesScrollers: YES];
 	[_scrollView setDrawsBackground: NO];
 	[_scrollView setBorderType: NSNoBorder];
+	[DIXControls useOverlayScrollersIn: _scrollView];
 	[_scrollView setTranslatesAutoresizingMaskIntoConstraints: YES];
 	[self addSubview: _scrollView];
 

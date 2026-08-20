@@ -11,6 +11,7 @@
 @class DIXInspectorView;
 @class DIXSourcesView;
 @class DIXKindsView;
+@class DIXSegmentedControl;
 
 @interface MainWindowController : ToolbarWindowController <NSSplitViewDelegate>
 {
@@ -33,8 +34,17 @@
     //sidebar and the inspector run the window's full height beside them - so
     //they are held by a container rather than by the content view.
     NSView *_centreColumn;
+
+    //The map's half of the outline/map split, holding the summary strip above
+    //the treemap. It is the split view's subview now, so hiding it is what
+    //collapses the map - see -placeSummaryStrip.
+    NSView *_mapColumn;
+
     DIXSummaryStripView *_summaryStripView;
     DIXStatusBarView *_statusBarView;
+
+    //restates "scanned 8 seconds ago" as it ages; see -startSummaryAgeClock
+    NSTimer *_summaryAgeTimer;
 
     //The title bar's leading accessory: the sidebar button and the breadcrumb.
     //Neither is a toolbar item - see -installTitleAccessory for why - so both
@@ -42,6 +52,15 @@
     NSView *_titleAccessoryView;
     NSButton *_sidebarButton;
     DIXBreadcrumbView *_breadcrumbView;
+
+    //And the trailing one: the mode switch, the search field and the inspector
+    //button. In the toolbar each of those was wrapped in a Liquid Glass capsule
+    //that the design does not have - see -installTrailingAccessory.
+    NSView *_trailingAccessoryView;
+    NSView *_searchBox;
+    NSButton *_scopeButton;
+    NSMenu *_searchScopeMenu;
+    NSButton *_inspectorButton;
 
     //The title bar's fill, the sidebar's fill and trailing edge carried up
     //through it, and the line underneath. All four are drawn by the application
@@ -58,7 +77,7 @@
     DIXKindsView *_kindsView;
     NSBox *_sectionRule;        //the 2pt rule between the two sections
     NSView *_sidebarPane;
-    NSSegmentedControl *_viewModeControl;
+    DIXSegmentedControl *_viewModeControl;
 
     //The toolbar's search field. The query itself lives on the document.
     NSSearchField *_searchField;
@@ -66,11 +85,18 @@
     //The right-hand pane, replacing the floating Info window.
     DIXInspectorView *_inspectorView;
     CGFloat _inspectorWidth;    //remembered across a collapse, like the sidebar's
+    BOOL _collapsingInspector;  //lifts its minimum while the divider goes to the edge
 
     //Set once the panes have been given their opening widths. Until then the
     //split view is still being assembled and resized, and the widths it reports
     //describe nothing anyone chose.
     BOOL _paneWidthsPlaced;
+
+    //Later still: set a run-loop turn after the window loads, once the dividers
+    //have been placed against the window's real frame. From then on a change of
+    //the split view's width is a window resize and belongs to the middle column
+    //- see -splitView:shouldAdjustSizeOfSubview:.
+    BOOL _paneWidthsSettled;
 
 	IBOutlet NSSplitView *_splitter;
 	IBOutlet NSOutlineView *_filesOutlineView;

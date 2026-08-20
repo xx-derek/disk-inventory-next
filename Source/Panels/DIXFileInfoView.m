@@ -16,6 +16,7 @@
 
 #import "DIXFileInfoView.h"
 #import "DIXTheme.h"
+#import "DIXControls.h"
 #import "AppsForItem.h"
 #import "NSURL-Extensions.h"
 
@@ -307,7 +308,7 @@ static const CGFloat kInspectorColumnGap  = 10.0;
 	[_scrollView setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
 	[_scrollView setHasVerticalScroller: YES];
 	[_scrollView setHasHorizontalScroller: NO];
-	[_scrollView setAutohidesScrollers: YES];
+	[DIXControls useOverlayScrollersIn: _scrollView];
 	[_scrollView setBorderType: NSNoBorder];
 	[_scrollView setDrawsBackground: NO];
 	[_scrollView setDocumentView: _grid];

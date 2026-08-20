@@ -90,4 +90,51 @@
 //reads has no stray space in it.
 + (void) setImageTitleGap: (CGFloat) gap onButton: (NSButton*) button;
 
+#pragma mark --------scroll views-----------------
+
+//Overlay scrollers: the knob fades in while the wheel is turning and leaves no
+//gutter behind it, so a list runs to the edge of its pane. Every list in the
+//window asks for this, because the alternative is a permanent 15pt channel the
+//design does not have.
+//
+//An explicit "Always" in System Settings is honoured; see the note at the
+//implementation for why, and for why one call is not enough on its own.
++ (void) useOverlayScrollersIn: (NSScrollView*) scrollView;
+
+@end
+
+#pragma mark --------the mode switch-----------------
+
+//The Map/List/Both switch: a flat track with one raised segment on it, which is
+//how the design draws it and is not a shape NSSegmentedControl offers - its
+//bezel is the platform's and on macOS 26 it is glass.
+//
+//-selectedSegment and -setSelectedSegment: keep NSSegmentedControl's names, so
+//the window controller reads the same either way.
+@interface DIXSegmentedControl : NSView
+
++ (instancetype) switchWithLabels: (NSArray<NSString*>*) labels
+						   target: (id) target
+						   action: (SEL) action;
+
+@property (nonatomic, assign) NSInteger selectedSegment;
+
+- (void) sizeToFit;
+
+@end
+
+#pragma mark --------the button shape-----------------
+
+//The shape both factories above produce: a flat fill, the theme's 6pt radius,
+//an optional hairline, and the height its frame was given. Public because a
+//caller sometimes has to change a fill afterwards - the inspector toggle is
+//filled while the pane it opens is showing.
+@interface DIXFlatButton : NSButton
+
+@property (nonatomic, strong) NSColor *fillColor;
+@property (nonatomic, strong) NSColor *pressedFillColor;
+@property (nonatomic, strong) NSColor *borderColor;
+@property (nonatomic, strong) NSColor *titleColor;
+@property (nonatomic, assign) NSFontWeight titleWeight;
+
 @end

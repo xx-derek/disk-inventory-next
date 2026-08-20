@@ -14,6 +14,7 @@
 //
 
 #import "DrivesPanelController.h"
+#import "DIXControls.h"
 #import "FileSizeFormatter.h"
 #import "VolumeNameTransformer.h"
 #import "VolumeUsageTransformer.h"
@@ -129,6 +130,8 @@ static NSArray<NSURLResourceKey> *VolumeSizeResourceKeys( void )
 		//rather than in Interface Builder keeps it out of the four localized
 		//VolumesPanel nibs, which hold a placeholder NSTextFieldCell apiece.
 		[[_volumesTableView tableColumnWithIdentifier: @"usagePercent"] setDataCell: [[VolumeUsageCell alloc] init]];
+
+		[DIXControls useOverlayScrollersIn: [_volumesTableView enclosingScrollView]];
 
 		//stops the refresh timer again when the panel goes away
 		[[NSNotificationCenter defaultCenter] addObserver: self

@@ -4,7 +4,6 @@
 <dict>
 	<key>allowedItemIdentifiers</key>
 	<array>
-		<string>ViewMode</string>
 		<string>ShowPreferences</string>
 		<string>ShowPackageContents</string>
 		<string>ZoomIn</string>
@@ -17,17 +16,10 @@
 		<string>NSToolbarSpaceItem</string>
 		<string>NSToolbarFlexibleSpaceItem</string>
 		<string>NSToolbarCustomizeToolbarItem</string>
-		<string>ToggleInspector</string>
-		<string>Search</string>
 	</array>
 	<key>defaultItemIdentifiers</key>
 	<array>
 		<string>NSToolbarFlexibleSpaceItem</string>
-		<string>ViewMode</string>
-		<string>ZoomIn</string>
-		<string>ZoomOut</string>
-		<string>Search</string>
-		<string>ToggleInspector</string>
 	</array>
 	<key>itemInfoByIdentifier</key>
 	<dict>
@@ -59,11 +51,6 @@
 			<key>symbolName</key>
 			<string>arrow.right.doc.on.clipboard</string>
 		</dict>
-		<key>Search</key>
-		<dict>
-			<key>label</key>
-			<string>Search</string>
-		</dict>
 		<key>ShowPackageContents</key>
 		<dict>
 			<key>action</key>
@@ -83,16 +70,6 @@
 			<string>gearshape</string>
 			<key>target</key>
 			<string>documentController</string>
-		</dict>
-		<key>ToggleInspector</key>
-		<dict>
-			<key>label</key>
-			<string>Inspector</string>
-		</dict>
-		<key>ViewMode</key>
-		<dict>
-			<key>label</key>
-			<string>View</string>
 		</dict>
 		<key>ZoomIn</key>
 		<dict>

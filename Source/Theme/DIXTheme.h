@@ -123,6 +123,17 @@
 //row sits on a darker background than one on the sidebar's own, so it needs a
 //deeper track to read as a track at all.
 + (NSColor*) barTrack;          // #e2dfdd / #333130
+
+//The Map/List/Both switch: a recessed track with one raised segment on it.
+//Neither tone is any other role's - the light track is a shade deeper than the
+//bars', and the dark one is deeper still than the well.
++ (NSColor*) switchTrack;       // #e4e1df / #161514
++ (NSColor*) switchSelected;    // #ffffff / #46433f
+
+//A title bar toggle that is on - the inspector button while the inspector is
+//showing. The design fills only that one; the sidebar's stays plain whether the
+//sidebar is open or not.
++ (NSColor*) toggleOn;          // #e4e1df / #46433f
 + (NSColor*) barTrackDeep;      // #d3cfcc / #161514
 
 //Quieter than secondaryText and, unlike it, the *same* step in both

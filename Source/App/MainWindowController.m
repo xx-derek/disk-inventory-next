@@ -43,9 +43,11 @@
 
 @interface MainWindowController()
 - (void) setKindStatisticsVisible: (BOOL) visible animated: (BOOL) animated;
-- (NSToolbarItem*) buildViewModeItem;
-- (NSToolbarItem*) buildInspectorToggleItem;
-- (NSToolbarItem*) buildSearchItem;
+- (void) installTrailingAccessory;
+- (void) layoutTrailingAccessory;
+- (NSSearchField*) buildSearchField;
+- (IBAction) showSearchScopeMenu: (id) sender;
+- (void) updateInspectorButtonState;
 - (void) updateSearchScopeMenu;
 - (void) installTitleAccessory;
 - (void) colourTitleBar;
@@ -57,6 +59,11 @@
 - (void) updateStatusBarHintForViewMode;
 - (void) chooseInitialViewMode;
 - (void) updateInspector;
+- (void) placeSummaryStrip;
+- (void) updateSummarySubtitle;
+- (void) startSummaryAgeClock;
+- (CGFloat) minimumCentreColumnWidth;
+- (void) setPaneWidthsSettled: (BOOL) settled;
 - (void) placePaneDividers;
 - (void) animateKindStatisticsDividerTo: (CGFloat) targetWidth completion: (void (^)(void)) completion;
 @end
@@ -146,6 +153,12 @@
 		[_splitter setVertical: NO];		
 	}
 	
+	//The nib's split view carries AppKit's old 9pt divider, which put a band of
+	//window background down the right-hand side of the file list. The design
+	//separates the list from the map with a line, not a gap, and the sidebar's
+	//split view is already thin.
+	[_splitter setDividerStyle: NSSplitViewDividerStyleThin];
+
 	//NSSplitView remembers the divider position itself
 	//see -buildSidePanes: the widths are this window's to remember, not the
 	//split view's, because the frame changes that follow would undo a restore
@@ -408,13 +421,31 @@
 		NSMakeRect( NSMinX( columnBounds ), NSMaxY( columnBounds ) - stripHeight,
 					NSWidth( columnBounds ), stripHeight )];
 	[_summaryStripView setAutoresizingMask: NSViewWidthSizable | NSViewMinYMargin];
-	[_centreColumn addSubview: _summaryStripView];
 
-	//the outline/treemap split owns only the band between the two chrome views
+	//A column for the map, so the summary can sit above it rather than above
+	//both panes. The design runs the file list from the top of the window - it
+	//is a column of its own, headed by Name/Size/Share - while the total and
+	//the buttons that act on the map belong over the map.
+	//
+	//The split view sees one subview per pane either way, so nothing about the
+	//dividers changes; what was the treemap is now the column holding it.
+	_mapColumn = [[NSView alloc] initWithFrame: [_treeMapView frame]];
+	[_mapColumn setAutoresizingMask: [_treeMapView autoresizingMask]];
+
+	[_splitter replaceSubview: _treeMapView with: _mapColumn];
+
+	[_treeMapView setFrame: [_mapColumn bounds]];
+	[_treeMapView setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
+	[_mapColumn addSubview: _treeMapView];
+
+	//the outline/map split owns everything above the status bar; the strip is
+	//inside it now, over the map's half - see -placeSummaryStrip
 	NSRect squeezed = columnBounds;
 	squeezed.origin.y = statusHeight;
-	squeezed.size.height = NSHeight( columnBounds ) - statusHeight - stripHeight;
+	squeezed.size.height = NSHeight( columnBounds ) - statusHeight;
 	[_splitter setFrame: squeezed];
+
+	[self placeSummaryStrip];
 
 	//the strip's buttons drive the actions the menu already validates
 	[_summaryStripView setTarget: self
@@ -449,6 +480,7 @@
 							 object: doc];
 
 	[self updateSummaryStrip];
+	[self startSummaryAgeClock];
 
 	[self chooseInitialViewMode];
 }
@@ -477,14 +509,54 @@
 	if ( !visible )
 		_inspectorWidth = NSWidth( [_inspectorView frame] );
 
-	[_inspectorView setHidden: !visible];
-	[_kindStatisticsSplitView adjustSubviews];
-
 	if ( visible )
 	{
+		[_inspectorView setHidden: NO];
+		[_kindStatisticsSplitView adjustSubviews];
 		[self placePaneDividers];
 		[self updateInspector];
 	}
+	else
+	{
+		//The divider first, the flag second, and in that order for two separate
+		//reasons.
+		//
+		//Hiding the view is not enough on its own: the divider beside it stays
+		//where it was and goes on being drawn there, a 1pt translucent line from
+		//the top of the window to the bottom, over the summary strip, the map and
+		//the status bar alike. The sidebar never showed it because its own path
+		//drives its divider to the edge rather than only hiding the pane.
+		//
+		//And -setPosition:ofDividerAtIndex: *un-collapses* the subview it gives
+		//width to, so setting the flag first left the pane counting as visible
+		//again at zero width: the button then closed what was already closed and
+		//the inspector could not be reopened at all.
+		_collapsingInspector = YES;
+
+		[_kindStatisticsSplitView setPosition: NSWidth( [_kindStatisticsSplitView bounds] )
+							 ofDividerAtIndex: 1];
+
+		_collapsingInspector = NO;
+
+		[_inspectorView setHidden: YES];
+	}
+
+	[self updateInspectorButtonState];
+}
+
+//The design fills this one button while the pane it opens is showing, in the
+//same raised tone as the switch's selected segment. The sidebar's button beside
+//the breadcrumb is drawn plain either way, which is the design's own asymmetry
+//and not an oversight here.
+- (void) updateInspectorButtonState
+{
+	if ( ![_inspectorButton isKindOfClass: [DIXFlatButton class]] )
+		return;
+
+	DIXFlatButton *button = (DIXFlatButton*) _inspectorButton;
+
+	[button setFillColor: [self isInspectorVisible] ? [DIXTheme toggleOn] : nil];
+	[button setNeedsDisplay: YES];
 }
 
 //Divider 0 sits after the statistics pane, divider 1 before the inspector. Both
@@ -635,15 +707,6 @@ static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
 	 itemForItemIdentifier: (NSString*) identifier
  willBeInsertedIntoToolbar: (BOOL) willInsert
 {
-	if ( [identifier isEqualToString: @"ViewMode"] )
-		return [self buildViewModeItem];
-
-	if ( [identifier isEqualToString: @"ToggleInspector"] )
-		return [self buildInspectorToggleItem];
-
-	if ( [identifier isEqualToString: @"Search"] )
-		return [self buildSearchItem];
-
 	return [super toolbar: toolbar
 	itemForItemIdentifier: identifier
 willBeInsertedIntoToolbar: willInsert];
@@ -653,15 +716,65 @@ willBeInsertedIntoToolbar: willInsert];
 //carried. That menu used to come out of the nib; it is built here because the
 //field is, and because a menu of four fixed choices is less code than a nib
 //reference to one.
-- (NSToolbarItem*) buildSearchItem
+//The magnifier and the scope chevron, composed with a gap, for the search
+//field's leading button - see kSearchChevronGap.
+static NSImage *SearchButtonImage( NSString *label )
 {
-	NSSearchToolbarItem *item =
-		[[NSSearchToolbarItem alloc] initWithItemIdentifier: @"Search"];
+	NSImageSymbolConfiguration *glassConfig =
+		[NSImageSymbolConfiguration configurationWithPointSize: 12.0
+														weight: NSFontWeightRegular
+														 scale: NSImageSymbolScaleMedium];
+	NSImageSymbolConfiguration *chevronConfig =
+		[NSImageSymbolConfiguration configurationWithPointSize: 7.0
+														weight: NSFontWeightSemibold
+														 scale: NSImageSymbolScaleSmall];
 
-	[item setLabel: NSLocalizedString( @"Search", @"toolbar item label" )];
-	[item setPaletteLabel: [item label]];
+	NSImage *glass = [[NSImage imageForSymbolName: @"magnifyingglass"
+						 accessibilityDescription: label] imageWithSymbolConfiguration: glassConfig];
+	NSImage *chevron = [[NSImage imageForSymbolName: @"chevron.down"
+						   accessibilityDescription: label] imageWithSymbolConfiguration: chevronConfig];
 
-	_searchField = [item searchField];
+	if ( glass == nil || chevron == nil )
+		return glass;
+
+	const NSSize glassSize = [glass size];
+	const NSSize chevronSize = [chevron size];
+	const NSSize size = NSMakeSize( glassSize.width + kSearchChevronGap + chevronSize.width,
+									MAX( glassSize.height, chevronSize.height ) );
+
+	NSImage *composed = [NSImage imageWithSize: size flipped: NO drawingHandler:
+		^BOOL ( NSRect destination )
+	{
+		[glass drawAtPoint: NSMakePoint( 0.0, round( ( size.height - glassSize.height ) / 2.0 ) )
+				  fromRect: NSZeroRect
+				 operation: NSCompositingOperationSourceOver
+				  fraction: 1.0];
+
+		[chevron drawAtPoint: NSMakePoint( glassSize.width + kSearchChevronGap,
+										   round( ( size.height - chevronSize.height ) / 2.0 ) )
+					fromRect: NSZeroRect
+				   operation: NSCompositingOperationSourceOver
+					fraction: 1.0];
+		return YES;
+	}];
+
+	[composed setTemplate: YES];
+
+	return composed;
+}
+
+- (NSSearchField*) buildSearchField
+{
+	_searchField = [[NSSearchField alloc] initWithFrame:
+		NSMakeRect( 0.0, 0.0, kSearchBoxWidth, kSearchBoxHeight )];
+
+	//Unbordered: the box around it draws the design's shape, which is a 6pt
+	//rectangle with a hairline and not a bezel NSSearchField has.
+	[_searchField setBordered: NO];
+	[_searchField setBezeled: NO];
+	[_searchField setDrawsBackground: NO];
+	[_searchField setFocusRingType: NSFocusRingTypeNone];
+	[_searchField setFont: [NSFont systemFontOfSize: 12.0]];
 
 	[_searchField setPlaceholderString:
 		NSLocalizedString( @"Search this scan", @"toolbar search field placeholder" )];
@@ -692,11 +805,31 @@ willBeInsertedIntoToolbar: willInsert];
 		[scopes addItem: menuItem];
 	}
 
-	[[_searchField cell] setSearchMenuTemplate: scopes];
+	_searchScopeMenu = scopes;
+
+	//The field's own search button is removed and replaced by one of ours.
+	//
+	//Unbezeled, the cell still *draws* that button but no longer tracks it - the
+	//buttons are tracked within the bezel rect, which is empty - so the chevron
+	//was there and clicking it did nothing at all. Ours is a plain button that
+	//pops the menu up itself, which also puts its spacing under this file's
+	//control rather than inside AppKit's composite glyph.
+	[[_searchField cell] setSearchButtonCell: nil];
+
+	NSString *label = NSLocalizedString( @"Search scope", @"search field menu title" );
+
+	_scopeButton = [NSButton buttonWithImage: SearchButtonImage( label )
+									  target: self
+									  action: @selector(showSearchScopeMenu:)];
+
+	[_scopeButton setBordered: NO];
+	[_scopeButton setImagePosition: NSImageOnly];
+	[_scopeButton setToolTip: label];
+	[_scopeButton setContentTintColor: [DIXTheme tertiaryText]];
 
 	[self updateSearchScopeMenu];
 
-	return item;
+	return _searchField;
 }
 
 - (IBAction) searchFieldChanged: (id) sender
@@ -730,58 +863,29 @@ willBeInsertedIntoToolbar: willInsert];
 
 //NSSearchField rebuilds its menu from the template every time it is shown, so
 //the tick has to go on the template rather than on the menu the user saw.
+//The menu is ours and is shown as it stands, so ticking an item here is what
+//appears. It used to be handed to the field as a search menu *template*, which
+//the field copies - so the tick went on an object nothing was showing, and
+//choosing a scope worked while looking as though it had not.
 - (void) updateSearchScopeMenu
 {
-	NSMenu *template = [[_searchField cell] searchMenuTemplate];
 	const FSItemIndexType scope = [[self document] searchScope];
 
-	for ( NSMenuItem *menuItem in [template itemArray] )
+	for ( NSMenuItem *menuItem in [_searchScopeMenu itemArray] )
 	{
 		[menuItem setState: ( (FSItemIndexType) [menuItem tag] == scope )
 							? NSControlStateValueOn : NSControlStateValueOff];
 	}
 }
 
-//The right-hand counterpart of NSToolbarToggleSidebarItem. AppKit has no
-//standard item for an inspector on macOS 11, so this is an ordinary one.
-- (NSToolbarItem*) buildInspectorToggleItem
+- (IBAction) showSearchScopeMenu: (id) sender
 {
-	ToolbarItem *item = [[ToolbarItem alloc] initWithItemIdentifier: @"ToggleInspector"];
+	[self updateSearchScopeMenu];
 
-	[item setLabel: NSLocalizedString( @"Inspector", @"toolbar item label" )];
-	[item setPaletteLabel: [item label]];
-	[item setToolTip: NSLocalizedString( @"Show or hide the inspector", @"toolbar item tooltip" )];
-	[item setImage: [NSImage imageForSymbolName: @"sidebar.right"
-					   accessibilityDescription: [item label]]];
-	[item setTarget: self];
-	[item setAction: @selector(toggleInspector:)];
-	[item setDelegate: self];
-
-	return item;
-}
-
-- (NSToolbarItem*) buildViewModeItem
-{
-	NSToolbarItem *item = [[NSToolbarItem alloc] initWithItemIdentifier: @"ViewMode"];
-
-	_viewModeControl = [NSSegmentedControl segmentedControlWithLabels:
-		@[ NSLocalizedString( @"Map",  @"view mode" ),
-		   NSLocalizedString( @"List", @"view mode" ),
-		   NSLocalizedString( @"Both", @"view mode" ) ]
-								   trackingMode: NSSegmentSwitchTrackingSelectOne
-										 target: self
-										 action: @selector(changeViewMode:)];
-
-	[_viewModeControl setTranslatesAutoresizingMaskIntoConstraints: YES];
-	[_viewModeControl sizeToFit];
-
-	[item setView: _viewModeControl];
-	[item setLabel: NSLocalizedString( @"View", @"toolbar item label" )];
-	[item setPaletteLabel: [item label]];
-
-	[self updateViewModeControl];
-
-	return item;
+	//Below the button: the accessory is not flipped, so a negative y is down.
+	[_searchScopeMenu popUpMenuPositioningItem: nil
+									atLocation: NSMakePoint( 0.0, -4.0 )
+										inView: _scopeButton];
 }
 
 #pragma mark -----------------the title bar's leading accessory-----------------------
@@ -843,6 +947,173 @@ willBeInsertedIntoToolbar: willInsert];
 	[[self window] addTitlebarAccessoryViewController: accessory];
 
 	[self updateBreadcrumb];
+	[self installTrailingAccessory];
+}
+
+//The design's metrics for the right-hand end of the title bar: a 172x26 search
+//box, a 28pt inspector button, 10pt between the three and 14pt at the edge.
+static const CGFloat kTrailingGap         =  10.0;
+static const CGFloat kTrailingEdgeInset   =  14.0;
+static const CGFloat kSearchBoxWidth      = 240.0;   //the design's 172, widened on request
+static const CGFloat kSearchBoxHeight     =  26.0;
+static const CGFloat kInspectorButtonWidth  = 28.0;
+static const CGFloat kInspectorButtonHeight = 24.0;
+
+//The design's "padding: 0 8px" inside the search box.
+static const CGFloat kSearchBoxPadding    =   8.0;
+
+//Inside the scope button, between the magnifier and the chevron. AppKit's own
+//glyph for a search field with a menu puts them rim to rim, where they read as
+//one broken symbol rather than as two things.
+static const CGFloat kSearchChevronGap    =   4.0;
+
+//And between that button and the text, which wants more air than the chevron's
+//own gap: at 4pt the chevron read as belonging to the first letter.
+static const CGFloat kSearchTextGap       =   8.0;
+
+//The mode switch, the search field and the inspector button, in a trailing
+//accessory rather than in the toolbar - the same move the breadcrumb needed, for
+//the same reason.
+//
+//On macOS 26 a toolbar puts every item inside a Liquid Glass capsule and nothing
+//supported switches it off: -setBordered:NO on the item changes nothing,
+//measured. Over this window's flat title band the capsule blurs to a near-white
+//blob a few points bigger than the control it holds, which is the pale outline
+//that showed around the switch. An accessory goes into an
+//NSTitlebarAccessoryClipView and never enters the glass container.
+//
+//The cost is that these three can no longer be dragged out in Customize
+//Toolbar. They are gone from the toolbar's item lists as well as its defaults,
+//so a saved layout cannot bring back a second copy beside the accessory's own.
+- (void) installTrailingAccessory
+{
+	if ( _trailingAccessoryView != nil )
+		return;
+
+	//Drawn rather than an NSSegmentedControl: the design's switch is a flat
+	//track with one raised segment on it, and the platform's bezel is neither.
+	_viewModeControl = [DIXSegmentedControl switchWithLabels:
+		@[ NSLocalizedString( @"Map",  @"view mode" ),
+		   NSLocalizedString( @"List", @"view mode" ),
+		   NSLocalizedString( @"Both", @"view mode" ) ]
+													 target: self
+													 action: @selector(changeViewMode:)];
+
+	NSBox *box = FilledBox( [DIXTheme controlFill] );
+
+	[box setBorderWidth: 0.5];
+	[box setBorderColor: [DIXTheme controlBorder]];
+	[box setCornerRadius: [DIXTheme cornerRadius]];
+	//A background only. The scope button and the field are laid out over it as
+	//siblings rather than put inside it: NSBox resizes its content view to fill,
+	//and one line of text centred in a 26pt box is not that.
+	_searchBox = box;
+
+	NSString *inspectorLabel = NSLocalizedString( @"Inspector", @"toolbar item label" );
+
+	//A DIXFlatButton so it can carry the design's "on" fill; see
+	//-updateInspectorButtonState.
+	DIXFlatButton *inspector = [[DIXFlatButton alloc] initWithFrame: NSZeroRect];
+
+	//NSButton's default title is the word "Button", and -initWithFrame: keeps it
+	//where +buttonWithImage: would have cleared it - it drew straight over the
+	//symbol.
+	[inspector setTitle: @""];
+	[inspector setImage: [NSImage imageForSymbolName: @"sidebar.right"
+							accessibilityDescription: inspectorLabel]];
+	[inspector setImagePosition: NSImageOnly];
+	[inspector setTarget: self];
+	[inspector setAction: @selector(toggleInspector:)];
+	[inspector setTitleColor: [DIXTheme ink]];
+	[inspector setToolTip: NSLocalizedString( @"Show or hide the inspector",
+											  @"toolbar item tooltip" )];
+	_inspectorButton = inspector;
+
+	//AppKit stretches the accessory to the full height of the title bar, so both
+	//margins stay flexible and the three stay centred through it.
+	[self buildSearchField];
+
+	for ( NSView *view in @[ _viewModeControl, _searchBox, _scopeButton,
+							 _searchField, _inspectorButton ] )
+	{
+		[view setAutoresizingMask: NSViewMinYMargin | NSViewMaxYMargin];
+		[view setTranslatesAutoresizingMaskIntoConstraints: YES];
+	}
+
+	_trailingAccessoryView = [[NSView alloc] initWithFrame: NSMakeRect( 0.0, 0.0, 460.0, 28.0 )];
+	[_trailingAccessoryView addSubview: _viewModeControl];
+	[_trailingAccessoryView addSubview: _searchBox];
+	[_trailingAccessoryView addSubview: _scopeButton];
+	[_trailingAccessoryView addSubview: _searchField];
+	[_trailingAccessoryView addSubview: _inspectorButton];
+
+	NSTitlebarAccessoryViewController *accessory =
+		[[NSTitlebarAccessoryViewController alloc] init];
+
+	[accessory setView: _trailingAccessoryView];
+	[accessory setLayoutAttribute: NSLayoutAttributeTrailing];
+
+	[[self window] addTitlebarAccessoryViewController: accessory];
+
+	[self layoutTrailingAccessory];
+	[self updateViewModeControl];
+	[self updateInspectorButtonState];
+}
+
+//Laid out from the trailing edge inwards, which is the order the design reads
+//them in: inspector, search, switch.
+- (void) layoutTrailingAccessory
+{
+	if ( _trailingAccessoryView == nil )
+		return;
+
+	[_viewModeControl sizeToFit];
+
+	const CGFloat switchWidth = NSWidth( [_viewModeControl frame] );
+	const CGFloat width = kTrailingEdgeInset
+						  + kInspectorButtonWidth + kTrailingGap
+						  + kSearchBoxWidth + kTrailingGap
+						  + switchWidth;
+
+	NSRect frame = [_trailingAccessoryView frame];
+	frame.size.width = width;
+	[_trailingAccessoryView setFrame: frame];
+
+	const CGFloat midY = NSMidY( [_trailingAccessoryView bounds] );
+	CGFloat right = width - kTrailingEdgeInset;
+
+	[_inspectorButton setFrame: NSMakeRect( right - kInspectorButtonWidth,
+											midY - kInspectorButtonHeight / 2.0,
+											kInspectorButtonWidth, kInspectorButtonHeight )];
+	right = NSMinX( [_inspectorButton frame] ) - kTrailingGap;
+
+	[_searchBox setFrame: NSMakeRect( right - kSearchBoxWidth, midY - kSearchBoxHeight / 2.0,
+									  kSearchBoxWidth, kSearchBoxHeight )];
+
+	//the design's "padding: 0 8px; gap: 6px", laid out inside the box
+	const NSRect box = [_searchBox frame];
+	const NSSize scopeSize = [[_scopeButton image] size];
+
+	[_scopeButton setFrame: NSMakeRect( NSMinX( box ) + kSearchBoxPadding,
+										midY - scopeSize.height / 2.0,
+										scopeSize.width, scopeSize.height )];
+
+	const CGFloat fieldX = NSMaxX( [_scopeButton frame] ) + kSearchTextGap;
+	const CGFloat fieldHeight = ceil( [[_searchField font] boundingRectForFont].size.height );
+
+	[_searchField setFrame: NSMakeRect( fieldX, midY - fieldHeight / 2.0,
+										NSMaxX( box ) - kSearchBoxPadding - fieldX,
+										fieldHeight )];
+
+	right = NSMinX( box ) - kTrailingGap;
+
+	[_viewModeControl setFrame: NSMakeRect( right - switchWidth,
+											midY - NSHeight( [_viewModeControl frame] ) / 2.0,
+											switchWidth,
+											NSHeight( [_viewModeControl frame] ) )];
+
+	//the clip view lays the accessory out from its frame and does not watch it
+	[[_trailingAccessoryView superview] setNeedsLayout: YES];
 }
 
 //"Macintosh HD › Users › derek › Movies". The zoom stack holds what has been
@@ -1035,6 +1306,13 @@ willBeInsertedIntoToolbar: willInsert];
 
 	dispatch_async( dispatch_get_main_queue(), ^{
 		[weakSelf placePaneDividers];
+
+		//And from here a resize is a resize. Until this point the split view is
+		//still being built and sized - the widths above are applied by moving
+		//dividers, and the window is still growing into its autosaved frame -
+		//and holding the side columns still through all of that left the file
+		//list wider than the pane it sits in, with Size and Share off the end.
+		[weakSelf setPaneWidthsSettled: YES];
 	});
 
 	[[self window] setTitleVisibility: NSWindowTitleHidden];
@@ -1194,18 +1472,65 @@ static NSBox *FilledBox( NSColor *color )
 {
 	NSView *outlineView = [_filesOutlineView enclosingScrollView];
 
-	if ( outlineView == nil || _treeMapView == nil )
+	if ( outlineView == nil || _mapColumn == nil )
 		return;
 
 	const DIXViewMode mode = [[self document] viewMode];
 
 	[outlineView setHidden: ( mode == DIXViewModeMap )];
-	[_treeMapView setHidden: ( mode == DIXViewModeList )];
+
+	//The column, not the map inside it: hiding a subview is how NSSplitView
+	//collapses a pane, and the pane is the column now.
+	[_mapColumn setHidden: ( mode == DIXViewModeList )];
 
 	[_splitter adjustSubviews];
+	[self placeSummaryStrip];
 
 	[self updateViewModeControl];
 	[self updateStatusBarHintForViewMode];
+}
+
+//Where the summary belongs, which depends on whether there is a map for it to
+//sit above. In Both and Map mode it is the map column's heading and the file
+//list runs to the top of the window beside it, as the design draws it. In List
+//mode there is no map - and the total, Rescan and the zoom buttons are not the
+//map's to take away with it - so it goes back across the whole column.
+- (void) placeSummaryStrip
+{
+	if ( _summaryStripView == nil || _mapColumn == nil || _centreColumn == nil )
+		return;
+
+	const BOOL mapShowing = ![_mapColumn isHidden];
+	NSView *host = mapShowing ? _mapColumn : _centreColumn;
+
+	if ( [_summaryStripView superview] != host )
+	{
+		[_summaryStripView removeFromSuperview];
+		[host addSubview: _summaryStripView];
+	}
+
+	const CGFloat stripHeight  = [DIXSummaryStripView preferredHeight];
+	const CGFloat statusHeight = [DIXStatusBarView preferredHeight];
+
+	//The split view stops short of the strip only when the strip is above it.
+	//Its margins are fixed and its height sizable, so this is the one place
+	//that has to know the difference.
+	NSRect squeezed = [_centreColumn bounds];
+	squeezed.origin.y = statusHeight;
+	squeezed.size.height = NSHeight( squeezed ) - statusHeight - ( mapShowing ? 0.0 : stripHeight );
+	[_splitter setFrame: squeezed];
+
+	NSRect stripFrame = [host bounds];
+	stripFrame.origin.y = NSMaxY( stripFrame ) - stripHeight;
+	stripFrame.size.height = stripHeight;
+	[_summaryStripView setFrame: stripFrame];
+
+	NSRect mapFrame = [_mapColumn bounds];
+
+	if ( mapShowing )
+		mapFrame.size.height -= stripHeight;
+
+	[_treeMapView setFrame: mapFrame];
 }
 
 - (void) updateStatusBarHintForViewMode
@@ -1288,29 +1613,7 @@ static NSBox *FilledBox( NSColor *color )
 	[_sourcesView setCurrentVolumeURL: scannedAVolume ? volumeURL : nil];
 	[_sourcesView setCurrentRootURL: rootURL];
 
-	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
-
-	NSNumberFormatter *countFormatter = [[NSNumberFormatter alloc] init];
-	[countFormatter setNumberStyle: NSNumberFormatterDecimalStyle];
-
-	//"scanned 2 minutes ago"; anything under a minute is simply "now", because
-	//"37 seconds ago" is more precision than the statement carries
-	NSRelativeDateTimeFormatter *whenFormatter = [[NSRelativeDateTimeFormatter alloc] init];
-	[whenFormatter setDateTimeStyle: NSRelativeDateTimeFormatterStyleNamed];
-
-	NSDate *scannedAt = [doc scanCompletedAt];
-	NSTimeInterval age = scannedAt != nil ? -[scannedAt timeIntervalSinceNow] : 0;
-
-	NSString *scanned = [whenFormatter localizedStringFromTimeInterval: age < 60 ? 0 : -age];
-
-	NSString *subtitle = [NSString stringWithFormat:
-		NSLocalizedString( @"%@ files · %@ folders · scanned %@", @"summary strip subtitle" ),
-		[countFormatter stringFromNumber: @( [doc fileCount] )],
-		[countFormatter stringFromNumber: @( [doc folderCount] )],
-		scanned];
-
-	[_summaryStripView setTotal: [sizeFormatter stringForObjectValue: [rootItem size]]
-					   subtitle: subtitle];
+	[self updateSummarySubtitle];
 
 	//no scan history yet, so there is nothing truthful to say about growth
 	[_summaryStripView setDelta: nil caption: nil isGrowth: YES];
@@ -1319,6 +1622,53 @@ static NSBox *FilledBox( NSColor *color )
 	FSItem *selectedItem = [doc selectedItem];
 	[_summaryStripView setZoomInEnabled: selectedItem != nil && [selectedItem isFolder]
 						 zoomOutEnabled: [doc rootItem] != [doc zoomedItem]];
+}
+
+//The total and the two counts do not change while a document is open; "scanned
+//8 seconds ago" does, which is why this is on a clock of its own rather than
+//riding -updateSummaryStrip, whose first half reads resource values off the
+//scan root.
+- (void) updateSummarySubtitle
+{
+	FileSystemDoc *doc = [self document];
+	FSItem *rootItem = [doc rootItem];
+
+	if ( _summaryStripView == nil || rootItem == nil )
+		return;
+
+	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
+
+	NSNumberFormatter *countFormatter = [[NSNumberFormatter alloc] init];
+	[countFormatter setNumberStyle: NSNumberFormatterDecimalStyle];
+
+	NSString *subtitle = [NSString stringWithFormat:
+		NSLocalizedString( @"%@ files · %@ folders · scanned %@", @"summary strip subtitle" ),
+		[countFormatter stringFromNumber: @( [doc fileCount] )],
+		[countFormatter stringFromNumber: @( [doc folderCount] )],
+		[DIXRecentScan relativeTimeStringForDate: [doc scanCompletedAt]]];
+
+	[_summaryStripView setTotal: [sizeFormatter stringForObjectValue: [rootItem size]]
+					   subtitle: subtitle];
+}
+
+//The sidebar redraws its rows on the same period, so the strip and the row for
+//the same scan never disagree by more than one tick. It follows the window, so
+//a closed document stops waking the machine to restate how long ago something
+//happened.
+static const NSTimeInterval kSummaryAgeRefreshInterval = 5.0;
+
+- (void) startSummaryAgeClock
+{
+	[_summaryAgeTimer invalidate];
+
+	__weak MainWindowController *weakSelf = self;
+
+	_summaryAgeTimer = [NSTimer scheduledTimerWithTimeInterval: kSummaryAgeRefreshInterval
+													   repeats: YES
+														 block: ^( NSTimer *timer )
+	{
+		[weakSelf updateSummarySubtitle];
+	}];
 }
 
 //A hidden subview is how NSSplitView collapses a pane: it keeps the subview and
@@ -1459,9 +1809,71 @@ static const CGFloat kMinimumTreeMapWidth  = 260.0;
 //its three header buttons start truncating their titles.
 static const CGFloat kMinimumInspectorWidth = 220.0;
 
+//What the middle column has to hold: whichever of the list and the map is
+//showing. In Map or List mode one of them is collapsed and the column needs
+//only the other's minimum, the same test the constrain methods make.
+- (CGFloat) minimumCentreColumnWidth
+{
+	CGFloat minimum = 0.0;
+
+	if ( ![[_filesOutlineView enclosingScrollView] isHidden] )
+		minimum += kMinimumFileListWidth;
+
+	if ( ![_mapColumn isHidden] )
+		minimum += kMinimumTreeMapWidth;
+
+	return minimum;
+}
+
 - (BOOL) splitView: (NSSplitView*) splitView canCollapseSubview: (NSView*) subview
 {
 	return subview == _sidebarPane || subview == _selectionListPane;
+}
+
+//A window resize belongs to the middle column. The sidebar and the inspector
+//were set to a width by whoever dragged them there and have no reason to move
+//because the window did; NSSplitView's default is to share the change out in
+//proportion, so widening the window by 400 points quietly widened all three.
+//
+//The middle keeps a floor of its own. Below that everything gives way again,
+//because a subview AppKit is not allowed to shrink is one it will shrink to
+//nothing instead - the flexible one goes to zero first and takes the file list
+//and the map with it.
+- (BOOL) splitView: (NSSplitView*) splitView shouldAdjustSizeOfSubview: (NSView*) view
+{
+	if ( !_paneWidthsSettled )
+		return YES;
+
+	//The map takes what the middle column gains or loses, and the file list keeps
+	//the width it was dragged to. That covers both ways the column changes size:
+	//the window being resized, and the inspector closing beside it.
+	if ( splitView == _splitter )
+	{
+		//In Map or List mode one of the two is collapsed, and a collapse needs
+		//both free to move.
+		if ( [[_filesOutlineView enclosingScrollView] isHidden] || [_mapColumn isHidden] )
+			return YES;
+
+		//and below the map's own minimum the list gives way rather than the map
+		//disappearing
+		if ( NSWidth( [_mapColumn frame] ) <= kMinimumTreeMapWidth )
+			return YES;
+
+		return view == _mapColumn;
+	}
+
+	if ( splitView != _kindStatisticsSplitView )
+		return YES;
+
+	if ( NSWidth( [_centreColumn frame] ) <= [self minimumCentreColumnWidth] )
+		return YES;
+
+	return view == _centreColumn;
+}
+
+- (void) setPaneWidthsSettled: (BOOL) settled
+{
+	_paneWidthsSettled = settled;
 }
 
 - (CGFloat) splitView: (NSSplitView*) splitView
@@ -1473,7 +1885,7 @@ constrainMinCoordinate: (CGFloat) proposedMin
 	//meant to have no width at all would stop the mode taking effect.
 	if ( splitView == _splitter )
 	{
-		if ( [[_filesOutlineView enclosingScrollView] isHidden] || [_treeMapView isHidden] )
+		if ( [[_filesOutlineView enclosingScrollView] isHidden] || [_mapColumn isHidden] )
 			return proposedMin;
 
 		return MAX( proposedMin, kMinimumFileListWidth );
@@ -1502,7 +1914,7 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 {
 	if ( splitView == _splitter )
 	{
-		if ( [[_filesOutlineView enclosingScrollView] isHidden] || [_treeMapView isHidden] )
+		if ( [[_filesOutlineView enclosingScrollView] isHidden] || [_mapColumn isHidden] )
 			return proposedMax;
 
 		return MIN( proposedMax, NSWidth([splitView bounds]) - kMinimumTreeMapWidth );
@@ -1511,8 +1923,13 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 	if ( splitView != _kindStatisticsSplitView )
 		return MIN( proposedMax, NSHeight([splitView bounds]) - 150.0 );
 
+	//Not while it is being closed. A minimum held against a pane that is meant
+	//to have no width at all would stop the divider short of the edge, which is
+	//the same reason the sidebar's minimum is lifted while it slides shut.
 	if ( dividerIndex == 1 )
-		return MIN( proposedMax, NSWidth([splitView bounds]) - kMinimumInspectorWidth );
+		return _collapsingInspector
+			   ? proposedMax
+			   : MIN( proposedMax, NSWidth([splitView bounds]) - kMinimumInspectorWidth );
 
 	//and leave room for the outline and treemap
 	return MIN( proposedMax, NSWidth([splitView bounds]) - 250.0 );
@@ -1974,7 +2391,7 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 //sidebar button beside the accessory's own.
 - (NSString *)toolbarAutosaveIdentifier
 {
-    return @"MainWindowToolbar-5";
+    return @"MainWindowToolbar-7";
 }
 
 #pragma mark -----------------NSWindow delegates-----------------------
@@ -1997,6 +2414,9 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 	[_kindStatisticsAnimationTimer invalidate];
 	_kindStatisticsAnimationTimer = nil;
 	_animatingKindStatistics = NO;
+
+	[_summaryAgeTimer invalidate];
+	_summaryAgeTimer = nil;
 
 	//the summary strip observers registered in -buildWindowChrome
 	[[NSNotificationCenter defaultCenter] removeObserver: self];

@@ -218,6 +218,21 @@ static NSColor* NamedColor( NSString *name, NSColor *fallback )
 	return NamedColor( @"DIXBarTrack", [NSColor quaternaryLabelColor] );
 }
 
++ (NSColor*) switchTrack
+{
+	return NamedColor( @"DIXSwitchTrack", [NSColor controlBackgroundColor] );
+}
+
++ (NSColor*) toggleOn
+{
+	return NamedColor( @"DIXToggleOn", [NSColor selectedControlColor] );
+}
+
++ (NSColor*) switchSelected
+{
+	return NamedColor( @"DIXSwitchSelected", [NSColor controlColor] );
+}
+
 + (NSColor*) barTrackDeep
 {
 	//For a bar on a row that is filled - the current volume's. On the sidebar's

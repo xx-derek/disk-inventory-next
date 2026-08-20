@@ -676,6 +676,46 @@ still naming both would draw a second sidebar button beside the accessory's own.
 **Bump it again whenever items are removed**, or existing users keep a stale toolbar and
 never see the new ones.
 
+## Every scroll view goes through `DIXControls`
+
+`+[DIXControls useOverlayScrollersIn:]` on each one, at the point it is built. Left alone,
+a list carries a permanent scroll bar and loses 17pt of width to it, which no part of the
+design has. Two separate causes, and both have to be dealt with:
+
+- **`autohidesScrollers` defaults to `NO`**, and the file list's scroll view comes from
+  `TreeMap.nib`, where nothing sets it. With legacy scrollers that keeps one drawn even
+  when the content fits — measured, 17 points of a 200-point scroll view.
+- **The system preference's default is "Automatic", which means legacy scrollers whenever a
+  mouse is connected** — laid out beside the content rather than over it. An explicit
+  "Always" is honoured, since that one is an accessibility choice made in System Settings;
+  everything else becomes overlay.
+
+`-setScrollerStyle:` does not stay set. `NSScrollView` observes
+`NSPreferredScrollerStyleDidChangeNotification` and answers it by adopting the preferred
+style again, so plugging a mouse in puts the gutter back. `DIXScrollerStyleKeeper` holds the
+scroll views weakly and sets them again on the next turn of the run loop — not from inside
+the notification, where AppKit's own handler may come second and win.
+
+### Making a probe's window key
+
+Anything that only draws when a view has the keyboard focus — the focus ring, a table's
+emphasized selection — is invisible to a probe whose window never becomes key, and a bare
+command-line tool's window never does. Wrap the probe in a minimal `.app` (an `Info.plist`
+naming `CFBundleExecutable`, `CFBundleIdentifier` and `NSPrincipalClass`), build the views
+in `-applicationDidFinishLaunching:` rather than before `-run`, `open` it, and screenshot
+from the shell — `screencapture` inside the probe is a different responsible process and
+has no screen-recording permission. `-[NSWindow isKeyWindow]` in the probe's own output
+says whether it worked.
+
+That is how the file list's blue-block selection was reproduced and killed, and how the
+focus rings were confirmed gone.
+
+**A probe will tell you there is nothing to fix.** `+[NSScroller preferredScrollerStyle]`
+answers `Overlay` in a process with no window on screen and `Legacy` once one is up, because
+the pointing device is only evaluated then. Two probes said overlay before a screenshot of
+the real window showed the scroll bar plainly. Measure this one in a window, or from
+outside the process.
+
 ## Pasteboard types have two spellings
 
 Worth knowing before touching `FSItem`'s pasteboard code. Every type has a UTI and a

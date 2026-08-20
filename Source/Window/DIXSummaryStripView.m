@@ -24,7 +24,9 @@ static const CGFloat kButtonGap         =  8.0;
 static const CGFloat kTotalFontSize     = 26.0;
 static const CGFloat kDeltaFontSize     = 20.0;
 static const CGFloat kButtonHeight      = 26.0;
-static const CGFloat kIconButtonWidth   = 30.0;
+//The design's zoom buttons are square - 26x26, the same edge as the height
+//Rescan is given beside them - so this is deliberately not a width of its own.
+#define kIconButtonWidth kButtonHeight
 static const CGFloat kRuleHeight        = 36.0;
 
 @interface DIXSummaryStripView()
@@ -135,9 +137,10 @@ static const CGFloat kRuleHeight        = 36.0;
 //the macOS 11 deployment target requires.
 - (NSButton*) iconButtonWithSymbol: (NSString*) symbolName label: (NSString*) label
 {
-	NSButton *button = [NSButton buttonWithTitle: @"" target: nil action: NULL];
+	//The design draws these as the secondary button: 26x26, the same fill,
+	//border and radius as Rescan beside them - not as a bezel of their own.
+	NSButton *button = [DIXControls secondaryButtonWithTitle: @"" target: nil action: NULL];
 
-	[button setBezelStyle: NSBezelStyleRounded];
 	[button setImage: [NSImage imageForSymbolName: symbolName accessibilityDescription: label]];
 	[button setImagePosition: NSImageOnly];
 	[button setToolTip: label];

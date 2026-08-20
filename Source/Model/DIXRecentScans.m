@@ -83,6 +83,23 @@ static const NSUInteger kMaximumScans = 20;
 	return @{ kPathKey: [_url path], kSizeKey: @(_size), kScannedAtKey: _scannedAt };
 }
 
++ (NSString*) relativeTimeStringForDate: (NSDate*) date
+{
+	if ( date == nil )
+		return @"";
+
+	static NSRelativeDateTimeFormatter *formatter = nil;
+	static dispatch_once_t once;
+
+	dispatch_once( &once, ^
+	{
+		formatter = [[NSRelativeDateTimeFormatter alloc] init];
+		[formatter setDateTimeStyle: NSRelativeDateTimeFormatterStyleNamed];
+	} );
+
+	return [formatter localizedStringForDate: date relativeToDate: [NSDate date]];
+}
+
 @end
 
 #pragma mark --------the list-----------------
