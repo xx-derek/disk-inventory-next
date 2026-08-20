@@ -21,10 +21,12 @@
 	CGFloat _kindStatisticsWidth;   //remembered across a collapse, so reopening restores it
 	NSTimer *_kindStatisticsAnimationTimer;
 	BOOL _animatingKindStatistics;  //lifts the minimum-width constraint while sliding
+    //Retired. Still an outlet because four TreeMap.nibs connect it, and a
+    //connection to an outlet that no longer exists raises at nib load; the
+    //pane is unparented in -buildSidePanes instead.
     IBOutlet NSView *_selectionListPane;
 
     NSSplitView *_kindStatisticsSplitView;
-    NSSplitView *_selectionListSplitView;
 
     //The middle column: the summary strip, the outline/treemap split, and the
     //status bar. The design scopes the strip and the bar to this column - the
@@ -41,6 +43,14 @@
     NSButton *_sidebarButton;
     DIXBreadcrumbView *_breadcrumbView;
 
+    //The title bar's fill, the sidebar's fill and trailing edge carried up
+    //through it, and the line underneath. All four are drawn by the application
+    //rather than by AppKit - see -colourTitleBar for why each one has to be.
+    NSBox *_titleBarBand;
+    NSBox *_titleBarSidebarBand;
+    NSBox *_titleBarSidebarEdge;
+    NSBox *_titleBarSeparator;
+
     //The sidebar is two sections in one pane: SOURCES over FILE KINDS. The pane
     //is a plain container so the split view still sees one subview per column
     //and the collapse logic does not have to learn about the split inside it.
@@ -49,6 +59,9 @@
     NSBox *_sectionRule;        //the 2pt rule between the two sections
     NSView *_sidebarPane;
     NSSegmentedControl *_viewModeControl;
+
+    //The toolbar's search field. The query itself lives on the document.
+    NSSearchField *_searchField;
 
     //The right-hand pane, replacing the floating Info window.
     DIXInspectorView *_inspectorView;
@@ -89,8 +102,6 @@
 - (void) setInspectorVisible: (BOOL) visible;
 - (IBAction) toggleInspector: (id) sender;
 
-- (BOOL) isSelectionListVisible;
-- (void) setSelectionListVisible: (BOOL) visible;
 
 - (IBAction) copy:(id)sender;
 - (IBAction) openFile:(id)sender;
@@ -99,7 +110,6 @@
 //The toolbar's standard sidebar button sends this down the responder chain;
 //AppKit supplies the item, the glyph and the placement.
 - (IBAction) toggleSidebar:(id)sender;
-- (IBAction) toggleSelectionListDrawer:(id)sender;
 - (IBAction) zoomIn:(id)sender;
 - (IBAction) zoomOut:(id)sender;
 - (IBAction) zoomOutTo:(id)sender;
@@ -123,4 +133,3 @@
 
 //posted by MainWindowController when the selection list is shown or hidden, so
 //the list can stop recomputing itself while it is not on screen
-extern NSString *SelectionListVisibilityChangedNotification;

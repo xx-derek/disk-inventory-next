@@ -80,8 +80,9 @@
 
 - (IBAction) showFilesInSelectionList: (id) sender
 {
-	//showing files for a kind is pointless if the list is hidden
-	[_windowController setSelectionListVisible: YES];
+	//The selection list this filled is retired. The design's answer for "show me
+	//this kind" is the document's kind filter, which narrows the map and the
+	//inspector's list instead of opening a pane of its own.
 	
 	NSInteger selectedRow = [_tableView selectedRow];
 	NSAssert( selectedRow >= 0, @"kinds tableview should have a selection" );

@@ -21,7 +21,6 @@
 - (void) setTableViewFont;
 - (void) onDocumentSelectionChanged;
 - (void) onSelectionListSelectionChanged;
-- (void) onSelectionListVisibilityChanged: (NSNotification*) notification;
 
 @end
 
@@ -38,21 +37,17 @@
 
 	NSNotificationCenter *notificationCenter = [NSNotificationCenter defaultCenter];
 
-	//the list used to be a drawer, and watched it open and close; it is now a
-	//split-view pane, and the window controller says when it is shown or hidden
-	[notificationCenter addObserver: self
-						   selector: @selector(onSelectionListVisibilityChanged:)
-							   name: SelectionListVisibilityChangedNotification
-							 object: _windowController];
+	//The pane this drove is retired - the inspector's sibling list and the
+	//toolbar's search field took its two jobs - so there is no visibility to
+	//watch any more. The nib still builds this controller, so it suspends its
+	//updates once and never resumes rather than arranging a list nobody sees.
 	
     [notificationCenter addObserver: self
 						   selector: @selector(windowWillClose:)
 							   name: NSWindowWillCloseNotification
 							 object: [_windowController window]];
 	
-	//no point recomputing the list while it is not on screen
-	if ( ![_windowController isSelectionListVisible] )
-		[_selectionListArrayController suspendArrangedObjectsUpdates];
+	[_selectionListArrayController suspendArrangedObjectsUpdates];
 	
 	//set up KVO
 	[[NSUserDefaultsController sharedUserDefaultsController] addObserver: self
@@ -244,14 +239,6 @@ writeRowsWithIndexes:(NSIndexSet *)rowIndexes
 	
 	if ( selectionListSelection != [doc selectedItem] )
 		[doc setSelectedItem: selectionListSelection];
-}
-
-- (void) onSelectionListVisibilityChanged: (NSNotification*) notification
-{
-	if ( [_windowController isSelectionListVisible] )
-		[_selectionListArrayController resumeArrangedObjectsUpdates];
-	else
-		[_selectionListArrayController suspendArrangedObjectsUpdates];
 }
 
 @end

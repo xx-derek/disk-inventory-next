@@ -16,13 +16,7 @@
 #import <Cocoa/Cocoa.h>
 #import "FileSystemDoc.h"
 
-typedef enum
-{
-	FSItemIndexName = 1,
-	FSItemIndexKind = 2,
-	FSItemIndexPath = 4,
-	FSItemIndexAll = 0xffff
-} FSItemIndexType;
+//FSItemIndexType is declared in FSItem.h - see the note there.
 
 //this class let search FSItems by their display names, kinds and path
 //(I implemented this with SearchKit, but it is so damn slow that I replaced it with

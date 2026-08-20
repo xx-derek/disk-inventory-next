@@ -23,10 +23,10 @@
 #import "DrivesPanelController.h"
 #import "FileSizeFormatter.h"
 #import "Timing.h"
-#import "InfoPanelController.h"
 #import "FSItem-Utilities.h"
 #import "NSFileManager-Extensions.h"
 #import "DIXRecentScans.h"
+#import "FSItemIndex.h"
 
 NSString *CollectFileKindStatisticsCanceledException = @"CollectFileKindStatisticsCanceledException";
 
@@ -145,6 +145,10 @@ NSString *CollectFileKindStatisticsCanceledException = @"CollectFileKindStatisti
 - (void) _recountItemsIfNeeded;
 - (void) _countItemsUnder: (FSItem*) item files: (NSUInteger*) files folders: (NSUInteger*) folders;
 - (void) _invalidateItemCounts;
+
+- (FSItemIndex*) _searchIndexBuildingIfNeeded;
+- (void) _dropSearchIndex;
+- (void) _runSearch;
 @end
 
 @interface FileSystemDoc(Private)
@@ -184,6 +188,7 @@ NSString *NewItem = @"NewItem";
 NSString *OldItem = @"OldItem";
 NSString *ReclaimBasketChangedNotification = @"ReclaimBasketChanged";
 NSString *FocusedPileChangedNotification = @"FocusedPileChanged";
+NSString *SearchResultsChangedNotification = @"SearchResultsChanged";
 NSString *DIXKindFilterOption = @"DIXKindFilter";
 NSString *DIXViewModeOption = @"DIXViewMode";
 
@@ -763,6 +768,139 @@ NSString *DIXViewModeOption = @"DIXViewMode";
     [self postNotificationName: ZoomedItemChangedNotification oldItem: oldZoomedItem newItem: [self zoomedItem]];
 }
 
+#pragma mark --------searching the scan-----------------
+
+- (NSString*) searchString
+{
+	return _searchString;
+}
+
+//Name, not All, when nothing has been chosen.
+//
+//The old search field defaulted to All and was right to: it searched one kind's
+//items, a few thousand at most. Over a whole scan the path index is the
+//expensive one - it holds a distinct long string per item where names repeat, so
+//a query scans every path in the tree. Measured over /System/Library's 435,501
+//items: 16 ms by name against 285 ms by path, per keystroke. Path is a keystroke
+//away in the menu and worth waiting for when asked for; it is not worth making
+//every search pay for.
+- (FSItemIndexType) searchScope
+{
+	return _searchScope != 0 ? _searchScope : FSItemIndexName;
+}
+
+- (NSArray<FSItem*>*) searchResults
+{
+	return _searchResults;
+}
+
+- (void) setSearchString: (NSString*) searchString
+{
+	//trimmed, so that a field holding only spaces is not "searching"
+	NSString *trimmed = [searchString stringByTrimmingCharactersInSet:
+		[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+
+	if ( [trimmed length] == 0 )
+		trimmed = nil;
+
+	if ( trimmed == _searchString || [trimmed isEqualToString: _searchString] )
+		return;
+
+	_searchString = [trimmed copy];
+
+	[self _runSearch];
+}
+
+- (void) setSearchScope: (FSItemIndexType) scope
+{
+	if ( scope == _searchScope )
+		return;
+
+	_searchScope = scope;
+
+	if ( _searchString != nil )
+		[self _runSearch];
+}
+
+//Kept until the tree changes: building it over /usr/share's 20,000 items is not
+//free, and a search field is typed into one character at a time.
+//
+//The items come from a walk of the tree rather than from the kind statistics,
+//which would have been the shorter way to a list of everything. Two reasons, and
+//both are visible to whoever is typing: the statistics hold **files only**, so a
+//folder could never be found by name; and they are built from the *zoomed* item,
+//so what they cover shrinks as you zoom in, while the field says "this scan".
+//
+//The kind index still comes from the statistics, since that is what they are.
+//That one does follow the zoom - searching by kind while zoomed in searches what
+//is on screen. Name and path do not.
+- (FSItemIndex*) _searchIndexBuildingIfNeeded
+{
+	if ( _searchIndex != nil )
+		return _searchIndex;
+
+	FSItem *root = [self rootItem];
+
+	if ( root == nil )
+		return nil;
+
+	FSItemIndex *index = [[FSItemIndex alloc] initWithKindStatistics: [self kindStatistics]];
+
+	NSMutableArray<FSItem*> *everything = [NSMutableArray array];
+	NSMutableArray<FSItem*> *stack = [NSMutableArray arrayWithObject: root];
+
+	while ( [stack count] > 0 )
+	{
+		FSItem *item = [stack lastObject];
+
+		[stack removeLastObject];
+
+		//the two synthetic cells are not files and have nothing to find
+		if ( item != root && ![item isSpecialItem] )
+			[everything addObject: item];
+
+		NSUInteger i = [item childCount];
+
+		while ( i-- )
+			[stack addObject: [item childAtIndex: i]];
+	}
+
+	[index addItemsFromArray: everything];
+
+	_searchIndex = index;
+
+	return index;
+}
+
+- (void) _dropSearchIndex
+{
+	_searchIndex = nil;
+
+	if ( _searchString != nil )
+		[self _runSearch];
+}
+
+- (void) _runSearch
+{
+	if ( _searchString == nil )
+	{
+		_searchResults = nil;
+	}
+	else
+	{
+		FSItemIndex *index = [self _searchIndexBuildingIfNeeded];
+
+		//An empty array rather than nil: "searched, found nothing" is a result,
+		//and the list has to be able to say so.
+		_searchResults = ( index != nil )
+			? [index searchItems: _searchString inIndex: [self searchScope]]
+			: @[];
+	}
+
+	[[NSNotificationCenter defaultCenter] postNotificationName: SearchResultsChangedNotification
+														object: self];
+}
+
 #pragma mark --------the focused pile-----------------
 
 - (NSArray<FSItem*>*) focusedPile
@@ -871,11 +1009,11 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 	_selectedItem = item;
 		
     //post notification
+	//
+	//The document used to push the new selection at the floating Info window from
+	//here, which was the one place a view was driven rather than notified. The
+	//inspector reads the notification like every other view.
 	[self postNotificationName: GlobalSelectionChangedNotification oldItem: oldSelectedItem newItem: _selectedItem];
-	
-	//keep info panel in sync
-	if ( [[InfoPanelController sharedController] panelIsVisible] )
-		[[InfoPanelController sharedController] showPanelWithFSItem: _selectedItem];
 }
 
 #pragma mark --------what the summary strip reports-----------------
@@ -1171,8 +1309,13 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 	
 	//reserve the predefined colors for the kinds with the biggest size sums of the appropriate files
 	[self reserveColorsForLargestKinds];
-	
+
 	[self didChangeValueForKey: @"kindStatistics"];
+
+	//The search index is built out of these, so it is stale the moment they are
+	//rebuilt - after a scan, a refresh, or anything that moved items about. This
+	//is the one place that knows, which is why it is the one that says so.
+	[self _dropSearchIndex];
 }
 
 #pragma mark ----------------------running a scan off the main thread---------------

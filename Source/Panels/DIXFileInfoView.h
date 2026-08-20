@@ -46,4 +46,8 @@
 //to do both.
 @property (nonatomic) BOOL usesInspectorLayout;
 
+//The height the rows actually need, so a container can give this block that and
+//no more. Zero when there is nothing to show.
+- (CGFloat) fittingHeight;
+
 @end

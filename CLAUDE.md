@@ -75,6 +75,13 @@ test and a synthetic-click test before a real click found it. Useful assertions:
 rect lies inside the view's bounds, and a grid of points across the bounds all hit a cell
 whose rect contains that point.
 
+The same method is the wrong side of an **area**-proportionality test too, for a different
+reason: it answers with the nearest *drawn ancestor* when an item got no cell of its own, so
+every merged file reports the remainder's rect. Asked that way the check reported an 86,000%
+error against a layout that was in fact exact. Compare `[TMVItem weight]` against
+`itemRectByCellId:` over the renderer tree, where every cell — remainders included — has a
+rect and a weight of its own. That reads 0.000% and 100% coverage.
+
 ## Layout on disk
 
 Sources moved out of the repository root into `Source/` on 2026-08-15; before that date
@@ -404,10 +411,10 @@ Background and localized strings: `documentation/macOS privacy protected folders
 Every interface lives in compiled `.nib` bundles under the `.lproj` directories. They are
 not text and cannot be edited or diffed with normal tools — open them in Interface Builder.
 Localizations: `de`, `en`, `es`, `fr` (`English.lproj` is a legacy leftover holding only
-Help index files). Six nibs remain per language — `MainMenu`, `TreeMap`, `InfoPanel`,
-`LoadingPanel`, `VolumesPanel`, `DonationPanel`; the three preference-page nibs were
-deleted on 2026-08-15 when those pages moved into code, and their translations moved into
-`Preferences.strings`. A UI change means updating the `.nib` in each of the four languages plus
+Help index files). Four nibs remain per language — `MainMenu`, `TreeMap`, `LoadingPanel`,
+`VolumesPanel`; the three preference-page nibs were deleted on 2026-08-15 when those pages
+moved into code, and `InfoPanel` on 2026-08-20 when the inspector replaced the floating Info
+window. A UI change means updating the `.nib` in each of the four languages plus
 `Localizable.strings`.
 
 To change nib text without Interface Builder, round-trip through `ibtool`:
@@ -497,6 +504,21 @@ Two invariants worth knowing before changing anything here:
 - **`calcLayout:` stops descending into cells below `TMVMinimumCellSize`.** A deep item can
   have no cell of its own, so `findTMVItemByPathToDataItem:` returns the nearest drawn
   ancestor rather than nil.
+- **A remainder's count is `-[TMVItem mergedItemCount]`, never `mergedItems.count`.** One
+  merged entry can be a folder packed in whole, and it stands for every file under it. The
+  data source answers per item through `-treeMapView:itemCountByItem:`
+  (`-[FSItem representedFileCount]`), summed once when the remainder is built because it
+  walks. Counting entries instead understated `/usr/share` as 5,164 against 8,969.
+- **The cache bitmap cannot be drawn into with AppKit.** It is 24-bit RGB with no alpha
+  (`initRGBBitmapWithWidth:height:`), and CoreGraphics has no bitmap context of that shape:
+  `+[NSGraphicsContext graphicsContextWithBitmapImageRep:]` answers **nil** for it, so an
+  `NSRectFill` through it silently does nothing and the bitmap keeps the zeroes it was
+  allocated with. That is where the map's black margin came from — it read as deliberate in
+  dark and was plainly wrong in light. Write bytes, as `TMVCushionRenderer` does and as
+  `-fillCache:withColor:` now does, using `-bytesPerRow` and `-bitsPerPixel`. A colour from
+  the asset catalog must be resolved inside `-[NSAppearance performAsCurrentDrawingAppearance:]`
+  first: this runs while building a bitmap, not while drawing into the view, so nothing has
+  made the view's appearance current.
 
 Selection notifications are posted for **user-driven changes only**; `selectItemByCellId:`
 and `selectItemByPathToItem:` are deliberately silent, so a controller syncing the view to
@@ -614,11 +636,37 @@ rather than from `[DIXTheme sidebarWidth]`, because the divider is draggable and
 collapses; `-splitViewDidResizeSubviews:` re-runs the layout. At the designed 244 pt
 sidebar that puts it at x=258, which is where the design has it.
 
+**The title bar's colours are painted by `-colourTitleBar`, into the theme frame.** AppKit's
+own band is neither of the design's values — measured, `#2A353A` over a `#2F2C2B` sidebar,
+cold slate on a warm window. `-setTitlebarAppearsTransparent:YES` opens the band up;
+`_titleBarBand`, `_titleBarSidebarBand` and `_titleBarSidebarEdge` go into
+`[[window contentView] superview]` **below every sibling**, so the traffic lights and the
+toolbar stay above them. Three things to know:
+
+- **The sidebar runs up through the title bar** in the design — its fill and its trailing
+  border reach the top of the window, with the traffic lights sitting on them. It cannot be
+  an accessory: a leading accessory is laid out after the traffic lights, so it never
+  reaches x=0, and `NSTitlebarAccessoryClipView` clips it anyway.
+- **Add them one above the last, not all `relativeTo:nil`.** `NSWindowBelow` against nil is
+  below *everything*, which buried the edge under the band it is the edge of.
+- **The window's background is `-ground`, not `-toolbar`**, since it reaches every part of
+  the window nothing covers — there is a 9 pt strip between the file list and the map.
+
+Sizes come from geometry, not constants: the band's height is the frame's less the content
+view's, which is 0 in full screen and takes all three out of the way by itself.
+
 **Glass cannot be screenshotted from inside the process.** `-cacheDisplayInRect:` over the
 toolbar comes back fully transparent — the capsule is composited by the window server via
 `CABackdropLayer`/`CAPortalLayer`, not drawn into the view tree. Verify this area by
 asserting on the view hierarchy instead: the breadcrumb's ancestors must include
 `NSTitlebarAccessoryClipView` and must not include `NSToolbarItemViewer`.
+
+The flat fills *can* be, and from outside the process the whole window can: `screencapture
+-x -o -l <windowid>` works, with the id from `CGWindowListCopyWindowInfo` (it is
+`CGWindowListCreateImage` that is gone). **Dark-mode readings come back 8–15 per channel
+lighter** through the sRGB conversion, light near-exact — so compare against the design's
+*screenshots* rather than its hex values, which is what makes `#2a2827` and `#383534` the
+same colour.
 
 `-toolbarAutosaveIdentifier` is deliberately separate from `-toolbarConfigurationName`:
 AppKit keys the saved toolbar layout on the `NSToolbar` identifier, so bumping it discards
@@ -670,7 +718,7 @@ Changing the address means changing one constant. Check it afterwards by decodin
 out of the live view — a probe can pull the `NSImageView`'s image and run `CIDetector` over
 it, which is how this was verified.
 
-## The Info panel
+## The file info list
 
 `DIXFileInfoView` (`Source/Panels/`) is the scrolling title/value list. It used to be three
 vendored CocoaTech classes — `NTInfoView` gathering the rows, `NTTitledInfoView` laying
@@ -679,13 +727,16 @@ with `NTFilePasteboardSource`, `NTPasteboardHelper` and the already-dead `NTID3H
 **Nothing vendored remains; there is no `Source/CocoaTech-Depreciated/`.** That also
 cleared the last files in the repo carrying "All rights reserved" with no license grant.
 
-Three things about the replacement are easy to break:
+**The floating Info window it used to live in is gone** (2026-08-20). `InfoPanelController`
+and the four `InfoPanel.nib`s were deleted; the design's inspector shows the same rows
+against the same selection, and there is no second window to keep in step. Two leftovers are
+deliberate: `-showInformationPanel:` keeps its name because `MainMenu.nib` names the
+selector — it toggles the inspector now, and the menu item is retitled *Inspector* — and
+`FileSystemDoc -setSelectedItem:` no longer pushes the selection at a view, which was the
+one place the document drove a view instead of posting to it.
 
-- **The class name is load-bearing.** All four `InfoPanel.nib`s hold an `NSCustomView`
-  placeholder naming `DIXFileInfoView`. A placeholder instantiates through
-  **`-initWithFrame:`**, not `-initWithCoder:` — which is why the old code's subviews
-  existed at all, and why both initialisers now funnel into `-buildViewHierarchy`. Rename
-  the class and the panel silently comes up empty.
+Two things about the view itself are easy to break:
+
 - **The value column's width must come from the title column, never from the value field's
   own frame.** `NSGridView` sizes columns from their content, so a wrapping `NSTextField`
   whose `preferredMaxLayoutWidth` is derived from where it landed shrinks itself on every
@@ -702,6 +753,18 @@ Three things about the replacement are easy to break:
 Two gaps are deliberate, inherited from the code this replaced: there is no **Size** row
 (the old `sizePairs` was commented out and returned an empty array), and the "long format"
 variant was dead code — `_longFormat` was never set.
+
+**`usesInspectorLayout` is a second look, not a tweak**, and its numbers are the design's
+markup for that block rather than anything chosen here: `padding: 12px 16px`, `gap: 10px`,
+a fixed 74 pt key column in `muted` against values in `ink`, and **no rule between rows** —
+the design rules the block once, underneath, which the inspector already draws as the
+section hairline above the siblings list.
+
+Its `NO` branch — ruled rows, right-aligned bold titles, `Name:`/`Path:` present — is the
+floating panel's look and **now has no caller**: `DIXInspectorView` is the only thing that
+builds one of these and it sets the flag immediately. Left in place rather than deleted with
+the panel, so that the retirement commit stays a retirement; collapsing the two modes into
+one is a tidy-up on its own.
 
 Verifying a change here means rendering it, not reading it: a probe compiled into the built
 `.app` can drive `-setURL:` and capture the view with `-dataWithPDFInsideRect:`.

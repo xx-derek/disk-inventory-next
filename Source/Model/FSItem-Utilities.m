@@ -18,6 +18,14 @@
 
 @implementation FSItem(Utilities)
 
+- (NSUInteger) representedFileCount
+{
+	if ( ![self isFolder] )
+		return 1;
+
+	return MAX( (NSUInteger) 1, [self deepFileCountIncludingPackages: YES] );
+}
+
 - (NSUInteger) deepFileCountIncludingPackages: (BOOL) lookInPackages
 {
 	if ( [self isSpecialItem] )

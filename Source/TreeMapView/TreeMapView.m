@@ -52,6 +52,7 @@ static const CGFloat TMVMinimumOutlinedCellSize =  6.0;
 @interface TreeMapView(Private)
 
 - (void) applyDefaultAppearance;
+- (void) fillCache: (NSBitmapImageRep*) bitmap withColor: (NSColor*) color;
 - (void) drawInCache;
 - (void) deallocContentCache;
 - (void) recalcLayout;
@@ -66,6 +67,10 @@ static const CGFloat TMVMinimumOutlinedCellSize =  6.0;
 - (void) collectGuttersForRenderer: (TMVItem*) renderer;
 - (void) collectLabelsForRenderer: (TMVItem*) renderer claimedRects: (NSMutableArray<NSValue*>*) claimed;
 - (void) collectLabelForRenderer: (TMVItem*) renderer claimedRects: (NSMutableArray<NSValue*>*) claimed;
+- (void) collectHintForRenderer: (TMVItem*) renderer inRect: (NSRect) rect claimedRects: (NSMutableArray<NSValue*>*) claimed;
+- (NSDictionary*) cellHintAttributesInColor: (NSColor*) color;
+- (NSDictionary*) cellTextAttributesInColor: (NSColor*) color size: (CGFloat) size weight: (NSFontWeight) weight;
+- (BOOL) attributedText: (NSAttributedString*) text fitsInRect: (NSRect) rect;
 - (BOOL) text: (NSString*) text fitsInRect: (NSRect) rect withAttributes: (NSDictionary*) attributes;
 - (NSDictionary*) cellLabelAttributes;
 - (void) drawSelectionOutline;
@@ -343,6 +348,66 @@ static const CGFloat TMVMinimumOutlinedCellSize =  6.0;
 
 #pragma mark --------drawing-----------------
 
+//Fills the cache bitmap with one colour, by hand.
+//
+//The obvious way - +[NSGraphicsContext graphicsContextWithBitmapImageRep:] and
+//NSRectFill - cannot work here, and fails silently when it does not. The cache
+//is 24-bit RGB with no alpha channel, which is a shape CoreGraphics has no
+//bitmap context for: the call answers nil, and the fill it was meant to carry
+//simply never happens. That left the bitmap at the zeroes it was allocated
+//with, which is why the margin around the map was black in both appearances
+//rather than the colour the delegate had asked for.
+//
+//Writing bytes needs no assumption about the layout: -bytesPerRow and
+//-bitsPerPixel describe it, which is how TMVCushionRenderer draws the cells
+//into this same bitmap.
+- (void) fillCache: (NSBitmapImageRep*) bitmap withColor: (NSColor*) color
+{
+	unsigned char *bitmapData = [bitmap bitmapData];
+
+	if ( bitmapData == NULL )
+		return;
+
+	//A colour from an asset catalog has one value per appearance, and resolving
+	//it picks whichever appearance is current. This runs while building a
+	//bitmap rather than while drawing into a view, so the view's own is made
+	//current for the conversion rather than left to chance.
+	__block NSColor *rgbColor = nil;
+
+	[[self effectiveAppearance] performAsCurrentDrawingAppearance: ^{
+		rgbColor = [color colorUsingColorSpace: [NSColorSpace genericRGBColorSpace]];
+	}];
+
+	if ( rgbColor == nil )
+		return;
+
+	CGFloat red = 0.0, green = 0.0, blue = 0.0, alpha = 1.0;
+
+	[rgbColor getRed: &red green: &green blue: &blue alpha: &alpha];
+
+	const unsigned char components[3] = {
+		(unsigned char) round( MAX( 0.0, MIN( 1.0, red   ) ) * 255.0 ),
+		(unsigned char) round( MAX( 0.0, MIN( 1.0, green ) ) * 255.0 ),
+		(unsigned char) round( MAX( 0.0, MIN( 1.0, blue  ) ) * 255.0 ) };
+
+	const NSInteger bytesPerRow   = [bitmap bytesPerRow];
+	const NSInteger bytesPerPixel = [bitmap bitsPerPixel] / 8;
+	const NSInteger width         = [bitmap pixelsWide];
+	const NSInteger height        = [bitmap pixelsHigh];
+
+	if ( bytesPerPixel < (NSInteger) sizeof( components ) || height < 1 )
+		return;
+
+	//One row is written a pixel at a time and the rest are copies of it, which
+	//is worth doing: this is the full backing size of the view, so on a Retina
+	//display it is several million pixels every time the cache is rebuilt.
+	for ( NSInteger x = 0; x < width; x++ )
+		memcpy( bitmapData + x * bytesPerPixel, components, sizeof( components ) );
+
+	for ( NSInteger y = 1; y < height; y++ )
+		memcpy( bitmapData + y * bytesPerRow, bitmapData, bytesPerRow );
+}
+
 - (void) drawInCache
 {
 	[self deallocContentCache];
@@ -373,11 +438,9 @@ static const CGFloat TMVMinimumOutlinedCellSize =  6.0;
 	//rounding can leave between cells, and - once there is a content inset - the
 	//margin around the whole map, which is most of what anyone sees of it.
 	//
-	//Drawn rather than memset, because the bitmap's layout comes from
-	//+imageRepCompatibleWithView: and writing bytes into it assumes an order and
-	//a channel count that are not ours to assume. Classic mode keeps the black
-	//it always had: it has no gutters and no inset, so this is only ever the
-	//seams there, and they are part of how the original looked.
+	//Classic mode keeps the black it always had: it has no gutters and no inset,
+	//so this is only ever the seams there, and they are part of how the original
+	//looked.
 	if ( _usesClassicCushions || _gutterColor == nil )
 	{
 		unsigned char *bitmapData = [_cachedContent bitmapData];
@@ -386,20 +449,7 @@ static const CGFloat TMVMinimumOutlinedCellSize =  6.0;
 	}
 	else
 	{
-		NSGraphicsContext *context =
-			[NSGraphicsContext graphicsContextWithBitmapImageRep: _cachedContent];
-
-		if ( context != nil )
-		{
-			[NSGraphicsContext saveGraphicsState];
-			[NSGraphicsContext setCurrentContext: context];
-
-			[_gutterColor set];
-			NSRectFill( NSMakeRect( 0.0, 0.0,
-									[_cachedContent pixelsWide], [_cachedContent pixelsHigh] ) );
-
-			[NSGraphicsContext restoreGraphicsState];
-		}
+		[self fillCache: _cachedContent withColor: _gutterColor];
 	}
 
 	[_rootItemRenderer drawCushionInBitmap: _cachedContent];
@@ -560,7 +610,12 @@ static const CGFloat TMVMinimumOutlinedCellSize =  6.0;
 				//file", and no real file may ever be drawn with it. Diagonal
 				//because every other line in the map is axis-aligned, so it
 				//cannot be mistaken for a cell edge.
-				_mergedItemCount += [[renderer mergedItems] count];
+				//-mergedItemCount, not -mergedItems.count: one merged entry can
+				//be a folder packed in whole, and it stands for everything
+				//inside it. The two differ by a factor of eight on an ordinary
+				//tree, which is the difference between a figure that describes
+				//what is hidden and one that counts the cells that hide it.
+				_mergedItemCount += [renderer mergedItemCount];
 				_mergedItemWeight += [renderer weight];
 
 				const CGFloat shortSide = MIN( NSWidth( rect ), NSHeight( rect ) );
@@ -705,16 +760,36 @@ static const CGFloat TMVCellSeparatorWidth = 1.0;
 static const CGFloat TMVCellLabelInset    = 8.0;
 static const CGFloat TMVCellLabelFontSize = 11.0;
 
-- (NSDictionary*) cellLabelAttributesInColor: (NSColor*) color
+//A point smaller than a label, and regular rather than semibold: the hint sits
+//in the same cell as the name it belongs to and has to read as an aside, not as
+//a second heading.
+static const CGFloat TMVCellHintFontSize  = 10.0;
+
+- (NSDictionary*) cellTextAttributesInColor: (NSColor*) color
+									   size: (CGFloat) size
+									 weight: (NSFontWeight) weight
 {
 	if ( color == nil )
 		color = ( _cellLabelColor != nil ) ? _cellLabelColor : [NSColor labelColor];
 
 	return @{
-		NSFontAttributeName: [NSFont systemFontOfSize: TMVCellLabelFontSize
-												weight: NSFontWeightSemibold],
+		NSFontAttributeName: [NSFont systemFontOfSize: size weight: weight],
 		NSForegroundColorAttributeName: color,
 	};
+}
+
+- (NSDictionary*) cellLabelAttributesInColor: (NSColor*) color
+{
+	return [self cellTextAttributesInColor: color
+									  size: TMVCellLabelFontSize
+									weight: NSFontWeightSemibold];
+}
+
+- (NSDictionary*) cellHintAttributesInColor: (NSColor*) color
+{
+	return [self cellTextAttributesInColor: color
+									  size: TMVCellHintFontSize
+									weight: NSFontWeightRegular];
 }
 
 - (NSDictionary*) cellLabelAttributes
@@ -763,10 +838,12 @@ static const CGFloat TMVCellLabelFontSize = 11.0;
 
 	if ( [renderer isRemainder] )
 	{
-		if ( ![delegate respondsToSelector: @selector(treeMapView:labelForRemainderItems:)] )
+		if ( ![delegate respondsToSelector: @selector(treeMapView:labelForRemainderItems:count:)] )
 			return;
 
-		name = [delegate treeMapView: self labelForRemainderItems: [renderer mergedItems]];
+		name = [delegate treeMapView: self
+			  labelForRemainderItems: [renderer mergedItems]
+							   count: [renderer mergedItemCount]];
 
 		if ( [delegate respondsToSelector: @selector(treeMapView:detailLabelForRemainderItems:)] )
 			detail = [delegate treeMapView: self detailLabelForRemainderItems: [renderer mergedItems]];
@@ -782,35 +859,68 @@ static const CGFloat TMVCellLabelFontSize = 11.0;
 	if ( [name length] == 0 )
 		return;
 
-	//A cell that carries its own label colour also gets its own layout: the two
-	//synthetic cells sit their name over their size at the *bottom* left, which
-	//is where the design puts them and what keeps them from being read as a file
-	//name with a size after it.
-	const BOOL isSpecialCell = ( [renderer labelColor] != nil );
+	//The two synthetic cells sit their name over their size at the *bottom* left,
+	//which is where the design puts them and what keeps them from being read as a
+	//file name with a size after it.
+	//
+	//Asked of the cell style, not of the label colour. It used to be "has a colour
+	//of its own", which was true of exactly those two cells until a remainder
+	//gained one as well - at which point the inference would have moved every
+	//remainder's label to the bottom, on top of its own hint.
+	//
+	//Both synthetic styles, not one: free space is outlined and the space used
+	//outside the scan is flat, and testing for either one alone sends the other's
+	//label back to the top.
+	const TMVCellStyle style = [renderer cellStyle];
+	const BOOL isSpecialCell = ( style == TMVCellStyleOutlined || style == TMVCellStyleFlat );
 
-	NSDictionary *attributes = [self cellLabelAttributesInColor: [renderer labelColor]];
+	//A remainder's two lines are two tones, as the design draws them: the count
+	//in the cell's own colour taken most of the way to black, the line under it a
+	//step back from that. Everything else is one tone across the whole label, so
+	//the detail colour falls back to the name's.
+	NSDictionary *nameAttributes =
+		[self cellTextAttributesInColor: [renderer labelColor]
+								   size: TMVCellLabelFontSize
+								 weight: [renderer isRemainder] ? NSFontWeightBold
+																: NSFontWeightSemibold];
+
+	NSDictionary *detailAttributes = ( [renderer detailLabelColor] != nil )
+		? [self cellTextAttributesInColor: [renderer detailLabelColor]
+									 size: TMVCellLabelFontSize
+								   weight: NSFontWeightRegular]
+		: nameAttributes;
 
 	//"name · size" when it fits, the name alone when it does not, and nothing
 	//at all when even that would be clipped - a truncated name in the middle of
 	//a coloured tile reads as a rendering fault rather than as a label
-	NSString *text = name;
+	NSAttributedString *label = nil;
 
 	if ( [detail length] > 0 )
 	{
 		//A remainder's two lines stack, and so do the synthetic cells'; a file's
 		//name and size sit on one.
-		NSString *both = ( [renderer isRemainder] || isSpecialCell )
-			? [NSString stringWithFormat: @"%@\n%@", name, detail]
-			: [NSString stringWithFormat: @"%@ · %@", name, detail];
+		const BOOL stacked = ( [renderer isRemainder] || isSpecialCell );
 
-		if ( [self text: both fitsInRect: rect withAttributes: attributes] )
-			text = both;
+		NSMutableAttributedString *both =
+			[[NSMutableAttributedString alloc] initWithString: name attributes: nameAttributes];
+
+		[both appendAttributedString:
+			[[NSAttributedString alloc] initWithString: stacked ? @"\n" : @" · "
+											attributes: nameAttributes]];
+		[both appendAttributedString:
+			[[NSAttributedString alloc] initWithString: detail attributes: detailAttributes]];
+
+		if ( [self attributedText: both fitsInRect: rect] )
+			label = both;
 	}
 
-	if ( ![self text: text fitsInRect: rect withAttributes: attributes] )
+	if ( label == nil )
+		label = [[NSAttributedString alloc] initWithString: name attributes: nameAttributes];
+
+	if ( ![self attributedText: label fitsInRect: rect] )
 		return;
 
-	const NSSize size = [text sizeWithAttributes: attributes];
+	const NSSize size = [label size];
 
 	//the view is flipped, so the cell's top edge is its minimum y and its bottom
 	//edge its maximum
@@ -835,7 +945,62 @@ static const CGFloat TMVCellLabelFontSize = 11.0;
 	//Attributed once here rather than per frame. -drawAtPoint:withAttributes:
 	//builds one of these internally on every call, and there can be hundreds
 	//of labels on a full map.
-	[item setText: [[NSAttributedString alloc] initWithString: text attributes: attributes]];
+	[item setText: label];
+
+	[_overlayLabels addObject: item];
+
+	if ( [renderer isRemainder] )
+		[self collectHintForRenderer: renderer inRect: rect claimedRects: claimed];
+}
+
+//A remainder is the one cell that does something on a double click and the one
+//cell whose name does not say so, so the design writes it in: bottom left, a
+//point smaller than the label above it.
+//
+//It is a fourth participant in the collision rule rather than a third line of
+//the block at the top. Those two lines are what the cell *is*; this is what can
+//be done to it, and on a cell with room for one but not both the description is
+//worth more than the instruction - which is what putting it at the far end of
+//the cell gets for free, since a short cell makes the two rects overlap and the
+//hint is the one that gives way.
+- (void) collectHintForRenderer: (TMVItem*) renderer
+						 inRect: (NSRect) rect
+				   claimedRects: (NSMutableArray<NSValue*>*) claimed
+{
+	if ( ![delegate respondsToSelector: @selector(treeMapView:hintForRemainderItems:)] )
+		return;
+
+	NSString *hint = [delegate treeMapView: self hintForRemainderItems: [renderer mergedItems]];
+
+	if ( [hint length] == 0 )
+		return;
+
+	//the design writes the hint in the same tone as the line above it
+	NSDictionary *attributes = [self cellHintAttributesInColor:
+		( [renderer detailLabelColor] != nil ) ? [renderer detailLabelColor]
+											   : [renderer labelColor]];
+
+	if ( ![self text: hint fitsInRect: rect withAttributes: attributes] )
+		return;
+
+	const NSSize size = [hint sizeWithAttributes: attributes];
+
+	//flipped, so the bottom of the cell is its maximum y
+	const NSRect hintRect = NSMakeRect( NSMinX( rect ) + TMVCellLabelInset,
+										NSMaxY( rect ) - TMVCellLabelInset - size.height,
+										size.width, size.height );
+
+	for ( NSValue *value in claimed )
+	{
+		if ( NSIntersectsRect( hintRect, [value rectValue] ) )
+			return;
+	}
+
+	[claimed addObject: [NSValue valueWithRect: hintRect]];
+
+	TMVOverlayItem *item = [[TMVOverlayItem alloc] init];
+	[item setRect: hintRect];
+	[item setText: [[NSAttributedString alloc] initWithString: hint attributes: attributes]];
 
 	[_overlayLabels addObject: item];
 }
@@ -843,6 +1008,18 @@ static const CGFloat TMVCellLabelFontSize = 11.0;
 - (BOOL) text: (NSString*) text fitsInRect: (NSRect) rect withAttributes: (NSDictionary*) attributes
 {
 	const NSSize size = [text sizeWithAttributes: attributes];
+
+	return ( size.width  + TMVCellLabelInset * 2.0 ) <= NSWidth(rect)
+		&& ( size.height + TMVCellLabelInset * 2.0 ) <= NSHeight(rect);
+}
+
+//-size is the attributed counterpart of -sizeWithAttributes:, which is what the
+//labels were measured with before they carried two tones, and it pairs with the
+//-drawAtPoint: they are drawn with. Measuring one way and drawing another is how
+//a label ends up clipped by the cell it was declared to fit in.
+- (BOOL) attributedText: (NSAttributedString*) text fitsInRect: (NSRect) rect
+{
+	const NSSize size = [text size];
 
 	return ( size.width  + TMVCellLabelInset * 2.0 ) <= NSWidth(rect)
 		&& ( size.height + TMVCellLabelInset * 2.0 ) <= NSHeight(rect);

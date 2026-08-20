@@ -106,6 +106,7 @@ static const NSUInteger TMVMinimumUsefulCells = 4;
 
 - (id) initAsRemainderWithItems: (NSArray*) items
 						 weight: (unsigned long long) weight
+					 dataSource: (id) dataSource
 					   delegate: (id) delegate
 					treeMapView: (TreeMapView*) view
 						  depth: (NSInteger) depth
@@ -114,6 +115,7 @@ static const NSUInteger TMVMinimumUsefulCells = 4;
 	if ( self == nil )
 		return nil;
 
+	_dataSource = dataSource;
 	_delegate = delegate;
 	_view = view;
 	_item = nil;
@@ -128,6 +130,18 @@ static const NSUInteger TMVMinimumUsefulCells = 4;
 	_remainderWeight = weight;
 	_mergedItems = items;
 
+	//Summed here, once. A data source may have to walk a subtree to answer for
+	//a folder, and this figure is read on every draw and on every hover.
+	_mergedItemCount = [items count];
+
+	if ( [dataSource respondsToSelector: @selector(treeMapView:itemCountByItem:)] )
+	{
+		_mergedItemCount = 0;
+
+		for ( id item in items )
+			_mergedItemCount += [dataSource treeMapView: view itemCountByItem: item];
+	}
+
 	return self;
 }
 
@@ -139,6 +153,11 @@ static const NSUInteger TMVMinimumUsefulCells = 4;
 - (NSArray*) mergedItems
 {
 	return _mergedItems != nil ? _mergedItems : @[];
+}
+
+- (NSUInteger) mergedItemCount
+{
+	return _mergedItemCount;
 }
 
 - (void) refreshWithItem: (id) item
@@ -261,6 +280,16 @@ static const NSUInteger TMVMinimumUsefulCells = 4;
 - (void) setLabelColor: (NSColor*) color
 {
 	_labelColor = color;
+}
+
+- (NSColor*) detailLabelColor
+{
+	return _detailLabelColor;
+}
+
+- (void) setDetailLabelColor: (NSColor*) color
+{
+	_detailLabelColor = color;
 }
 
 - (void) setOutlineColor: (NSColor*) color
@@ -464,10 +493,73 @@ static BOOL ShouldMergeChild( TMVItem *child, id dataSource, TreeMapView *view,
 
 	for ( TMVItem *child in _childRenderers )
 	{
-		if ( ShouldMergeChild( child, _dataSource, _view, areaPerWeight, minimumArea, foldArea ) )
+		//A cell the delegate styled as something other than a tile is not a file
+		//and is never merged: free space and the space used outside the scan are
+		//the two things a map of a volume exists to show, and a block labelled
+		//"2 smaller items" is not what either of them means.
+		if ( [child cellStyle] != TMVCellStyleCushion )
+			[kept addObject: child];
+		else if ( ShouldMergeChild( child, _dataSource, _view, areaPerWeight, minimumArea, foldArea ) )
 			[toMerge addObject: child];
 		else
 			[kept addObject: child];
+	}
+
+	//The threshold exists to produce a real hit target, and a remainder built out
+	//of one sliver is exactly as unhittable as the sliver was - it inherits the
+	//area, which is the whole point of it. Measured on /usr/share, that left 16
+	//of the 18 cells worse than 12:1 as the *last child of their parent*: one
+	//child under the bar, nothing to merge it with, drawn as a line.
+	//
+	//So the set grows downward, smallest kept child first, until the block it
+	//would make clears the same square that sent its members there. The area is
+	//carried by the remainder either way, so nothing here changes what any cell
+	//is worth - only how many cells that worth is spread over, which is the
+	//trade the design asks for: fewer, larger, clickable.
+	double mergedArea = 0.0;
+
+	for ( TMVItem *child in toMerge )
+		mergedArea += [child weight] * areaPerWeight;
+
+	//never below one drawn cell beside it - a remainder filling its own parent
+	//says nothing that the parent did not already say
+	while ( mergedArea < minimumArea && [kept count] > 1 )
+	{
+		//Searched for by weight, not taken from the end. The children arrive
+		//largest first, but the two synthetic cells are appended after them
+		//whatever their size, so the last of the list is not the smallest of it -
+		//which is how a volume scan came to fold its free space into a remainder.
+		NSUInteger smallestIndex = NSNotFound;
+		unsigned long long smallestWeight = 0;
+
+		for ( NSUInteger i = 0; i < [kept count]; i++ )
+		{
+			TMVItem *candidate = [kept objectAtIndex: i];
+
+			if ( [candidate cellStyle] != TMVCellStyleCushion )
+				continue;
+
+			const unsigned long long weight = [candidate weight];
+
+			if ( smallestIndex == NSNotFound || weight < smallestWeight )
+			{
+				smallestIndex = i;
+				smallestWeight = weight;
+			}
+		}
+
+		if ( smallestIndex == NSNotFound )
+			break;
+
+		TMVItem *smallest = [kept objectAtIndex: smallestIndex];
+
+		[kept removeObjectAtIndex: smallestIndex];
+
+		//largest first, which is what the squarified layout and -mergedItems
+		//both expect; everything already in toMerge is smaller than this one
+		[toMerge insertObject: smallest atIndex: 0];
+
+		mergedArea += smallestWeight * areaPerWeight;
 	}
 
 	//One cell replaced by one cell is not worth the indirection: it would lose
@@ -497,6 +589,7 @@ static BOOL ShouldMergeChild( TMVItem *child, id dataSource, TreeMapView *view,
 
 	TMVItem *remainder = [[TMVItem alloc] initAsRemainderWithItems: mergedItems
 														   weight: mergedWeight
+													   dataSource: _dataSource
 														 delegate: _delegate
 													  treeMapView: _view
 															depth: _depth + 1];

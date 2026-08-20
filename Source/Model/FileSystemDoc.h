@@ -65,6 +65,14 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
     FSItem *_selectedItem;
     NSMutableArray *_zoomStack;
     NSArray<FSItem*> *_focusedPile;   //see -focusedPile; nil unless a merged cell was opened
+
+    //What the toolbar is searching for and what it found. The index is built on
+    //the first search of a scan and thrown away whenever the tree changes.
+    NSString *_searchString;
+    FSItemIndexType _searchScope;
+    NSArray<FSItem*> *_searchResults;
+    id _searchIndex;
+
     NSMutableDictionary *_fileKindStatistics;	//dictionary: kind name -> FileKindStatistic
 	NSMutableDictionary *_viewOptions;
 	FileTypeColors *_kindColors;
@@ -147,6 +155,25 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 - (FSItem*) selectedItem;
 - (void) setSelectedItem: (FSItem*) item; //will post a "GlobalSelectionChangedNotification"
 
+#pragma mark --------searching the scan-----------------
+
+//What the toolbar's search field is asking for, and what the file list answers
+//with. It lives here rather than on either of them for the usual reason: the
+//field is in the title bar and the list is three panes away, and the two must
+//not talk to each other.
+//
+//-searchResults is nil when nothing is being searched for, which is not the same
+//as an empty array - that means "searched, found nothing" and the list says so.
+//Both setters post "SearchResultsChangedNotification".
+- (NSString*) searchString;
+- (void) setSearchString: (NSString*) searchString;
+
+//which of name, kind and path to look in; FSItemIndexAll by default
+- (FSItemIndexType) searchScope;
+- (void) setSearchScope: (FSItemIndexType) scope;
+
+- (NSArray<FSItem*>*) searchResults;
+
 - (FileKindStatistic*) kindStatisticForItem: (FSItem*) item;
 - (FileKindStatistic*) kindStatisticForKind: (NSString*) kindName;
 - (NSDictionary*) kindStatistics;
@@ -215,6 +242,9 @@ extern NSString *ReclaimBasketChangedNotification;
 
 //the map is now showing a merged cell's contents, or has stopped; userInfo is nil
 extern NSString *FocusedPileChangedNotification;
+
+//the search string, the scope or the results changed; userInfo is nil
+extern NSString *SearchResultsChangedNotification;
 
 //Option names carried by ViewOptionChangedNotification for the two settings
 //that are not user defaults. The rest of the options are named by their

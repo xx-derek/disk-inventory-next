@@ -169,6 +169,15 @@ typedef TMVItem* TMVCellId;
 //what the cell's area is proportional to
 - (unsigned long long) treeMapView: (TreeMapView*) view weightByItem: (id) item;
 
+//How many things an item stands for, which is what a remainder cell reports
+//having hidden. A leaf is one; a node that gets packed into a remainder whole
+//stands for everything inside it, so a data source with a tree behind it
+//should answer with the size of that subtree rather than with 1.
+//
+//Optional: not implementing it counts every merged item as one. It is asked
+//only when a remainder is built, so it may walk.
+- (NSUInteger) treeMapView: (TreeMapView*) view itemCountByItem: (id) item;
+
 @end
 
 #pragma mark --------delegate-----------------
@@ -186,8 +195,22 @@ typedef TMVItem* TMVCellId;
 	willDisplayRemainderItems: (NSArray*) items
 				 withRenderer: (TMVItem*) renderer;
 
-- (NSString*) treeMapView: (TreeMapView*) view labelForRemainderItems: (NSArray*) items;
+//"count" is what the cell stands for and "items" is what it replaced, which are
+//not the same number when one of those items is a folder - see
+//-[TMVItem mergedItemCount]. The label wants the first; the second is there for
+//a delegate that needs to look at them, as this application's does to find the
+//kind they are mostly made of.
+- (NSString*) treeMapView: (TreeMapView*) view
+   labelForRemainderItems: (NSArray*) items
+					count: (NSUInteger) count;
+
 - (NSString*) treeMapView: (TreeMapView*) view detailLabelForRemainderItems: (NSArray*) items;
+
+//What can be done with a remainder, written at the bottom of the cell when
+//there is room for it above its label. A remainder is the only cell that opens
+//on a double click and the only one whose name cannot say so. Optional; the
+//widget supplies the placement, never the words.
+- (NSString*) treeMapView: (TreeMapView*) view hintForRemainderItems: (NSArray*) items;
 
 - (NSString*) treeMapView: (TreeMapView*) view getToolTipByItem: (id) item;
 

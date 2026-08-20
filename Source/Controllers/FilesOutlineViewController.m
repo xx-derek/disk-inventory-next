@@ -25,6 +25,12 @@
 @interface FilesOutlineViewController(Private)
 
 - (void) onDocumentSelectionChanged;
+- (void) searchResultsChanged: (NSNotification*) notification;
+- (NSArray<FSItem*>*) searchResults;
+- (NSColor*) chipColorForItem: (FSItem*) item;
+- (NSString*) dominantKindForFolder: (FSItem*) folder;
+- (void) accumulateKindSizesUnder: (FSItem*) item into: (NSMutableDictionary<NSString*,NSNumber*>*) parentTotals;
+- (void) viewOptionChangedInvalidatesChips;
 - (void) reloadPackages: (FSItem*) parent;
 - (void) reloadData;
 - (void) setOutlineViewFont;
@@ -56,6 +62,11 @@
 				   name: FSItemsChangedNotification
 				 object: doc];
 	
+    [center addObserver: self
+			   selector: @selector(searchResultsChanged:)
+				   name: SearchResultsChangedNotification
+				 object: doc];
+
     [center addObserver: self
 			   selector: @selector(windowWillClose:)
 				   name: NSWindowWillCloseNotification
@@ -99,8 +110,27 @@
 
 #pragma mark --------NSOutlineView datasource-----------------
 
+//While a search is running the list stops being a tree and becomes the results,
+//flat. A hit is shown where it was found, not where it sits: nesting the matches
+//back under their folders would hide most of them behind closed triangles, which
+//is the opposite of what someone typing into a search field is asking for.
+//
+//Nil rather than an empty array is what says "not searching" - an empty array
+//means the search found nothing, and the list has to show that rather than
+//falling back to the tree.
+- (NSArray<FSItem*>*) searchResults
+{
+	return [[self document] searchResults];
+}
+
 - (id) outlineView: (NSOutlineView *) outlineView child: (NSInteger) index ofItem: (id) item
 {
+	NSArray<FSItem*> *results = [self searchResults];
+
+	if ( results != nil )
+		return ( item == nil && index < (NSInteger) [results count] )
+				? [results objectAtIndex: index] : nil;
+
 	FSItem *fsItem = (item == nil) ? [self rootItem] : item;
 
     return [fsItem childAtIndex: index];
@@ -108,13 +138,21 @@
 
 - (BOOL) outlineView: (NSOutlineView *) outlineView isItemExpandable: (id) item
 {
+	if ( [self searchResults] != nil )
+		return NO;
+
     return [[self document] itemIsNode: item];
 }
 
 - (NSInteger) outlineView: (NSOutlineView *) outlineView numberOfChildrenOfItem: (id) item
 {
+	NSArray<FSItem*> *results = [self searchResults];
+
+	if ( results != nil )
+		return ( item == nil ) ? (NSInteger) [results count] : 0;
+
 	FSItem *fsItem = (item == nil) ? [self rootItem] : item;
-	
+
     return [fsItem childCount];
 }
 
@@ -171,6 +209,48 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
 
 #pragma mark --------NSOutlineView delegate-----------------
 
+//A 10x10 square of a kind's colour. Square, not rounded: the design keeps data
+//elements square and reserves the 6pt radius for controls, and this is the same
+//chip the sidebar legend uses.
+//
+//Cached by colour rather than built per row. A list redraws every visible row on
+//every scroll, and there are twelve colours in the palette plus a grey ramp.
+static NSImage* KindChipImage( NSColor *color )
+{
+	static NSMutableDictionary<NSColor*, NSImage*> *cache = nil;
+
+	if ( cache == nil )
+		cache = [NSMutableDictionary dictionary];
+
+	if ( color == nil )
+		return nil;
+
+	NSImage *chip = [cache objectForKey: color];
+
+	if ( chip != nil )
+		return chip;
+
+	//Drawn centred in a 16pt box rather than as a 10pt image. ImageAndTextCell is
+	//Apple sample code and draws whatever it is given at a hardcoded 16x16, so an
+	//image of the chip's own size would come back scaled half again too big; the
+	//padding is what keeps the chip at the 10pt the sidebar legend uses.
+	const CGFloat box  = 16.0;
+	const CGFloat side = [DIXTheme kindChipSize];
+
+	chip = [NSImage imageWithSize: NSMakeSize( box, box )
+						  flipped: NO
+				   drawingHandler: ^BOOL( NSRect rect )
+	{
+		[color set];
+		NSRectFill( NSMakeRect( ( box - side ) / 2.0, ( box - side ) / 2.0, side, side ) );
+		return YES;
+	}];
+
+	[cache setObject: chip forKey: color];
+
+	return chip;
+}
+
 - (void) outlineView: (NSOutlineView *) outlineView
      willDisplayCell: (id) cell
       forTableColumn: (NSTableColumn *) tableColumn
@@ -178,10 +258,107 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
 {
     if ( [[tableColumn identifier] isEqualToString: @"displayName"] )
     {
-		//row height for default font is 17 pixels, so subtract 1
-        NSImage *icon = [item iconWithSize: ( [outlineView rowHeight] -1 )];
-        [cell setImage: icon];
+		//The design puts a kind chip where the file icon was, and is emphatic
+		//that the rule has no exceptions: a file shows its own kind's colour, a
+		//folder the colour of the kind filling the most space inside it. The
+		//sidebar legend binds those colours to named kinds, so a folder drawn in
+		//a generic colour would make every chip in the list unreliable.
+		[cell setImage: KindChipImage( [self chipColorForItem: item] )];
     }
+}
+
+//Nil for the two synthetic cells, which are not file kinds - the map draws them
+//neutral for the same reason.
+- (NSColor*) chipColorForItem: (FSItem*) item
+{
+	FileSystemDoc *doc = [self document];
+
+	if ( [item isSpecialItem] )
+		return nil;
+
+	if ( ![doc itemIsNode: item] )
+		return [[doc fileTypeColors] colorForItem: item];
+
+	NSString *kind = [self dominantKindForFolder: item];
+
+	return kind != nil ? [[doc fileTypeColors] colorForKind: kind] : nil;
+}
+
+//The kind occupying the most space inside a folder.
+//
+//Computed for the whole tree in one bottom-up pass rather than per row: a row is
+//drawn on every scroll, and answering for one folder means walking everything
+//under it - which for the root is the entire scan. The pass merges each folder's
+//kind totals into its parent's and keeps only the winner, so what it holds at
+//any moment is one root-to-leaf path's worth of totals rather than the tree's.
+//
+//Keyed weakly, so a tree dropped between refreshes takes its entries with it.
+- (NSString*) dominantKindForFolder: (FSItem*) folder
+{
+	if ( _dominantKinds == nil )
+	{
+		_dominantKinds = [NSMapTable mapTableWithKeyOptions: NSPointerFunctionsWeakMemory
+											   valueOptions: NSPointerFunctionsStrongMemory];
+
+		FSItem *root = [[self document] rootItem];
+
+		if ( root != nil )
+			[self accumulateKindSizesUnder: root into: [NSMutableDictionary dictionary]];
+	}
+
+	return [_dominantKinds objectForKey: folder];
+}
+
+- (void) accumulateKindSizesUnder: (FSItem*) item
+							 into: (NSMutableDictionary<NSString*, NSNumber*>*) parentTotals
+{
+	if ( [item isSpecialItem] )
+		return;
+
+	if ( ![[self document] itemIsNode: item] )
+	{
+		NSString *kind = [item kindName];
+
+		if ( [kind length] > 0 )
+		{
+			const unsigned long long running =
+				[[parentTotals objectForKey: kind] unsignedLongLongValue] + [item sizeValue];
+
+			[parentTotals setObject: @(running) forKey: kind];
+		}
+
+		return;
+	}
+
+	NSMutableDictionary<NSString*, NSNumber*> *totals = [NSMutableDictionary dictionary];
+	NSUInteger i = [item childCount];
+
+	while ( i-- )
+		[self accumulateKindSizesUnder: [item childAtIndex: i] into: totals];
+
+	__block NSString *dominant = nil;
+	__block unsigned long long best = 0;
+
+	[totals enumerateKeysAndObjectsUsingBlock: ^( NSString *kind, NSNumber *size, BOOL *stop )
+	{
+		const unsigned long long value = [size unsignedLongLongValue];
+
+		if ( value > best )
+		{
+			best = value;
+			dominant = kind;
+		}
+
+		//merged upward here rather than in a second loop, since this one is
+		//already walking every entry
+		const unsigned long long running =
+			[[parentTotals objectForKey: kind] unsignedLongLongValue] + value;
+
+		[parentTotals setObject: @(running) forKey: kind];
+	}];
+
+	if ( dominant != nil )
+		[_dominantKinds setObject: dominant forKey: item];
 }
 
 - (NSMenu*) outlineView: (NSOutlineView *) outlineView menuForTableColumn: (NSTableColumn*) column item: (id) item
@@ -224,12 +401,34 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
     [self reloadData];
 }
 
+- (void) viewOptionChangedInvalidatesChips
+{
+	//"show package contents" changes which items count as folders, and so which
+	//kinds a folder is made of
+	_dominantKinds = nil;
+}
+
+//A reload and nothing else. Collapsing first, which this did, asks the outline
+//to operate on rows that the data source has already stopped describing - the
+//document changed underneath it before the notification was sent - and it left
+//the list blank on the way back to the tree. Expansion state is worth keeping
+//across a search in any case: it is the state of the tree, and the tree is what
+//comes back.
+- (void) searchResultsChanged: (NSNotification*) notification
+{
+	[self reloadData];
+}
+
 - (void) viewOptionChanged: (NSNotification*) notification
 {
 	NSString *theOption = [[notification userInfo] objectForKey:ChangedViewOption];
 	
 	if ( [theOption isEqualToString: ShowPackageContents] )
 	{
+		//that option changes which items count as folders, and so which kinds a
+		//folder is made of
+		[self viewOptionChangedInvalidatesChips];
+
 		//save current selection
 		id selectedItem = [_outlineView selectedItem];
 		[_outlineView deselectAll: self];
@@ -250,6 +449,10 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
 
 - (void) itemsChanged: (NSNotification*) notification
 {
+	//the chips are computed from sizes, so anything that moved items invalidates
+	//every folder's answer, not only the ones that moved
+	_dominantKinds = nil;
+
     [self reloadData];
 }
 
@@ -287,16 +490,25 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
 - (void) onDocumentSelectionChanged
 {
     FSItem *item = [[self document] selectedItem];
-	
+
 	if ( item == (FSItem*) [_outlineView selectedItem] )
 		return;
-	
+
     if ( item == nil )
         [_outlineView deselectAll: nil];
     else
     {
         NSInteger row = [_outlineView rowForItem: item];
-        
+
+        //While a search is showing, nothing is expandable and an item that is
+        //not a result has no row to reveal. Walking its ancestors trying to
+        //expand them cannot succeed and must not be attempted.
+        if ( row < 0 && [self searchResults] != nil )
+        {
+            [_outlineView deselectAll: nil];
+            return;
+        }
+
         //if the item can't be found in the view, then the user hasn't expanded the parents yet
         if ( row < 0 )
         {
@@ -372,8 +584,33 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
 	NSTableColumn *size = [_outlineView tableColumnWithIdentifier: @"size"];
 
 	[size setWidth: 74.0];
+	[size setMinWidth: 74.0];
+	[size setMaxWidth: 74.0];
 	[[size dataCell] setAlignment: NSTextAlignmentRight];
 	[[size dataCell] setTextColor: [DIXTheme bodyText]];
+
+	//"Name (fills) · Size (74pt) · Share (46pt)", which needs saying twice: the
+	//two figures are pinned above, and the name is told it may shrink.
+	//
+	//Without this the name column kept the wide minimum the nib gave it, so a
+	//narrow list could not shrink the table to fit - it scrolled sideways
+	//instead, leaving a column of sizes with the names off to the left and the
+	//header reading "N". First-column-only autoresizing is what makes the name
+	//absorb the difference rather than the last column, which is pinned.
+	NSTableColumn *name = [_outlineView outlineTableColumn];
+
+	[name setMinWidth: 60.0];
+	[name setMaxWidth: 10000.0];
+
+	[_outlineView setColumnAutoresizingStyle: NSTableViewFirstColumnOnlyAutoresizingStyle];
+
+	//The style only redistributes when the table's frame changes, and the name
+	//column arrives carrying whatever width it was last squeezed to - which
+	//NSTableView autosaves, so a bad one comes back every launch. -sizeToFit
+	//spends the table's current width across the columns now, honouring the
+	//minimums and maximums just set, which is what gives the name the remainder.
+	[_outlineView setAutosaveTableColumns: NO];
+	[_outlineView sizeToFit];
 
 	[[[_outlineView outlineTableColumn] headerCell] setStringValue:
 		NSLocalizedString( @"Name", @"file list column" )];

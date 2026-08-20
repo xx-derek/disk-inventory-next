@@ -5,7 +5,6 @@
 	<key>allowedItemIdentifiers</key>
 	<array>
 		<string>ViewMode</string>
-		<string>ShowInfo</string>
 		<string>ShowPreferences</string>
 		<string>ShowPackageContents</string>
 		<string>ZoomIn</string>
@@ -19,6 +18,7 @@
 		<string>NSToolbarFlexibleSpaceItem</string>
 		<string>NSToolbarCustomizeToolbarItem</string>
 		<string>ToggleInspector</string>
+		<string>Search</string>
 	</array>
 	<key>defaultItemIdentifiers</key>
 	<array>
@@ -26,6 +26,7 @@
 		<string>ViewMode</string>
 		<string>ZoomIn</string>
 		<string>ZoomOut</string>
+		<string>Search</string>
 		<string>ToggleInspector</string>
 	</array>
 	<key>itemInfoByIdentifier</key>
@@ -58,14 +59,10 @@
 			<key>symbolName</key>
 			<string>arrow.right.doc.on.clipboard</string>
 		</dict>
-		<key>ShowInfo</key>
+		<key>Search</key>
 		<dict>
-			<key>action</key>
-			<string>showInformationPanel:</string>
 			<key>label</key>
-			<string>Show Information</string>
-			<key>symbolName</key>
-			<string>info.circle</string>
+			<string>Search</string>
 		</dict>
 		<key>ShowPackageContents</key>
 		<dict>

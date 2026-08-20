@@ -31,6 +31,18 @@ typedef enum
 	FreeSpaceItem	//free space on volume
 } FSItemType;
 
+//Which of an item's fields a search looks at. Declared here rather than in
+//FSItemIndex.h, its natural home, because FileSystemDoc's search API needs the
+//type and FSItemIndex.h imports FileSystemDoc.h for FileKindStatistic - so the
+//enum is the one piece of that header that cannot live behind the cycle.
+typedef enum
+{
+	FSItemIndexName = 1,
+	FSItemIndexKind = 2,
+	FSItemIndexPath = 4,
+	FSItemIndexAll = 0xffff
+} FSItemIndexType;
+
 //Flags kept in one byte rather than as four BOOLs, because there are millions
 //of these. isPackage is resolved on demand and remembered, since only a folder
 //is ever asked and answering means going to LaunchServices.

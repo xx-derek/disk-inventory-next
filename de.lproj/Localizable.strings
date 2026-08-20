@@ -119,9 +119,10 @@
 
 /* the treemap's merged remainder cell */
 "%@ smaller items" = "%@ kleinere Objekte";
+"Double-click to zoom in" = "Zum Hineinzoomen doppelklicken";
 "%@ · mostly %@" = "%@ · überwiegend %@";
 " · mostly %@" = " · überwiegend %@";
-"%@ items are too small to draw separately" = "%@ Objekte sind zu klein, um einzeln gezeichnet zu werden";
+"%@ files are too small to draw" = "%@ Dateien sind zu klein, um gezeichnet zu werden";
 " · %@ of this scan" = " · %@ dieses Scans";
 "Name" = "Name";
 "Size" = "Größe";
@@ -135,3 +136,8 @@
 "Permission" = "Zugriffsrechte";
 "Where" = "Ort";
 "Opens with" = "Öffnen mit";
+"Search this scan" = "Diesen Scan durchsuchen";
+"Search" = "Suchen";
+"All" = "Alle";
+"Path" = "Pfad";
+"Deselect All" = "Auswahl aufheben";

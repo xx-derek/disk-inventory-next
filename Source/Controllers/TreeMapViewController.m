@@ -237,8 +237,9 @@
 		//Both carry their own label colour. The cushions stay light in either
 		//appearance so one dark ink serves all of them, but these two do not:
 		//free space is the darkest thing on a dark map, and dark ink on it is
-		//invisible. Setting the colour is also what tells the view to lay their
-		//labels out the way the design does, at the bottom left over two lines.
+		//invisible. Their *cell style* is what tells the view to lay their labels
+		//out the way the design does, at the bottom left over two lines - the
+		//colour used to imply it, until a remainder gained a colour of its own.
 		case FreeSpaceItem:
 			//an absence, not a tile: a pale fill inside a dashed outline
 			[renderer setCellStyle: TMVCellStyleOutlined];
@@ -341,6 +342,21 @@ static NSColor* RemainderFillColor( NSColor *kindColor )
 	//the hatch and the border, one step darker than the fill
 	[renderer setOutlineColor: [kindColor blendedColorWithFraction: 0.30
 														   ofColor: [NSColor blackColor]]];
+
+	//The label belongs to the cell, not to the map. The design writes a
+	//remainder's count and its detail in the cell's own hue taken most of the way
+	//to black, which is what makes a block of them read as one thing rather than
+	//as generic ink dropped on a tint.
+	//
+	//The two fractions are read off the design's own pairs - #3f5320 over #b3e061
+	//and #2f3566 over #7f8cf2 - which come to a consistent 0.37 and 0.46 of the
+	//base per channel. Resolved here for the same reason the outline is: a kind
+	//colour is data and is the same in both appearances, so there is nothing to
+	//freeze by blending now.
+	[renderer setLabelColor: [kindColor blendedColorWithFraction: 0.63
+														 ofColor: [NSColor blackColor]]];
+	[renderer setDetailLabelColor: [kindColor blendedColorWithFraction: 0.54
+															   ofColor: [NSColor blackColor]]];
 }
 
 - (NSColor*) dominantKindColorForItems: (NSArray*) items
@@ -387,14 +403,32 @@ static NSColor* RemainderFillColor( NSColor *kindColor )
 	return dominant;
 }
 
-- (NSString*) treeMapView: (TreeMapView*) view labelForRemainderItems: (NSArray*) items
+//Walked rather than stored. A count per FSItem would be four bytes on a tree
+//that can hold 2.3 million of them, for a figure only the merged entries ever
+//need - and those are a small part of any layout, since an entry only merges
+//when its share of the map is under a hit target's worth. The widget asks once
+//per remainder, when it builds one.
+- (NSUInteger) treeMapView: (TreeMapView*) view itemCountByItem: (id) item
+{
+	return [(FSItem*) item representedFileCount];
+}
+
+- (NSString*) treeMapView: (TreeMapView*) view
+   labelForRemainderItems: (NSArray*) items
+					count: (NSUInteger) count
 {
 	NSNumberFormatter *counts = [[NSNumberFormatter alloc] init];
 	[counts setNumberStyle: NSNumberFormatterDecimalStyle];
 
 	return [NSString stringWithFormat:
 		NSLocalizedString( @"%@ smaller items", @"treemap, a merged remainder cell" ),
-		[counts stringFromNumber: @([items count])]];
+		[counts stringFromNumber: @(count)]];
+}
+
+- (NSString*) treeMapView: (TreeMapView*) view hintForRemainderItems: (NSArray*) items
+{
+	return NSLocalizedString( @"Double-click to zoom in",
+							  @"treemap, what a merged remainder cell does" );
 }
 
 - (NSString*) treeMapView: (TreeMapView*) view detailLabelForRemainderItems: (NSArray*) items
@@ -470,7 +504,9 @@ static NSString* ShareOfScanString( unsigned long long part, unsigned long long 
 			kind];
 	}
 
-	[statusBar setItemName: [self treeMapView: _treeMapView labelForRemainderItems: items]
+	[statusBar setItemName: [self treeMapView: _treeMapView
+					   labelForRemainderItems: items
+										count: [cell mergedItemCount]]
 					detail: detail
 				 kindColor: [self dominantKindColorForItems: items]];
 }
@@ -667,12 +703,12 @@ static NSString* ShareOfScanString( unsigned long long part, unsigned long long 
 
 	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
 
-	//"items" and "separately", both deliberate. A merged entry is not always a
-	//file - a folder with nothing worth subdividing is packed in whole - and a
-	//folded folder is not "too small to draw", it is too small to draw as a
-	//structure. Always plural: a remainder replaces at least two children.
+	//"files", as the design writes it, and it is now true: the count is what the
+	//merged cells stand for, so a folder packed in whole contributes the files
+	//inside it rather than one. This used to say "items ... separately" and to
+	//count the folder as one, which read as a much smaller problem than it was.
 	NSString *summary = [NSString stringWithFormat:
-		NSLocalizedString( @"%@ items are too small to draw separately",
+		NSLocalizedString( @"%@ files are too small to draw",
 						   @"status bar, what the treemap had to merge" ),
 		[NSNumberFormatter localizedStringFromNumber: @( count )
 										 numberStyle: NSNumberFormatterDecimalStyle]];

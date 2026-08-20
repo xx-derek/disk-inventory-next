@@ -16,7 +16,6 @@
 
 #import "MainWindowController.h"
 #import "NSAlert-Extensions.h"
-#import "InfoPanelController.h"
 #import "Timing.h"
 #import <TreeMapView/TreeMapView.h>
 #import "FSItem-Utilities.h"
@@ -35,7 +34,6 @@
 #import "DIXTheme.h"
 #import "DIXControls.h"
 
-NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibilityChanged";
 
 //Used the first time a pane is opened, when nothing has been remembered for it.
 //The widths come from the design; DIXTheme holds them because the sidebar and
@@ -47,7 +45,11 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 - (void) setKindStatisticsVisible: (BOOL) visible animated: (BOOL) animated;
 - (NSToolbarItem*) buildViewModeItem;
 - (NSToolbarItem*) buildInspectorToggleItem;
+- (NSToolbarItem*) buildSearchItem;
+- (void) updateSearchScopeMenu;
 - (void) installTitleAccessory;
+- (void) colourTitleBar;
+- (void) layoutTitleBarBand;
 - (void) updateBreadcrumb;
 - (void) layoutTitleAccessory;
 - (void) updateViewModeControl;
@@ -223,24 +225,24 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 {
 	NSView *contentView = [[self window] contentView];
 
-	if ( _kindStatisticsPane == nil || _selectionListPane == nil )
+	if ( _kindStatisticsPane == nil )
 	{
 		NSLog( @"side panes could not be built: the nib did not supply their views" );
 		return;
 	}
+
+	//The selection list is retired: the inspector's sibling list answers "what
+	//else is like this" and the toolbar's search field answers "where is it".
+	//The nib still builds the pane and its controllers - taking those out is a
+	//structural edit to four TreeMap.nibs, which belongs with the rest of the nib
+	//work - so it is unparented here rather than left somewhere it might show.
+	[_selectionListPane removeFromSuperview];
 
 	//Take over exactly the space the outline/treemap splitter occupied, not the
 	//whole content view: the treemap's name and size labels live below it, and
 	//filling the content view would cover them.
 	const NSRect paneFrame = [_splitter frame];
 	const NSAutoresizingMaskOptions paneMask = [_splitter autoresizingMask];
-
-	//selection list goes underneath the outline/treemap splitter
-	_selectionListSplitView = [[NSSplitView alloc] initWithFrame: paneFrame];
-	[_selectionListSplitView setVertical: NO];
-	[_selectionListSplitView setDividerStyle: NSSplitViewDividerStyleThin];
-	[_selectionListSplitView setDelegate: self];
-	[_selectionListSplitView setAutosaveName: @"MainWindowSelectionListSplit"];
 
 	//statistics go to the left of everything else
 	_kindStatisticsSplitView = [[NSSplitView alloc] initWithFrame: paneFrame];
@@ -258,9 +260,6 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 
 	[_splitter removeFromSuperview];
 
-	[_selectionListSplitView addSubview: _splitter];
-	[_selectionListSplitView addSubview: _selectionListPane];
-
 	//The middle column of the three. The summary strip and the status bar belong
 	//to it rather than to the window, which is what lets the sidebar and the
 	//inspector run the full height beside them - in the design they start under
@@ -269,9 +268,9 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 	_centreColumn = [[NSView alloc] initWithFrame: paneFrame];
 	[_centreColumn setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
 
-	[_selectionListSplitView setFrame: [_centreColumn bounds]];
-	[_selectionListSplitView setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
-	[_centreColumn addSubview: _selectionListSplitView];
+	[_splitter setFrame: [_centreColumn bounds]];
+	[_splitter setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
+	[_centreColumn addSubview: _splitter];
 
 	//A third column: statistics, the outline and map, then the inspector. The
 	//inspector is a peer of the other two rather than a floating window, which
@@ -348,9 +347,7 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 	[_kindStatisticsSplitView setAutoresizingMask: paneMask];
 	[contentView addSubview: _kindStatisticsSplitView];
 
-	//the statistics drawer was opened at launch; the selection list was not
 	[self setKindStatisticsVisible: YES];
-	[self setSelectionListVisible: NO];
 
 	[_inspectorView setDocument: (FileSystemDoc*) [self document]];
 
@@ -417,7 +414,7 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 	NSRect squeezed = columnBounds;
 	squeezed.origin.y = statusHeight;
 	squeezed.size.height = NSHeight( columnBounds ) - statusHeight - stripHeight;
-	[_selectionListSplitView setFrame: squeezed];
+	[_splitter setFrame: squeezed];
 
 	//the strip's buttons drive the actions the menu already validates
 	[_summaryStripView setTarget: self
@@ -644,9 +641,105 @@ static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
 	if ( [identifier isEqualToString: @"ToggleInspector"] )
 		return [self buildInspectorToggleItem];
 
+	if ( [identifier isEqualToString: @"Search"] )
+		return [self buildSearchItem];
+
 	return [super toolbar: toolbar
 	itemForItemIdentifier: identifier
 willBeInsertedIntoToolbar: willInsert];
+}
+
+//172 x 26, the design's size, with the scope menu the old selection-list field
+//carried. That menu used to come out of the nib; it is built here because the
+//field is, and because a menu of four fixed choices is less code than a nib
+//reference to one.
+- (NSToolbarItem*) buildSearchItem
+{
+	NSSearchToolbarItem *item =
+		[[NSSearchToolbarItem alloc] initWithItemIdentifier: @"Search"];
+
+	[item setLabel: NSLocalizedString( @"Search", @"toolbar item label" )];
+	[item setPaletteLabel: [item label]];
+
+	_searchField = [item searchField];
+
+	[_searchField setPlaceholderString:
+		NSLocalizedString( @"Search this scan", @"toolbar search field placeholder" )];
+	[_searchField setTarget: self];
+	[_searchField setAction: @selector(searchFieldChanged:)];
+	[_searchField setSendsWholeSearchString: NO];
+	[_searchField setSendsSearchStringImmediately: NO];
+
+	NSMenu *scopes = [[NSMenu alloc] initWithTitle: @"Search scope"];
+
+	//The tags are the FSItemIndexType values, so the action needs no mapping and
+	//there is no second list to keep in step with this one.
+	struct { NSString *title; FSItemIndexType scope; } choices[] = {
+		{ NSLocalizedString( @"All",  @"search scope" ), FSItemIndexAll  },
+		{ NSLocalizedString( @"Name", @"search scope" ), FSItemIndexName },
+		{ NSLocalizedString( @"Kind", @"search scope" ), FSItemIndexKind },
+		{ NSLocalizedString( @"Path", @"search scope" ), FSItemIndexPath },
+	};
+
+	for ( unsigned i = 0; i < sizeof( choices ) / sizeof( choices[0] ); i++ )
+	{
+		NSMenuItem *menuItem = [[NSMenuItem alloc] initWithTitle: choices[i].title
+														 action: @selector(changeSearchScope:)
+												  keyEquivalent: @""];
+
+		[menuItem setTarget: self];
+		[menuItem setTag: (NSInteger) choices[i].scope];
+		[scopes addItem: menuItem];
+	}
+
+	[[_searchField cell] setSearchMenuTemplate: scopes];
+
+	[self updateSearchScopeMenu];
+
+	return item;
+}
+
+- (IBAction) searchFieldChanged: (id) sender
+{
+	FileSystemDoc *doc = [self document];
+	const BOOL wasSearching = ( [doc searchString] != nil );
+
+	[doc setSearchString: [sender stringValue]];
+
+	//Results go to the file list, so a search started in Map mode has nowhere to
+	//show them. Both if the window can hold three columns, List if it cannot -
+	//the same test that chose the mode when the window opened.
+	if ( !wasSearching && [doc searchString] != nil && [doc viewMode] == DIXViewModeMap )
+	{
+		const CGFloat contentWidth = NSWidth( [[[self window] contentView] bounds] );
+
+		[doc setViewMode: ( contentWidth >= [DIXTheme bothModeMinimumContentWidth] )
+						  ? DIXViewModeBoth : DIXViewModeList];
+
+		[self updateViewModeControl];
+		[self applyViewMode];
+	}
+}
+
+- (IBAction) changeSearchScope: (id) sender
+{
+	[[self document] setSearchScope: (FSItemIndexType) [sender tag]];
+
+	[self updateSearchScopeMenu];
+}
+
+//NSSearchField rebuilds its menu from the template every time it is shown, so
+//the tick has to go on the template rather than on the menu the user saw.
+- (void) updateSearchScopeMenu
+{
+	NSMenu *template = [[_searchField cell] searchMenuTemplate];
+	const FSItemIndexType scope = [[self document] searchScope];
+
+	for ( NSMenuItem *menuItem in [template itemArray] )
+	{
+		[menuItem setState: ( (FSItemIndexType) [menuItem tag] == scope )
+							? NSControlStateValueOn : NSControlStateValueOff];
+	}
 }
 
 //The right-hand counterpart of NSToolbarToggleSidebarItem. AppKit has no
@@ -838,9 +931,17 @@ willBeInsertedIntoToolbar: willInsert];
 		NSNumberFormatter *countFormatter = [[NSNumberFormatter alloc] init];
 		[countFormatter setNumberStyle: NSNumberFormatterDecimalStyle];
 
+		//The same figure the cell showed before it was opened, and for the same
+		//reason: a pile can hold a folder that was packed in whole, so counting
+		//the pile's entries would make the number shrink on the way in.
+		NSUInteger pileCount = 0;
+
+		for ( FSItem *item in [doc focusedPile] )
+			pileCount += [item representedFileCount];
+
 		[titles addObject: [NSString stringWithFormat:
 			NSLocalizedString( @"%@ smaller items", @"treemap, a merged remainder cell" ),
-			[countFormatter stringFromNumber: @([[doc focusedPile] count])]]];
+			[countFormatter stringFromNumber: @(pileCount)]]];
 		[items addObject: [NSNull null]];
 	}
 
@@ -902,6 +1003,10 @@ willBeInsertedIntoToolbar: willInsert];
 	//them for changes: without this a zoom that lengthens the path leaves the
 	//clip view at the old width and the last segment is cut off.
 	[[_titleAccessoryView superview] setNeedsLayout: YES];
+
+	//The sidebar's band in the title bar ends where the breadcrumb's own inset is
+	//measured from, so the two are always answering the same divider.
+	[self layoutTitleBarBand];
 }
 
 //The title bar carries the breadcrumb, which is a title, so the window's own
@@ -934,6 +1039,132 @@ willBeInsertedIntoToolbar: willInsert];
 
 	[[self window] setTitleVisibility: NSWindowTitleHidden];
 	[[[self window] toolbar] setDisplayMode: NSToolbarDisplayModeIconOnly];
+
+	[self colourTitleBar];
+}
+
+//A plain filled box, since three of them are wanted here and NSBox insets
+//anything added as a subview by five points on every side - which is how the
+//sidebar band's trailing edge first came out five points into the map.
+static NSBox *FilledBox( NSColor *color )
+{
+	NSBox *box = [[NSBox alloc] initWithFrame: NSZeroRect];
+
+	[box setBoxType: NSBoxCustom];
+	[box setBorderWidth: 0.0];
+	[box setFillColor: color];
+
+	return box;
+}
+
+//The title bar is one of the design's surfaces, with a value of its own -
+//#f6f5f4 over #2a2827 - and AppKit's is neither. Left alone it draws the
+//system's material, which measured #2A353A above a sidebar of #2F2C2B: a cold
+//slate band over a window that is warm everywhere else, which is the one thing
+//in the chrome that reads as belonging to a different application.
+//
+//-setTitlebarAppearsTransparent: is what makes the band available to draw in. It
+//does not touch the toolbar's items, which keep their glass capsules - right for
+//them, since the design draws the view-mode control and the inspector button
+//with a background too.
+//
+//It does take AppKit's separator with it, so the line under the band is ours.
+//That is a gain rather than a replacement: the system drew a neutral #2F2F2F
+//there, and the design's border under the top bar is -hairline, the same line
+//that divides the panes underneath it.
+//
+//The design also does not stop the sidebar at the title bar - it runs the
+//sidebar's fill and its trailing border the full height of the window, so the
+//column reads as one thing with the traffic lights sitting on it. Both
+//appearances agree, and every value is a token already here: #efedec / #232120
+//beside #f6f5f4 / #2a2827, divided by #d9d6d4 / #3a3836.
+//
+//None of this can be an accessory. A leading accessory is laid out after the
+//traffic lights, so it can never reach x=0, and NSTitlebarAccessoryClipView
+//clips it besides. The bands go into the theme frame instead, below every
+//sibling so the traffic lights and the toolbar stay above them - verified, not
+//assumed: a probe read the close button as its own colour through them.
+//
+//The window's own background is -ground and not -toolbar, though painting the
+//band with it would have been one line fewer. The background reaches every part
+//of the window nothing else covers - measured, a 9pt strip between the file list
+//and the map - and the toolbar's colour has no business down there.
+- (void) colourTitleBar
+{
+	NSWindow *window = [self window];
+
+	[window setTitlebarAppearsTransparent: YES];
+	[window setBackgroundColor: [DIXTheme ground]];
+
+	if ( _titleBarSeparator != nil )
+		return;
+
+	NSView *contentView = [window contentView];
+	const NSRect contentBounds = [contentView bounds];
+	const CGFloat thickness = [DIXTheme hairlineThickness];
+
+	_titleBarSeparator = FilledBox( [DIXTheme hairline] );
+
+	[_titleBarSeparator setFrame: NSMakeRect( 0.0, NSMaxY( contentBounds ) - thickness,
+											  NSWidth( contentBounds ), thickness )];
+	[_titleBarSeparator setAutoresizingMask: NSViewWidthSizable | NSViewMinYMargin];
+
+	//last, so it is not covered by the columns it lies across
+	[contentView addSubview: _titleBarSeparator
+				 positioned: NSWindowAbove
+				 relativeTo: nil];
+
+	_titleBarBand        = FilledBox( [DIXTheme toolbar] );
+	_titleBarSidebarBand = FilledBox( [DIXTheme sidebar] );
+	_titleBarSidebarEdge = FilledBox( [DIXTheme hairline] );
+
+	//The theme frame is not flipped, so staying at the top of the window is a
+	//flexible bottom margin. -layoutTitleBarBand sets the frames again whenever
+	//the divider moves; this covers a resize that does not move it.
+	[_titleBarBand setAutoresizingMask: NSViewWidthSizable | NSViewMinYMargin];
+	[_titleBarSidebarBand setAutoresizingMask: NSViewMinYMargin];
+	[_titleBarSidebarEdge setAutoresizingMask: NSViewMinYMargin];
+
+	NSView *frameView = [contentView superview];
+
+	//Below everything, so nothing AppKit puts in the title bar is covered; and
+	//each above the one before, because relativeTo:nil would otherwise bury the
+	//edge under the band it is the edge of - which is exactly what it did.
+	[frameView addSubview: _titleBarBand positioned: NSWindowBelow relativeTo: nil];
+	[frameView addSubview: _titleBarSidebarBand positioned: NSWindowAbove relativeTo: _titleBarBand];
+	[frameView addSubview: _titleBarSidebarEdge positioned: NSWindowAbove relativeTo: _titleBarSidebarBand];
+
+	[self layoutTitleBarBand];
+}
+
+//Both the width and the height are measured rather than assumed. The width
+//because the divider is draggable and the pane collapses, exactly as the
+//breadcrumb's own x is; the height because in full screen there is no title bar
+//and the content view fills the frame, which leaves all three zero-height and
+//out of the way without anything here having to know that it happened.
+- (void) layoutTitleBarBand
+{
+	if ( _titleBarBand == nil )
+		return;
+
+	NSView *contentView = [[self window] contentView];
+	NSView *frameView   = [contentView superview];
+
+	const NSRect frameBounds = [frameView bounds];
+	const CGFloat titleHeight = NSHeight( frameBounds ) - NSHeight( [contentView frame] );
+
+	CGFloat sidebarEdge = 0.0;
+
+	if ( titleHeight > 0.0 && [self isKindStatisticsVisible] )
+		sidebarEdge = NSMaxX( [_sidebarPane convertRect: [_sidebarPane bounds] toView: frameView] );
+
+	const CGFloat thickness = [DIXTheme hairlineThickness];
+	const CGFloat y = NSMaxY( frameBounds ) - titleHeight;
+
+	[_titleBarBand setFrame: NSMakeRect( 0.0, y, NSWidth( frameBounds ), titleHeight )];
+	[_titleBarSidebarBand setFrame: NSMakeRect( 0.0, y, sidebarEdge, titleHeight )];
+	[_titleBarSidebarEdge setFrame: NSMakeRect( MAX( 0.0, sidebarEdge - thickness ), y,
+												sidebarEdge > 0.0 ? thickness : 0.0, titleHeight )];
 }
 
 #pragma mark -----------------view modes-----------------------
@@ -1026,19 +1257,36 @@ willBeInsertedIntoToolbar: willInsert];
 	if ( _summaryStripView == nil || rootItem == nil )
 		return;
 
-	//Which volume this window is showing, so SOURCES can mark its row. Asked of
-	//the scan root's URL rather than matched by path prefix: a scan of a folder
-	//inside a volume is still that volume's, and the URL knows which one it is
-	//where string comparison would have to guess about mount points.
+	//Exactly one row in SOURCES is the thing this window is showing, and it is
+	//whatever was scanned: a volume when a volume was scanned, the folder's own
+	//row when a folder was.
+	//
+	//The volume used to be marked whenever the scan was anywhere *on* it, which
+	//is true but is not what the highlight means - scanning /usr/share lit both
+	//Macintosh HD and the share row, and two current rows is one too many.
+	//
+	//Identity rather than equal URLs: the scan root's URL and the volume's arrive
+	//from different sources and need not be spelled the same, and a file
+	//reference identifier is the comparison the walk already trusts for "is this
+	//the same directory".
+	NSURL *rootURL = [rootItem fileURL];
 	NSURL *volumeURL = nil;
 
-	if ( ![[rootItem fileURL] getResourceValue: &volumeURL
-										forKey: NSURLVolumeURLKey
-										 error: NULL] )
+	if ( ![rootURL getResourceValue: &volumeURL forKey: NSURLVolumeURLKey error: NULL] )
 		volumeURL = nil;
 
-	[_sourcesView setCurrentVolumeURL: volumeURL];
-	[_sourcesView setCurrentRootURL: [rootItem fileURL]];
+	id rootIdentifier = nil, volumeIdentifier = nil;
+
+	[rootURL getResourceValue: &rootIdentifier
+					   forKey: NSURLFileResourceIdentifierKey error: NULL];
+	[volumeURL getResourceValue: &volumeIdentifier
+						 forKey: NSURLFileResourceIdentifierKey error: NULL];
+
+	const BOOL scannedAVolume = ( rootIdentifier != nil && volumeIdentifier != nil
+								  && [rootIdentifier isEqual: volumeIdentifier] );
+
+	[_sourcesView setCurrentVolumeURL: scannedAVolume ? volumeURL : nil];
+	[_sourcesView setCurrentRootURL: rootURL];
 
 	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
 
@@ -1188,24 +1436,6 @@ willBeInsertedIntoToolbar: willInsert];
 	}];
 }
 
-- (BOOL) isSelectionListVisible
-{
-	return _selectionListPane != nil && ![_selectionListPane isHidden];
-}
-
-- (void) setSelectionListVisible: (BOOL) visible
-{
-	if ( _selectionListPane == nil || visible == [self isSelectionListVisible] )
-		return;
-
-	[_selectionListPane setHidden: !visible];
-	[_selectionListSplitView adjustSubviews];
-
-	//the list suspends its own updates while it is off screen
-	[[NSNotificationCenter defaultCenter] postNotificationName: SelectionListVisibilityChangedNotification
-														object: self];
-}
-
 #pragma mark -----------------NSSplitView delegate-----------------------
 
 //What each pane needs before it stops being worth having.
@@ -1304,11 +1534,6 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 - (IBAction) toggleSidebar:(id)sender
 {
 	[self setKindStatisticsVisible: ![self isKindStatisticsVisible] animated: YES];
-}
-
-- (IBAction) toggleSelectionListDrawer:(id)sender
-{
-	[self setSelectionListVisible: ![self isSelectionListVisible]];
 }
 
 - (IBAction) openFile:(id)sender
@@ -1548,17 +1773,15 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 	[[[self window] contentView] setNeedsDisplay: TRUE];
 }
 
+//The floating Info window is gone: the inspector shows the same rows against
+//the same selection, without a second window to keep in step with the first.
+//
+//The selector keeps its old name because the main menu nib names it, which is
+//the same reason -toggleFileKindsDrawer: and -toggleSelectionListDrawer: keep
+//theirs. The menu item's *title* is not stale - it now reads "Inspector".
 - (IBAction) showInformationPanel:(id)sender
 {
-	InfoPanelController *infoController = [InfoPanelController sharedController];
-	
-	if ( [infoController panelIsVisible] )
-		[infoController hidePanel];
-	else
-	{
-		FSItem *item = [(FileSystemDoc*)[self document] selectedItem];
-		[infoController showPanelWithFSItem: item];
-	}
+	[self toggleInspector: sender];
 }
 
 - (IBAction) showPhysicalSizes:(id) sender
@@ -1710,20 +1933,15 @@ constrainMaxCoordinate: (CGFloat) proposedMax
         SET_TITLE_AND_IMAGE( ![self isKindStatisticsVisible],
 							 @"Show File Kind Statistics", @"Hide File Kind Statistics" );
     }
-    else if ( menuAction == @selector(toggleSelectionListDrawer:) )
-    {
-        SET_TITLE( ![self isSelectionListVisible],
-							 @"Show Selection List", @"Hide Selection List" );
-    }
     else if ( menuAction == @selector(selectParentItem:) )
     {
         return selectedItem != nil && selectedItem != [doc zoomedItem];
     }   
     else if ( menuAction == @selector(showInformationPanel:) )
     {
-        SET_TITLE_AND_IMAGE( [[InfoPanelController sharedController] panelIsVisible],
-							 @"Hide Information", @"Show Information" );
-    }   
+        SET_TITLE_AND_IMAGE( [self isInspectorVisible],
+							 @"Hide Inspector", @"Show Inspector" );
+    }
     else if ( menuAction == @selector(changeSplitting:) )
     {
         SET_TITLE( [_splitter isVertical], @"Split Horizontally", @"Split Vertically" );
@@ -1756,18 +1974,16 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 //sidebar button beside the accessory's own.
 - (NSString *)toolbarAutosaveIdentifier
 {
-    return @"MainWindowToolbar-4";
+    return @"MainWindowToolbar-5";
 }
 
 #pragma mark -----------------NSWindow delegates-----------------------
 
+//Nothing to do any more. This existed to point the one floating Info window at
+//whichever document had just come forward; the inspector belongs to its own
+//window and follows its own document's selection.
 - (void)windowDidBecomeMain:(NSNotification *)aNotification
 {
-	if ( [[InfoPanelController sharedController] panelIsVisible] )
-	{
-		FSItem *item = [(FileSystemDoc*)[self document] selectedItem];
-		[[InfoPanelController sharedController] showPanelWithFSItem: item];
-	}
 }
 
 - (void)windowDidResignMain:(NSNotification *)notification;
@@ -1784,12 +2000,6 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 
 	//the summary strip observers registered in -buildWindowChrome
 	[[NSNotificationCenter defaultCenter] removeObserver: self];
-
-	if ( [[aNotification object] isMainWindow]
-		&& [[InfoPanelController sharedController] panelIsVisible] )
-	{
-		[[InfoPanelController sharedController] showPanelWithFSItem: nil];
-	}
 }
 
 #pragma mark -----------------NSMenu delegates-----------------------

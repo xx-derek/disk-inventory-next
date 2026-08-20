@@ -19,6 +19,7 @@
 #import "FileSizeFormatter.h"
 #import "DIXTheme.h"
 #import "DIXControls.h"
+#import "NSImage-Extensions.h"
 
 static const CGFloat kPadding      = 16.0;
 static const CGFloat kHeaderHeight = 30.0;
@@ -32,6 +33,12 @@ static const CGFloat kBarHeight    = 56.0;
 static const CGFloat kListBottomGap = 8.0;
 static const CGFloat kBoxSize      = 15.0;
 
+//Between the reclaim bar's two buttons, matching the inspector's own button row
+//above it so the bar does not look like a different piece of furniture. The
+//height doubles as the icon button's width, which is what makes it square.
+static const CGFloat kButtonGap    = 8.0;
+static const CGFloat kButtonHeight = 28.0;
+
 //Beyond this the list stops being something to read and starts being something
 //to scroll forever. The header still counts every one of them, so the figure
 //never lies about what is there.
@@ -42,7 +49,7 @@ static const NSUInteger kMaximumRows = 200;
 //That is the whole of it, and it is not cosmetic. An unflipped document view
 //puts its origin at the bottom, so NSScrollView keeps the *bottom* of the
 //content still when the clip view changes size - and this one changes size
-//every time the reclaim bar appears, by the 56 points the bar takes. The list
+//every time the reclaim bar appears, by the height the bar takes. The list
 //slid down behind the header and the first row, the one just ticked, was the
 //one that went.
 @interface DIXSiblingsRowsView : NSView
@@ -67,6 +74,7 @@ static const NSUInteger kMaximumRows = 200;
 	NSTextField *_barCount;
 	NSTextField *_barSize;
 	NSButton *_trashButton;
+	NSButton *_deselectButton;
 
 	id _trashTarget;
 	SEL _trashAction;
@@ -149,6 +157,35 @@ static const NSUInteger kMaximumRows = 200;
 												action: @selector(trash:)];
 	[_trashButton setTranslatesAutoresizingMaskIntoConstraints: YES];
 	[self addSubview: _trashButton];
+
+	//The way back out. Ticking rows is easy and unticking them one at a time is
+	//not - a basket can hold items whose rows are no longer in this list at all,
+	//since it survives changing the selection - so the only reliable way to empty
+	//it was to trash it. Secondary, because it undoes rather than does.
+	//
+	//An icon rather than a title, which is what lets it share the row with Move
+	//to Trash instead of costing the bar a second one. Measured, the title would
+	//have been 96 points in English and 144 in French - and the bar has 268
+	//across, of which the figures beside it want up to 108.
+	//
+	//"Undo", not a cross and not a minus. A cross beside a button that deletes
+	//files reads as "cancel" or "close" - it says nothing about the ticks, and on
+	//a bar whose other control is irreversible that ambiguity is the wrong kind.
+	//A minus is worse: next to Move to Trash it looks like a second way to remove
+	//something. This one says only "take that selection back", which is all it
+	//does.
+	NSString *deselectTitle =
+		NSLocalizedString( @"Deselect All", @"inspector, empty the reclaim basket" );
+
+	_deselectButton = [DIXControls secondaryButtonWithTitle: @""
+													 target: self
+													 action: @selector(deselectAll:)];
+	[_deselectButton setImage: [NSImage imageForSymbolName: @"arrow.uturn.backward"
+								  accessibilityDescription: deselectTitle]];
+	[_deselectButton setToolTip: deselectTitle];
+	[_deselectButton setAccessibilityTitle: deselectTitle];
+	[_deselectButton setTranslatesAutoresizingMaskIntoConstraints: YES];
+	[self addSubview: _deselectButton];
 
 	[self updateReclaimBar];
 }
@@ -310,7 +347,7 @@ static const NSUInteger kMaximumRows = 200;
 	const NSUInteger count = [_document basketCount];
 	const BOOL visible = ( count > 0 );
 
-	for ( NSView *view in @[ _barRule, _barCount, _barSize, _trashButton ] )
+	for ( NSView *view in @[ _barRule, _barCount, _barSize, _trashButton, _deselectButton ] )
 		[view setHidden: !visible];
 
 	//the bar's own fill is drawn by -drawRect:, which hiding a subview does not
@@ -336,6 +373,15 @@ static const NSUInteger kMaximumRows = 200;
 {
 	if ( _trashTarget != nil && _trashAction != NULL )
 		[NSApp sendAction: _trashAction to: _trashTarget from: self];
+}
+
+- (void) deselectAll: (id) sender
+{
+	//Straight to the document, which posts ReclaimBasketChangedNotification and
+	//brings every view that draws a tick back into step - including the rows in
+	//this list, which are redrawn from the basket rather than from a flag of
+	//their own.
+	[_document clearBasket];
 }
 
 #pragma mark --------layout-----------------
@@ -418,11 +464,30 @@ static const NSUInteger kMaximumRows = 200;
 		[_barRule setFrame: NSMakeRect( 0.0, kBarHeight, NSWidth( bounds ),
 										[DIXTheme ruleThickness] )];
 
-		[_barCount setFrame: NSMakeRect( kPadding, kBarHeight - 22.0, contentWidth * 0.5, 14.0 )];
-		[_barSize setFrame: NSMakeRect( kPadding, kBarHeight - 44.0, contentWidth * 0.5, 22.0 )];
+		//Figures on the left, the two buttons on the right, all on one row - which
+		//is the design's bar, and which only works because the second button is
+		//an icon.
+		//
+		//Trash is measured rather than fixed: "Move to Trash" is 110 points wide
+		//in English and its translations are longer, and a button that clips its
+		//own title is worse than a narrower column of figures beside it.
+		[_trashButton sizeToFit];
 
-		[_trashButton setFrame: NSMakeRect( NSMaxX( bounds ) - kPadding - 130.0,
-											kBarHeight - 40.0, 130.0, 28.0 )];
+		const CGFloat trashWidth = MAX( 110.0, ceil( NSWidth( [_trashButton frame] ) ) );
+		const CGFloat buttonY = round( ( kBarHeight - kButtonHeight ) / 2.0 );
+
+		[_trashButton setFrame: NSMakeRect( NSMaxX( bounds ) - kPadding - trashWidth,
+											buttonY, trashWidth, kButtonHeight )];
+
+		[_deselectButton setFrame: NSMakeRect( NSMaxX( bounds ) - kPadding - trashWidth
+													- kButtonGap - kButtonHeight,
+											   buttonY, kButtonHeight, kButtonHeight )];
+
+		const CGFloat labelWidth = MAX( 0.0, NSMinX( [_deselectButton frame] )
+											 - kPadding - kButtonGap );
+
+		[_barCount setFrame: NSMakeRect( kPadding, kBarHeight - 26.0, labelWidth, 14.0 )];
+		[_barSize setFrame: NSMakeRect( kPadding, kBarHeight - 50.0, labelWidth, 24.0 )];
 	}
 }
 

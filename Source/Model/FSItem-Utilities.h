@@ -19,6 +19,17 @@
 
 - (NSUInteger) deepFileCountIncludingPackages: (BOOL) lookInPackages;	//count of files in all subdirectories
 
+//How many files this stands for when it is drawn as a single block: itself if
+//it is a file, and everything inside it if it is a folder. This is what the
+//treemap's merged cells report, and it is deliberately not -childCount: a
+//folder packed into a remainder whole hides everything under it, and counting
+//it as one entry understated an ordinary tree by a factor of eight.
+//
+//A folder holding no files at all answers 1 rather than 0 - it is still one
+//thing that was hidden, and -deepFileCountIncludingPackages: alone would have
+//a remainder claim to stand for nothing.
+- (NSUInteger) representedFileCount;
+
 //if allowAncestors == YES, these methods will return an existing ancestor of the child to find if child doesn't exist
 - (FSItem*) findItemByAbsolutePath: (NSString*) path allowAncestors: (BOOL) allowAncestors;
 	//path e.g. /Applications/Utilities/Terminal.app

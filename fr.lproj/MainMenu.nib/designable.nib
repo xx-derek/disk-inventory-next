@@ -294,15 +294,10 @@ CA
                                     <action selector="toggleFileKindsDrawer:" target="-1" id="224"/>
                                 </connections>
                             </menuItem>
-                            <menuItem title="Liste de sélection" id="318">
-                                <connections>
-                                    <action selector="toggleSelectionListDrawer:" target="-1" id="319"/>
-                                </connections>
-                            </menuItem>
                             <menuItem isSeparatorItem="YES" id="92">
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                             </menuItem>
-                            <menuItem title="Information" keyEquivalent="i" toolTip="Montre/masque la fenêtre d'information" id="250">
+                            <menuItem title="Inspecteur" keyEquivalent="i" toolTip="Affiche/masque l'inspecteur" id="250">
                                 <connections>
                                     <action selector="showInformationPanel:" target="-1" id="254"/>
                                 </connections>

@@ -26,6 +26,13 @@ static const CGFloat kEdgeInset    = 6.0;
 static const CGFloat kColumnGap    = 8.0;
 static const CGFloat kRowGap       = 6.0;
 
+//The inspector's own metrics, straight from the design's markup for this block:
+//"padding: 12px 16px", "gap: 10px", and rows of "padding: 3px 0" - which is the
+//6pt between two rows' text that kRowGap already gives.
+static const CGFloat kInspectorEdgeInsetX = 16.0;
+static const CGFloat kInspectorEdgeInsetY = 12.0;
+static const CGFloat kInspectorColumnGap  = 10.0;
+
 //================ DIXInfoGrid ======================================================
 
 //The grid itself, so that two things AppKit does not do for free can live in one
@@ -44,14 +51,39 @@ static const CGFloat kRowGap       = 6.0;
 	NSMutableArray<NSTextField*> *_valueFields;
 	CGFloat _titleColumnWidth;
 	CGFloat _fixedTitleColumnWidth;   //0 to measure the titles instead
+	BOOL _drawsRowSeparators;
+	CGFloat _edgeInsetX;
+	CGFloat _edgeInsetY;
 }
 @property (nonatomic) CGFloat fixedTitleColumnWidth;
+
+//A ruled row per attribute is the old Info panel's look, not the design's: the
+//design rules the block once, underneath, and lets the key column do the
+//separating inside it. Six lines through seven rows read as a spreadsheet
+//where the design reads as a caption list.
+@property (nonatomic) BOOL drawsRowSeparators;
+@property (nonatomic) CGFloat edgeInsetX;
+@property (nonatomic) CGFloat edgeInsetY;
 - (void) removeAllRows;
 - (void) addRowWithTitleField: (NSTextField*) titleField valueField: (NSTextField*) valueField;
 - (void) finishRows;
 @end
 
 @implementation DIXInfoGrid
+
+- (instancetype) initWithFrame: (NSRect) frame
+{
+	self = [super initWithFrame: frame];
+
+	if ( self != nil )
+	{
+		_drawsRowSeparators = YES;
+		_edgeInsetX = kEdgeInset;
+		_edgeInsetY = kEdgeInset;
+	}
+
+	return self;
+}
 
 - (BOOL) isFlipped
 {
@@ -102,14 +134,14 @@ static const CGFloat kRowGap       = 6.0;
 	[titles setWidth: _titleColumnWidth];
 	[titles setXPlacement: _fixedTitleColumnWidth > 0.0
 							? NSGridCellPlacementLeading : NSGridCellPlacementTrailing];
-	[titles setLeadingPadding: kEdgeInset];
+	[titles setLeadingPadding: _edgeInsetX];
 
 	NSGridColumn *values = [self columnAtIndex: 1];
 	[values setXPlacement: NSGridCellPlacementFill];
-	[values setTrailingPadding: kEdgeInset];
+	[values setTrailingPadding: _edgeInsetX];
 
-	[[self rowAtIndex: 0] setTopPadding: kEdgeInset];
-	[[self rowAtIndex: [self numberOfRows] - 1] setBottomPadding: kEdgeInset];
+	[[self rowAtIndex: 0] setTopPadding: _edgeInsetY];
+	[[self rowAtIndex: [self numberOfRows] - 1] setBottomPadding: _edgeInsetY];
 }
 
 //-removeRowAtIndex: drops the row but leaves its content views as subviews, so
@@ -132,10 +164,15 @@ static const CGFloat kRowGap       = 6.0;
 
 - (void) layout
 {
-	//width of the value column, from the grid's own width and the fixed title
-	//column — nothing here reads a value field's frame, so there is no feedback
+	//Width of the value column, from the grid's own width and the fixed title
+	//column - nothing here reads a value field's frame, so there is no feedback.
+	//
+	//It must be the *same* inset -finishRows applies, not the constant it used to
+	//be: too wide and a field reports the height of fewer lines than it will draw,
+	//and the overflow lands on top of the next row. The inspector's 16pt inset
+	//against a hardcoded 6 was 20 points of that, which cost a third line.
 	const CGFloat available = NSWidth( [self bounds] )
-							  - kEdgeInset * 2.0
+							  - _edgeInsetX * 2.0
 							  - _titleColumnWidth
 							  - [self columnSpacing];
 
@@ -151,7 +188,7 @@ static const CGFloat kRowGap       = 6.0;
 {
 	[super drawRect: dirtyRect];
 
-	if ( [_valueFields count] < 2 )
+	if ( !_drawsRowSeparators || [_valueFields count] < 2 )
 		return;
 
 	[[NSColor separatorColor] set];
@@ -214,9 +251,28 @@ static const CGFloat kRowGap       = 6.0;
 	_usesInspectorLayout = inspector;
 
 	//74pt, the design's key column
-	[(DIXInfoGrid*)_grid setFixedTitleColumnWidth: inspector ? 74.0 : 0.0];
+	DIXInfoGrid *grid = (DIXInfoGrid*) _grid;
+
+	[grid setFixedTitleColumnWidth: inspector ? 74.0 : 0.0];
+	[grid setDrawsRowSeparators: !inspector];
+	[grid setEdgeInsetX: inspector ? kInspectorEdgeInsetX : kEdgeInset];
+	[grid setEdgeInsetY: inspector ? kInspectorEdgeInsetY : kEdgeInset];
+	[grid setColumnSpacing: inspector ? kInspectorColumnGap : kColumnGap];
 
 	[self rebuildRows];
+}
+
+- (CGFloat) fittingHeight
+{
+	//Laid out first: the grid sizes its value column from -layout, and a grid
+	//that has never been laid out still carries the frame it was created with -
+	//the same trap the settings pages hit.
+	[self layoutSubtreeIfNeeded];
+
+	if ( [_grid numberOfRows] == 0 )
+		return 0.0;
+
+	return ceil( [_grid fittingSize].height );
 }
 
 - (NSURL*) URL

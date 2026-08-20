@@ -12,6 +12,11 @@
     __weak IBOutlet FileSystemDoc *_document;
     IBOutlet DIXOutlineView *_outlineView;
     IBOutlet NSMenu *_contextMenu;
+
+    //Folder -> the kind filling most of it, for the row chips. Built in one
+    //pass over the tree and thrown away when the items change; weak keys, so
+    //a tree dropped between refreshes takes its entries with it.
+    NSMapTable<FSItem*, NSString*> *_dominantKinds;
 }
 
 - (FileSystemDoc*) document;

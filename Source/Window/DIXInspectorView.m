@@ -28,6 +28,11 @@ static const CGFloat kButtonHeight     =  28.0;
 static const CGFloat kButtonGap        =   8.0;
 static const CGFloat kHeaderBottomGap  =  14.0;
 
+//Breathing space under the attribute rows, before the rule that starts the
+//siblings section. On top of the 12 the block already keeps inside itself, so
+//the last row sits in 36 points of air.
+static const CGFloat kInfoBottomGap    =  24.0;
+
 @interface DIXInspectorView()
 {
 	NSImageView *_iconView;
@@ -178,11 +183,30 @@ static const CGFloat kHeaderBottomGap  =  14.0;
 
 		top -= kButtonHeight + kHeaderBottomGap;
 
-		//The siblings section takes what it needs from the bottom and the
-		//attribute rows take the rest, so a selection with no siblings looks
-		//exactly as it did before this section existed.
-		const CGFloat siblingsHeight = MIN( [_siblingsView fittingHeight],
-											MAX( 0.0, ( top - NSMinY( bounds ) ) * 0.55 ) );
+		//The attribute block takes the height its rows need and the siblings list
+		//takes everything left.
+		//
+		//It used to be the other way round - the list capped at 55% and the block
+		//given the rest - which put a column of empty space under seven rows
+		//whenever the list was long, which is most of the time. The block's
+		//height is a property of its content: seven rows are seven rows however
+		//tall the pane is, and there is nothing for the spare space to do up
+		//there. A list, on the other hand, is always glad of another row.
+		const CGFloat available = MAX( 0.0, top - NSMinY( bounds ) );
+		const CGFloat siblingsFitting = [_siblingsView fittingHeight];
+
+		//A third is the floor, for a Where or an Opens with long enough to wrap
+		//several times; the block scrolls past that rather than crowding the list
+		//off the bottom.
+		//kInfoBottomGap on top of what the rows measure. The grid already carries
+		//the design's 12pt padding inside its own frame, and once the block stops
+		//being oversized that padding is all that stands between the last row and
+		//the rule under it - which reads as the rows having been cut off there.
+		const CGFloat infoHeight = ( siblingsFitting > 0.0 )
+			? MIN( [_infoView fittingHeight] + kInfoBottomGap, available * 0.67 )
+			: available;
+
+		const CGFloat siblingsHeight = MAX( 0.0, available - infoHeight );
 
 		[_siblingsView setFrame: NSMakeRect( 0.0, NSMinY( bounds ), NSWidth( bounds ),
 											 siblingsHeight )];

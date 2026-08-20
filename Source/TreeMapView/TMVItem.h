@@ -60,12 +60,22 @@ typedef NS_ENUM( NSInteger, TMVCellStyle )
 	NSColor *_outlineColor;
 	NSColor *_labelColor;
 
+	//The second line of a two-line label, and the hint under it. Nil means the
+	//whole label is one tone, which is every cell except a remainder.
+	NSColor *_detailLabelColor;
+
 	//A remainder cell stands for a run of children too small to draw. It has no
 	//data item of its own, so it carries its weight explicitly rather than
 	//asking the data source, and remembers what it replaced.
 	BOOL _isRemainder;
 	unsigned long long _remainderWeight;
 	NSArray *_mergedItems;
+
+	//How many things those replaced children stand for, which is not how many of
+	//them there are: one of them can be a whole folder. Summed once, when the
+	//remainder is built, because the data source may have to walk a subtree to
+	//answer and this is read on every draw.
+	NSUInteger _mergedItemCount;
 }
 
 - (id) initWithDataSource: (id) dataSource
@@ -116,6 +126,12 @@ typedef NS_ENUM( NSInteger, TMVCellStyle )
 //darkest thing on a dark map - and dark ink on them is invisible.
 - (NSColor*) labelColor;
 - (void) setLabelColor: (NSColor*) color;
+
+//The tone for the second line of a stacked label and for the hint below it.
+//Nil - every cell but a remainder - means the label is one tone throughout.
+- (NSColor*) detailLabelColor;
+- (void) setDetailLabelColor: (NSColor*) color;
+
 - (void) setOutlineColor: (NSColor*) color;
 
 //shades this subtree into the bitmap; coordinates are bitmap pixels
@@ -133,11 +149,18 @@ typedef NS_ENUM( NSInteger, TMVCellStyle )
 //The data items it replaced, largest first. Empty for every other cell.
 - (NSArray*) mergedItems;
 
+//How many things the cell stands for. Not -mergedItems.count: one merged item
+//can be a folder that was packed in whole, and then it stands for everything
+//inside it. The data source says how many through
+//-treeMapView:itemCountByItem:, and answers 1 each if it does not implement it.
+- (NSUInteger) mergedItemCount;
+
 //Builds one. "weight" must be the sum of the merged items' weights - that is
 //what keeps a cell's area proportional to what it represents, which is the
 //whole claim a treemap makes.
 - (id) initAsRemainderWithItems: (NSArray*) items
 						 weight: (unsigned long long) weight
+					  dataSource: (id) dataSource
 					   delegate: (id) delegate
 					treeMapView: (TreeMapView*) view
 						  depth: (NSInteger) depth;
