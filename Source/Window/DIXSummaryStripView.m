@@ -179,6 +179,43 @@ static const CGFloat kRuleHeight        = 36.0;
 										 rescanWidth, kButtonHeight )];
 	right = NSMinX( [_rescanButton frame] ) - kBlockGap;
 
+	// ---- what has changed since last time ----------------------------------
+	//
+	//Placed before the total, and measured from the right, because the total's
+	//own block is not a stable width: the subtitle under it ends in "scanned 10
+	//seconds ago", which is restated every five seconds and changes length as it
+	//does. Anchored to that, the rule and the delta shuffled sideways on a
+	//clock tick.
+	CGFloat deltaLeft = right;
+
+	if ( _hasDelta )
+	{
+		[_deltaField sizeToFit];
+		[_deltaCaptionField sizeToFit];
+
+		const CGFloat deltaHeight = NSHeight( [_deltaField frame] );
+		const CGFloat captionHeight = NSHeight( [_deltaCaptionField frame] );
+		const CGFloat deltaColumnHeight = deltaHeight + 2.0 + captionHeight;
+		const CGFloat deltaTop = midY + deltaColumnHeight / 2.0;
+		const CGFloat deltaWidth = MAX( NSWidth( [_deltaField frame] ),
+										NSWidth( [_deltaCaptionField frame] ) );
+
+		const CGFloat deltaX = right - deltaWidth;
+
+		[_deltaField setFrame: NSMakeRect( deltaX, deltaTop - deltaHeight,
+										   NSWidth( [_deltaField frame] ), deltaHeight )];
+
+		[_deltaCaptionField setFrame: NSMakeRect( deltaX, deltaTop - deltaColumnHeight,
+												  NSWidth( [_deltaCaptionField frame] ), captionHeight )];
+
+		const CGFloat ruleX = deltaX - kBlockGap - [DIXTheme ruleThickness];
+
+		[_deltaRule setFrame: NSMakeRect( ruleX, midY - kRuleHeight / 2.0,
+										  [DIXTheme ruleThickness], kRuleHeight )];
+
+		deltaLeft = ruleX;
+	}
+
 	// ---- the total and what it is made of ----------------------------------
 	[_totalField sizeToFit];
 	[_subtitleField sizeToFit];
@@ -188,39 +225,16 @@ static const CGFloat kRuleHeight        = 36.0;
 	const CGFloat columnHeight = totalHeight + 2.0 + subtitleHeight;
 	const CGFloat columnTop = midY + columnHeight / 2.0;
 
-	[_totalField setFrame: NSMakeRect( kHorizontalPadding, columnTop - totalHeight,
-									   NSWidth( [_totalField frame] ), totalHeight )];
+	//what is left after the delta, so a long subtitle truncates rather than
+	//running under the rule
+	const CGFloat textRoom = MAX( 0.0, deltaLeft - kBlockGap - kHorizontalPadding );
 
-	const CGFloat totalBlockWidth = MAX( NSWidth( [_totalField frame] ),
-										 NSWidth( [_subtitleField frame] ) );
+	[_totalField setFrame: NSMakeRect( kHorizontalPadding, columnTop - totalHeight,
+									   MIN( NSWidth( [_totalField frame] ), textRoom ), totalHeight )];
 
 	[_subtitleField setFrame: NSMakeRect( kHorizontalPadding, columnTop - columnHeight,
-										  NSWidth( [_subtitleField frame] ), subtitleHeight )];
-
-	if ( !_hasDelta )
-		return;
-
-	// ---- what has changed since last time ----------------------------------
-	const CGFloat ruleX = kHorizontalPadding + totalBlockWidth + kBlockGap;
-
-	[_deltaRule setFrame: NSMakeRect( ruleX, midY - kRuleHeight / 2.0,
-									  [DIXTheme ruleThickness], kRuleHeight )];
-
-	[_deltaField sizeToFit];
-	[_deltaCaptionField sizeToFit];
-
-	const CGFloat deltaHeight = NSHeight( [_deltaField frame] );
-	const CGFloat captionHeight = NSHeight( [_deltaCaptionField frame] );
-	const CGFloat deltaColumnHeight = deltaHeight + 2.0 + captionHeight;
-	const CGFloat deltaTop = midY + deltaColumnHeight / 2.0;
-
-	const CGFloat deltaX = ruleX + [DIXTheme ruleThickness] + kBlockGap;
-
-	[_deltaField setFrame: NSMakeRect( deltaX, deltaTop - deltaHeight,
-									   NSWidth( [_deltaField frame] ), deltaHeight )];
-
-	[_deltaCaptionField setFrame: NSMakeRect( deltaX, deltaTop - deltaColumnHeight,
-											  NSWidth( [_deltaCaptionField frame] ), captionHeight )];
+										  MIN( NSWidth( [_subtitleField frame] ), textRoom ),
+										  subtitleHeight )];
 }
 
 - (void) drawRect: (NSRect) dirtyRect
