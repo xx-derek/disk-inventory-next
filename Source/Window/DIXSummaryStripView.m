@@ -244,6 +244,20 @@ static const CGFloat kRuleHeight        = 36.0;
 	NSRectFill( NSIntersectionRect( line, dirtyRect ) );
 }
 
+//The rule's layer keeps the CGColor it was given, which was resolved against
+//whatever appearance was current when the view was built - before it was in a
+//window at all - and a resolved colour does not follow the appearance on its
+//own. Everything else here draws through NSColor and needs no help.
+- (void) viewDidChangeEffectiveAppearance
+{
+	[super viewDidChangeEffectiveAppearance];
+
+	[[self effectiveAppearance] performAsCurrentDrawingAppearance: ^
+	{
+		[[self->_deltaRule layer] setBackgroundColor: [[DIXTheme rule] CGColor]];
+	}];
+}
+
 #pragma mark --------contents-----------------
 
 - (void) setTotal: (NSString*) total subtitle: (NSString*) subtitle

@@ -148,3 +148,5 @@
 "All" = "Tout";
 "Path" = "Chemin";
 "Deselect All" = "Tout désélectionner";
+"Chip = the kind filling the row · click to find it on the map" = "Le carré indique le type qui remplit la ligne · cliquez pour le trouver sur la carte";
+"Search scope" = "Portée de la recherche";

@@ -56,6 +56,7 @@
 - (void) layoutTitleAccessory;
 - (void) updateViewModeControl;
 - (void) applyViewMode;
+- (CGFloat) preferredFileListWidth;
 - (void) updateStatusBarHintForViewMode;
 - (void) chooseInitialViewMode;
 - (void) updateInspector;
@@ -66,10 +67,37 @@
 - (void) setPaneWidthsSettled: (BOOL) settled;
 - (void) placePaneDividers;
 - (void) animateKindStatisticsDividerTo: (CGFloat) targetWidth completion: (void (^)(void)) completion;
+- (void) animateInspectorToWidth: (CGFloat) targetWidth completion: (void (^)(void)) completion;
 @end
 
 @interface MainWindowController(Private)
 - (void) moveItemToTrash: (FSItem*) selectedItem;
+@end
+
+//The caption under the file list. The design gives it 30pt, a hairline along
+//its top and the chrome tone, and says what the coloured square in each row is
+//for - which nothing else in the window explains.
+@interface DIXListFooterView : NSView
+@end
+
+@implementation DIXListFooterView
+
+- (void) drawRect: (NSRect) dirtyRect
+{
+	const NSRect bounds = [self bounds];
+
+	[[DIXTheme chrome] set];
+	NSRectFill( NSIntersectionRect( dirtyRect, bounds ) );
+
+	//the lighter content weight, as everywhere a band meets a pane
+	NSRect line = bounds;
+	line.origin.y = NSMaxY( bounds ) - [DIXTheme hairlineThickness];
+	line.size.height = [DIXTheme hairlineThickness];
+
+	[[DIXTheme contentHairline] set];
+	NSRectFill( NSIntersectionRect( line, dirtyRect ) );
+}
+
 @end
 
 @implementation MainWindowController
@@ -269,7 +297,6 @@
 	//redistributes the subviews in proportion, which overwrote what had just
 	//been restored. The widths are kept in a default of this window's own
 	//instead, and applied once the window has its real size.
-	[_kindStatisticsSplitView setDelegate: self];
 
 	[_splitter removeFromSuperview];
 
@@ -415,7 +442,6 @@
 		NSMakeRect( NSMinX( columnBounds ), NSMinY( columnBounds ),
 					NSWidth( columnBounds ), statusHeight )];
 	[_statusBarView setAutoresizingMask: NSViewWidthSizable | NSViewMaxYMargin];
-	[_centreColumn addSubview: _statusBarView];
 
 	_summaryStripView = [[DIXSummaryStripView alloc] initWithFrame:
 		NSMakeRect( NSMinX( columnBounds ), NSMaxY( columnBounds ) - stripHeight,
@@ -438,12 +464,43 @@
 	[_treeMapView setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
 	[_mapColumn addSubview: _treeMapView];
 
-	//the outline/map split owns everything above the status bar; the strip is
-	//inside it now, over the map's half - see -placeSummaryStrip
-	NSRect squeezed = columnBounds;
-	squeezed.origin.y = statusHeight;
-	squeezed.size.height = NSHeight( columnBounds ) - statusHeight;
-	[_splitter setFrame: squeezed];
+	//And the same for the list, which the design captions rather than leaves
+	//bare: "Chip = the kind filling the row · click to find it on the map" is
+	//the only thing that says what the coloured square in a row means.
+	NSView *listScrollView = [_filesOutlineView enclosingScrollView];
+
+	_listColumn = [[NSView alloc] initWithFrame: [listScrollView frame]];
+	[_listColumn setAutoresizingMask: [listScrollView autoresizingMask]];
+
+	[_splitter replaceSubview: listScrollView with: _listColumn];
+
+	_listFooterView = [[DIXListFooterView alloc] initWithFrame:
+		NSMakeRect( 0.0, 0.0, NSWidth( [_listColumn bounds] ), kListFooterHeight )];
+	[_listFooterView setAutoresizingMask: NSViewWidthSizable | NSViewMaxYMargin];
+
+	NSTextField *caption = [NSTextField labelWithString: NSLocalizedString(
+		@"Chip = the kind filling the row · click to find it on the map",
+		@"file list footer" )];
+
+	[caption setFont: [NSFont systemFontOfSize: 11.0]];
+	[caption setTextColor: [DIXTheme tertiaryText]];
+	[caption sizeToFit];
+	[caption setFrameOrigin: NSMakePoint( kListFooterPadding,
+										  round( ( kListFooterHeight - NSHeight( [caption frame] ) ) / 2.0 ) )];
+	[caption setAutoresizingMask: NSViewMaxXMargin];
+	[_listFooterView addSubview: caption];
+
+	[listScrollView setFrame: NSMakeRect( 0.0, kListFooterHeight,
+										  NSWidth( [_listColumn bounds] ),
+										  NSHeight( [_listColumn bounds] ) - kListFooterHeight )];
+	[listScrollView setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
+
+	[_listColumn addSubview: listScrollView];
+	[_listColumn addSubview: _listFooterView];
+
+	//the outline/map split owns the whole column; the strip and the status bar
+	//are inside it, over and under the map's half - see -placeSummaryStrip
+	[_splitter setFrame: columnBounds];
 
 	[self placeSummaryStrip];
 
@@ -501,8 +558,102 @@
 
 - (void) setInspectorVisible: (BOOL) visible
 {
+	[self setInspectorVisible: visible animated: NO];
+}
+
+//Slid rather than switched, like the sidebar. The timer is the sidebar's story
+//again: -setPosition:ofDividerAtIndex: is not animatable, and going through the
+//-animator proxy sets it immediately.
+- (void) animateInspectorToWidth: (CGFloat) targetWidth completion: (void (^)(void)) completion
+{
+	[_inspectorAnimationTimer invalidate];
+
+	const CGFloat startWidth = NSWidth( [_inspectorView frame] );
+	const NSTimeInterval duration = 0.18;
+	NSDate *startedAt = [NSDate date];
+
+	//held for the whole slide, so the pane's minimum width does not stop it
+	//short of the edge
+	_collapsingInspector = YES;
+
+	__weak MainWindowController *weakSelf = self;
+
+	_inspectorAnimationTimer =
+		[NSTimer scheduledTimerWithTimeInterval: 1.0 / 60.0
+										repeats: YES
+										  block: ^( NSTimer *timer )
+	{
+		MainWindowController *strongSelf = weakSelf;
+		if ( strongSelf == nil )
+		{
+			[timer invalidate];
+			return;
+		}
+
+		double progress = -[startedAt timeIntervalSinceNow] / duration;
+		if ( progress > 1.0 )
+			progress = 1.0;
+
+		//smoothstep, the same easing the sidebar slides on
+		const double eased = progress * progress * ( 3.0 - 2.0 * progress );
+		const CGFloat paneWidth = startWidth + ( targetWidth - startWidth ) * eased;
+
+		//divider 1 is measured from the leading edge, so the pane's width is
+		//what is left of the split view behind it
+		[strongSelf->_kindStatisticsSplitView
+			setPosition: NSWidth( [strongSelf->_kindStatisticsSplitView bounds] ) - paneWidth
+	   ofDividerAtIndex: 1];
+
+		if ( progress >= 1.0 )
+		{
+			[timer invalidate];
+			strongSelf->_inspectorAnimationTimer = nil;
+			strongSelf->_collapsingInspector = NO;
+
+			if ( completion != nil )
+				completion();
+		}
+	}];
+}
+
+- (void) setInspectorVisible: (BOOL) visible animated: (BOOL) animated
+{
 	if ( _inspectorView == nil || visible == [self isInspectorVisible] )
 		return;
+
+	if ( animated && [[self window] isVisible] )
+	{
+		if ( !visible )
+			_inspectorWidth = NSWidth( [_inspectorView frame] );
+
+		const CGFloat targetWidth = visible
+			? ( _inspectorWidth > 0.0 ? _inspectorWidth : [DIXInspectorView preferredWidth] )
+			: 0.0;
+
+		if ( visible )
+		{
+			//a zero-width starting point to grow from
+			[_inspectorView setHidden: NO];
+			_collapsingInspector = YES;
+			[_kindStatisticsSplitView setPosition: NSWidth( [_kindStatisticsSplitView bounds] )
+								 ofDividerAtIndex: 1];
+			[self updateInspector];
+		}
+
+		[self updateInspectorButtonState];
+
+		[self animateInspectorToWidth: targetWidth completion: ^
+		{
+			//Collapse for real at the end. Left at zero width the pane would
+			//still count as visible, and its divider would still be draggable.
+			if ( !visible )
+				[self->_inspectorView setHidden: YES];
+
+			[self updateInspectorButtonState];
+		}];
+
+		return;
+	}
 
 	//Remember the width so reopening restores it: the split view's own autosave
 	//records only a position it has been left at, and collapsing writes zero.
@@ -591,6 +742,17 @@ static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
 	if ( ![self isKindStatisticsVisible] || ![self isInspectorVisible] )
 		return;
 
+	//Nor part-way through a slide: every frame of it would be written, and the
+	//last one before the pane closes is a width nobody chose.
+	if ( _animatingKindStatistics || _collapsingInspector )
+		return;
+
+	//Nor while a pane is collapsed for Map or List mode. The file list's width
+	//in List mode is the whole column, and saving that as the width it wants
+	//beside the map is what left the map a sliver on the way back to Both.
+	if ( [_listColumn isHidden] || [_mapColumn isHidden] )
+		return;
+
 	const CGFloat statistics = NSWidth( [_sidebarPane frame] );
 	const CGFloat fileList   = NSWidth( [[_filesOutlineView enclosingScrollView] frame] );
 	const CGFloat inspector  = NSWidth( [_inspectorView frame] );
@@ -621,7 +783,7 @@ static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
 		//A window narrower than the sum would otherwise leave the map with
 		//nothing; the two side columns give way rather than the thing the
 		//window is for.
-		const CGFloat centreMinimum = 320.0;
+		const CGFloat centreMinimum = kMinimumCentreWidth;
 
 		if ( statistics + inspector + centreMinimum > total )
 		{
@@ -661,6 +823,7 @@ static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
 	if ( [_splitter isVertical] && NSWidth( [_splitter bounds] ) > fileList * 2.0 )
 		[_splitter setPosition: fileList ofDividerAtIndex: 0];
 
+
 	//And then the view mode again, because -setPosition:ofDividerAtIndex:
 	//*un-collapses* the subview it gives width to - which quietly undid Map and
 	//List mode. This runs a run-loop turn after the window loads, so the order at
@@ -675,7 +838,7 @@ static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
 
 - (IBAction) toggleInspector: (id) sender
 {
-	[self setInspectorVisible: ![self isInspectorVisible]];
+	[self setInspectorVisible: ![self isInspectorVisible] animated: YES];
 }
 
 - (void) updateInspector
@@ -959,6 +1122,10 @@ static const CGFloat kSearchBoxHeight     =  26.0;
 static const CGFloat kInspectorButtonWidth  = 28.0;
 static const CGFloat kInspectorButtonHeight = 24.0;
 
+//The caption under the file list: the design's 30pt band with 10pt of padding.
+static const CGFloat kListFooterHeight  = 30.0;
+static const CGFloat kListFooterPadding = 10.0;
+
 //The design's "padding: 0 8px" inside the search box.
 static const CGFloat kSearchBoxPadding    =   8.0;
 
@@ -1135,9 +1302,9 @@ static const CGFloat kSearchTextGap       =   8.0;
 	//volume, not at whatever was scanned - and without these a scan of
 	///usr/share showed a single segment saying "share", which locates nothing.
 	//
-	//They carry an NSURL rather than an FSItem because they are outside the
-	//scanned tree: there is no item for them and they cannot be zoom targets.
-	//Clicking one scans it, which is the only thing it could honestly mean.
+	//They are outside the scanned tree - there is no item for them and they
+	//cannot be zoom targets - so they carry NSNull and the breadcrumb draws
+	//them as context rather than as buttons; see below.
 	NSURL *rootURL = [rootItem fileURL];
 
 	if ( rootURL != nil )
@@ -1470,24 +1637,57 @@ static NSBox *FilledBox( NSColor *color )
 //none, exactly as it does for the collapsible side panes.
 - (void) applyViewMode
 {
-	NSView *outlineView = [_filesOutlineView enclosingScrollView];
-
-	if ( outlineView == nil || _mapColumn == nil )
+	if ( _listColumn == nil || _mapColumn == nil )
 		return;
 
 	const DIXViewMode mode = [[self document] viewMode];
 
-	[outlineView setHidden: ( mode == DIXViewModeMap )];
+	[_listColumn setHidden: ( mode == DIXViewModeMap )];
 
 	//The column, not the map inside it: hiding a subview is how NSSplitView
 	//collapses a pane, and the pane is the column now.
 	[_mapColumn setHidden: ( mode == DIXViewModeList )];
 
 	[_splitter adjustSubviews];
+
+	//A pane coming back from Map or List mode has no width, and -adjustSubviews
+	//shares a change out in *proportion* - so a zero-width subview stays at zero
+	//however much room there is. Going Both, List, Both left the map collapsed
+	//and the file list holding the whole column.
+	//
+	//So the divider is placed rather than left to be redistributed. Divider 0
+	//gives its width to the file list, and un-collapses it as a side effect,
+	//which is right here and only here: in Both both panes are meant to show.
+	if ( mode == DIXViewModeBoth )
+	{
+		const CGFloat fileList = [self preferredFileListWidth];
+
+		if ( [_splitter isVertical] && NSWidth( [_splitter bounds] ) > fileList * 2.0 )
+			[_splitter setPosition: fileList ofDividerAtIndex: 0];
+	}
+
 	[self placeSummaryStrip];
 
 	[self updateViewModeControl];
 	[self updateStatusBarHintForViewMode];
+}
+
+//What the file list should be beside the map: the width it was last left at,
+//or the design's. Shared by -placePaneDividers and the mode switch, which both
+//have to put the divider somewhere when the panes have no widths of their own.
+- (CGFloat) preferredFileListWidth
+{
+	NSArray *saved = [[NSUserDefaults standardUserDefaults] arrayForKey: kPaneWidthsKey];
+
+	CGFloat fileList = ( [saved count] == 3 ) ? [[saved objectAtIndex: 1] doubleValue]
+											  : kDefaultFileListWidth;
+
+	//A saved width under the minimum goes back to the designed one rather than
+	//to the bare minimum - see -placePaneDividers for why.
+	if ( fileList < kMinimumFileListWidth )
+		fileList = [DIXTheme fileListWidth];
+
+	return fileList;
 }
 
 //Where the summary belongs, which depends on whether there is a map for it to
@@ -1500,35 +1700,55 @@ static NSBox *FilledBox( NSColor *color )
 	if ( _summaryStripView == nil || _mapColumn == nil || _centreColumn == nil )
 		return;
 
+	//The design scopes both bands to the map: the summary above it, the status
+	//bar below it, with the file list a column of its own carrying nothing but
+	//its own caption. In Map or List mode one of the two panes is collapsed, and
+	//in List mode the bands would go with the map - so they move back across the
+	//whole column instead, where the total, Rescan and the hover readout are
+	//still worth having.
 	const BOOL mapShowing = ![_mapColumn isHidden];
 	NSView *host = mapShowing ? _mapColumn : _centreColumn;
 
-	if ( [_summaryStripView superview] != host )
+	for ( NSView *band in @[ _summaryStripView, _statusBarView ] )
 	{
-		[_summaryStripView removeFromSuperview];
-		[host addSubview: _summaryStripView];
+		if ( band != nil && [band superview] != host )
+		{
+			[band removeFromSuperview];
+			[host addSubview: band];
+		}
 	}
 
 	const CGFloat stripHeight  = [DIXSummaryStripView preferredHeight];
 	const CGFloat statusHeight = [DIXStatusBarView preferredHeight];
 
-	//The split view stops short of the strip only when the strip is above it.
-	//Its margins are fixed and its height sizable, so this is the one place
-	//that has to know the difference.
+	//The split view takes the whole column when the bands are inside it, and
+	//stops short of them when they are not. Its margins are fixed and its height
+	//sizable, so this is the one place that has to know the difference.
 	NSRect squeezed = [_centreColumn bounds];
-	squeezed.origin.y = statusHeight;
-	squeezed.size.height = NSHeight( squeezed ) - statusHeight - ( mapShowing ? 0.0 : stripHeight );
+
+	if ( !mapShowing )
+	{
+		squeezed.origin.y = statusHeight;
+		squeezed.size.height = NSHeight( squeezed ) - statusHeight - stripHeight;
+	}
+
 	[_splitter setFrame: squeezed];
 
-	NSRect stripFrame = [host bounds];
-	stripFrame.origin.y = NSMaxY( stripFrame ) - stripHeight;
-	stripFrame.size.height = stripHeight;
-	[_summaryStripView setFrame: stripFrame];
+	const NSRect hostBounds = [host bounds];
 
+	[_summaryStripView setFrame: NSMakeRect( 0.0, NSMaxY( hostBounds ) - stripHeight,
+											 NSWidth( hostBounds ), stripHeight )];
+
+	[_statusBarView setFrame: NSMakeRect( 0.0, 0.0, NSWidth( hostBounds ), statusHeight )];
+
+	//the map fills what is left of its column between the two
 	NSRect mapFrame = [_mapColumn bounds];
 
 	if ( mapShowing )
-		mapFrame.size.height -= stripHeight;
+	{
+		mapFrame.origin.y = statusHeight;
+		mapFrame.size.height -= stripHeight + statusHeight;
+	}
 
 	[_treeMapView setFrame: mapFrame];
 }
@@ -1809,6 +2029,11 @@ static const CGFloat kMinimumTreeMapWidth  = 260.0;
 //its three header buttons start truncating their titles.
 static const CGFloat kMinimumInspectorWidth = 220.0;
 
+//What the centre column keeps against the side panes: the floor
+//-placePaneDividers protects at load, and the two outer dividers enforce
+//while being dragged.
+static const CGFloat kMinimumCentreWidth = 320.0;
+
 //What the middle column has to hold: whichever of the list and the map is
 //showing. In Map or List mode one of them is collapsed and the column needs
 //only the other's minimum, the same test the constrain methods make.
@@ -1816,7 +2041,7 @@ static const CGFloat kMinimumInspectorWidth = 220.0;
 {
 	CGFloat minimum = 0.0;
 
-	if ( ![[_filesOutlineView enclosingScrollView] isHidden] )
+	if ( ![_listColumn isHidden] )
 		minimum += kMinimumFileListWidth;
 
 	if ( ![_mapColumn isHidden] )
@@ -1828,6 +2053,37 @@ static const CGFloat kMinimumInspectorWidth = 220.0;
 - (BOOL) splitView: (NSSplitView*) splitView canCollapseSubview: (NSView*) subview
 {
 	return subview == _sidebarPane || subview == _selectionListPane;
+}
+
+//A closed side pane's divider sits on the window's own resize edge, where it is
+//in the way rather than useful: dragging the window wider from the right border
+//opened the inspector instead of resizing anything. While a pane is closed its
+//divider is not a handle - the button in the title bar is how it opens - so the
+//draggable area is taken away and the window edge gets its hit test back.
+- (NSRect) splitView: (NSSplitView*) splitView
+	   effectiveRect: (NSRect) proposedEffectiveRect
+		forDrawnRect: (NSRect) drawnRect
+	ofDividerAtIndex: (NSInteger) dividerIndex
+{
+	if ( splitView == _kindStatisticsSplitView )
+	{
+		if ( dividerIndex == 0 && [_sidebarPane isHidden] )
+			return NSZeroRect;
+
+		if ( dividerIndex == 1 && [_inspectorView isHidden] )
+			return NSZeroRect;
+	}
+
+	//And the outline/map divider while a view mode has one of them collapsed:
+	//it parks at the column's leading edge in Map mode and at its trailing edge
+	//in List mode - the window's own resize edge once the inspector is closed -
+	//and dragging it would pull a pane out from under the mode control, which
+	//would still name the mode the drag had just undone.
+	if ( splitView == _splitter
+		 && ( [_listColumn isHidden] || [_mapColumn isHidden] ) )
+		return NSZeroRect;
+
+	return proposedEffectiveRect;
 }
 
 //A window resize belongs to the middle column. The sidebar and the inspector
@@ -1851,7 +2107,7 @@ static const CGFloat kMinimumInspectorWidth = 220.0;
 	{
 		//In Map or List mode one of the two is collapsed, and a collapse needs
 		//both free to move.
-		if ( [[_filesOutlineView enclosingScrollView] isHidden] || [_mapColumn isHidden] )
+		if ( [_listColumn isHidden] || [_mapColumn isHidden] )
 			return YES;
 
 		//and below the map's own minimum the list gives way rather than the map
@@ -1885,7 +2141,7 @@ constrainMinCoordinate: (CGFloat) proposedMin
 	//meant to have no width at all would stop the mode taking effect.
 	if ( splitView == _splitter )
 	{
-		if ( [[_filesOutlineView enclosingScrollView] isHidden] || [_mapColumn isHidden] )
+		if ( [_listColumn isHidden] || [_mapColumn isHidden] )
 			return proposedMin;
 
 		return MAX( proposedMin, kMinimumFileListWidth );
@@ -1897,7 +2153,7 @@ constrainMinCoordinate: (CGFloat) proposedMin
 	//Divider 1 is the one before the inspector; dragging it left is what makes
 	//the inspector wider, so its minimum is what keeps the centre usable.
 	if ( dividerIndex == 1 )
-		return MAX( proposedMin, NSMinX( [_centreColumn frame] ) + 320.0 );
+		return MAX( proposedMin, NSMinX( [_centreColumn frame] ) + kMinimumCentreWidth );
 
 	//The minimum keeps the pane usable rather than letting it be dragged to a
 	//sliver, but it has to be lifted while collapsing or the slide would stop
@@ -1914,14 +2170,14 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 {
 	if ( splitView == _splitter )
 	{
-		if ( [[_filesOutlineView enclosingScrollView] isHidden] || [_mapColumn isHidden] )
+		if ( [_listColumn isHidden] || [_mapColumn isHidden] )
 			return proposedMax;
 
 		return MIN( proposedMax, NSWidth([splitView bounds]) - kMinimumTreeMapWidth );
 	}
 
 	if ( splitView != _kindStatisticsSplitView )
-		return MIN( proposedMax, NSHeight([splitView bounds]) - 150.0 );
+		return proposedMax;
 
 	//Not while it is being closed. A minimum held against a pane that is meant
 	//to have no width at all would stop the divider short of the edge, which is
@@ -1931,8 +2187,12 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 			   ? proposedMax
 			   : MIN( proposedMax, NSWidth([splitView bounds]) - kMinimumInspectorWidth );
 
-	//and leave room for the outline and treemap
-	return MIN( proposedMax, NSWidth([splitView bounds]) - 250.0 );
+	//And leave room for the outline and treemap. Measured from the centre
+	//column's own trailing edge, not from the split view's: with the inspector
+	//open, AppKit's proposed maximum is the centre being crushed to nothing -
+	//measured, a hard drag left the file list and the map at zero width - and a
+	//cap of the split view's width less a margin sits beyond it, binding never.
+	return MIN( proposedMax, NSMaxX( [_centreColumn frame] ) - kMinimumCentreWidth );
 }
 
 #pragma mark -----------------menu and toolbar actions-----------------------
@@ -2284,8 +2544,8 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 		 || menuAction == @selector(openFileWith:) )
     {
         if ( selectedItem == nil )
-			NO;
-		
+			return NO;
+
 		AppsForItem *apps = [AppsForItem appsForItemURL: [selectedItem fileURL]];
 		return [apps defaultAppURL] != nil;
     }
@@ -2417,6 +2677,10 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 
 	[_summaryAgeTimer invalidate];
 	_summaryAgeTimer = nil;
+
+	[_inspectorAnimationTimer invalidate];
+	_inspectorAnimationTimer = nil;
+	_collapsingInspector = NO;
 
 	//the summary strip observers registered in -buildWindowChrome
 	[[NSNotificationCenter defaultCenter] removeObserver: self];

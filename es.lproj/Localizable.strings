@@ -141,3 +141,5 @@
 "All" = "Todo";
 "Path" = "Ruta";
 "Deselect All" = "Deseleccionar todo";
+"Chip = the kind filling the row · click to find it on the map" = "El cuadro es el tipo que llena la fila · haz clic para encontrarlo en el mapa";
+"Search scope" = "Ámbito de búsqueda";

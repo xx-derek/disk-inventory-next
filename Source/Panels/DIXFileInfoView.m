@@ -52,17 +52,11 @@ static const CGFloat kInspectorColumnGap  = 10.0;
 	NSMutableArray<NSTextField*> *_valueFields;
 	CGFloat _titleColumnWidth;
 	CGFloat _fixedTitleColumnWidth;   //0 to measure the titles instead
-	BOOL _drawsRowSeparators;
 	CGFloat _edgeInsetX;
 	CGFloat _edgeInsetY;
 }
 @property (nonatomic) CGFloat fixedTitleColumnWidth;
 
-//A ruled row per attribute is the old Info panel's look, not the design's: the
-//design rules the block once, underneath, and lets the key column do the
-//separating inside it. Six lines through seven rows read as a spreadsheet
-//where the design reads as a caption list.
-@property (nonatomic) BOOL drawsRowSeparators;
 @property (nonatomic) CGFloat edgeInsetX;
 @property (nonatomic) CGFloat edgeInsetY;
 - (void) removeAllRows;
@@ -78,7 +72,6 @@ static const CGFloat kInspectorColumnGap  = 10.0;
 
 	if ( self != nil )
 	{
-		_drawsRowSeparators = YES;
 		_edgeInsetX = kEdgeInset;
 		_edgeInsetY = kEdgeInset;
 	}
@@ -185,27 +178,6 @@ static const CGFloat kInspectorColumnGap  = 10.0;
 	[super layout];
 }
 
-- (void) drawRect: (NSRect) dirtyRect
-{
-	[super drawRect: dirtyRect];
-
-	if ( !_drawsRowSeparators || [_valueFields count] < 2 )
-		return;
-
-	[[NSColor separatorColor] set];
-
-	const NSRect bounds = [self bounds];
-
-	//between rows only — no rule under the last one, and none above the first
-	for ( NSUInteger i = 0; i + 1 < [_valueFields count]; i++ )
-	{
-		const NSRect field = [[_valueFields objectAtIndex: i] frame];
-		const CGFloat y = round( NSMaxY( field ) + kRowGap / 2.0 );
-
-		NSRectFill( NSMakeRect( NSMinX( bounds ), y, NSWidth( bounds ), 1.0 ) );
-	}
-}
-
 @end
 
 //================ DIXFileInfoView ======================================================
@@ -246,6 +218,9 @@ static const CGFloat kInspectorColumnGap  = 10.0;
 
 - (void) setUsesInspectorLayout: (BOOL) inspector
 {
+	//Kept as an outlet on the class rather than as an argument, because the nib
+	//placeholder builds this view with -initWithFrame: and cannot pass one. The
+	//layout it selects is now the only one - see the note in the header.
 	if ( _usesInspectorLayout == inspector )
 		return;
 
@@ -254,10 +229,9 @@ static const CGFloat kInspectorColumnGap  = 10.0;
 	//74pt, the design's key column
 	DIXInfoGrid *grid = (DIXInfoGrid*) _grid;
 
-	[grid setFixedTitleColumnWidth: inspector ? 74.0 : 0.0];
-	[grid setDrawsRowSeparators: !inspector];
-	[grid setEdgeInsetX: inspector ? kInspectorEdgeInsetX : kEdgeInset];
-	[grid setEdgeInsetY: inspector ? kInspectorEdgeInsetY : kEdgeInset];
+	[grid setFixedTitleColumnWidth: 74.0];
+	[grid setEdgeInsetX: kInspectorEdgeInsetX];
+	[grid setEdgeInsetY: kInspectorEdgeInsetY];
 	[grid setColumnSpacing: inspector ? kInspectorColumnGap : kColumnGap];
 
 	[self rebuildRows];
@@ -363,25 +337,13 @@ static const CGFloat kInspectorColumnGap  = 10.0;
 
 	NSTextField *titleField = [NSTextField labelWithString: title];
 
-	if ( _usesInspectorLayout )
-	{
-		[titleField setFont: [NSFont systemFontOfSize: 12.0]];
-		[titleField setTextColor: [DIXTheme muted]];
-		[titleField setAlignment: NSTextAlignmentLeft];
-	}
-	else
-	{
-		[titleField setFont: [NSFont boldSystemFontOfSize: [NSFont smallSystemFontSize]]];
-		[titleField setTextColor: [NSColor secondaryLabelColor]];
-		[titleField setAlignment: NSTextAlignmentRight];
-	}
+	[titleField setFont: [NSFont systemFontOfSize: 12.0]];
+	[titleField setTextColor: [DIXTheme muted]];
+	[titleField setAlignment: NSTextAlignmentLeft];
 
 	NSTextField *valueField = [NSTextField labelWithString: value];
-	[valueField setFont: [NSFont systemFontOfSize:
-		_usesInspectorLayout ? 12.0 : [NSFont smallSystemFontSize]]];
-
-	if ( _usesInspectorLayout )
-		[valueField setTextColor: [DIXTheme ink]];
+	[valueField setFont: [NSFont systemFontOfSize: 12.0]];
+	[valueField setTextColor: [DIXTheme ink]];
 	//a path or a resolved link is worth being able to copy out of the panel,
 	//which the hand-drawn glyphs this replaces could never be
 	[valueField setSelectable: YES];
@@ -418,14 +380,9 @@ static const CGFloat kInspectorColumnGap  = 10.0;
 	//exist in de/en/es/fr — changing a literal here means changing it in every
 	//Localizable.strings too.
 
-	//the display name is already shown next to the icon at the top of the
-	//panel, so the raw name is the useful one here - and in the inspector it is
-	//shown right above these rows, where repeating it is noise
-	if ( !_usesInspectorLayout )
-		[self addRowWithTitle: NSLocalizedString(@"Name:",@"") value: [_URL name]];
-
-	[self addRowWithTitle: _usesInspectorLayout ? NSLocalizedString(@"Kind",@"inspector row")
-												: NSLocalizedString(@"Kind:",@"")
+	//No Name row: the inspector shows it right above these, where repeating it
+	//is noise.
+	[self addRowWithTitle: NSLocalizedString(@"Kind",@"inspector row")
 					value: [_URL getCachedStringValue: NSURLLocalizedTypeDescriptionKey]];
 
 	if ( [_URL isVolume] && ![_URL isLocalVolume] )
@@ -443,18 +400,15 @@ static const CGFloat kInspectorColumnGap  = 10.0;
 		[dateFormatter setTimeStyle: NSDateFormatterMediumStyle];
 		[dateFormatter setLocale: [NSLocale currentLocale]];
 
-		[self addRowWithTitle: _usesInspectorLayout ? NSLocalizedString(@"Modified",@"inspector row")
-													: NSLocalizedString(@"Modified:",@"")
+		[self addRowWithTitle: NSLocalizedString(@"Modified",@"inspector row")
 						value: [dateFormatter stringFromDate: [_URL cachedModificationDate]]];
-		[self addRowWithTitle: _usesInspectorLayout ? NSLocalizedString(@"Created",@"inspector row")
-													: NSLocalizedString(@"Created:",@"")
+		[self addRowWithTitle: NSLocalizedString(@"Created",@"inspector row")
 						value: [dateFormatter stringFromDate: [_URL cachedCreationDate]]];
 	}
 
 	//"Where" rather than "Path": the file's own name is in the header, so the
 	//half of the path that says something new is the folder holding it. Written
 	//the way the Finder writes it, with the home folder as a tilde.
-	if ( _usesInspectorLayout )
 	{
 		NSString *folder = [[_URL URLByDeletingLastPathComponent] path];
 
@@ -468,27 +422,18 @@ static const CGFloat kInspectorColumnGap  = 10.0;
 
 	if ( attribs != nil )
 	{
-		if ( _usesInspectorLayout )
-		{
-			//"derek · staff" - one row, since a group without an owner beside it
-			//is not a thing anyone reads separately
-			NSString *owner = [attribs fileOwnerAccountName];
-			NSString *group = [attribs fileGroupOwnerAccountName];
+		//"derek · staff" - one row, since a group without an owner beside it is
+		//not a thing anyone reads separately
+		NSString *owner = [attribs fileOwnerAccountName];
+		NSString *group = [attribs fileGroupOwnerAccountName];
 
-			[self addRowWithTitle: NSLocalizedString(@"Owner",@"inspector row")
-							value: ( [group length] > 0 && [owner length] > 0 )
-									 ? [NSString stringWithFormat: @"%@ · %@", owner, group]
-									 : ( owner ?: group )];
-		}
-		else
-		{
-			[self addRowWithTitle: NSLocalizedString(@"Owner:",@"") value: [attribs fileOwnerAccountName]];
-			[self addRowWithTitle: NSLocalizedString(@"Group:",@"") value: [attribs fileGroupOwnerAccountName]];
-		}
+		[self addRowWithTitle: NSLocalizedString(@"Owner",@"inspector row")
+						value: ( [group length] > 0 && [owner length] > 0 )
+								 ? [NSString stringWithFormat: @"%@ · %@", owner, group]
+								 : ( owner ?: group )];
 	}
 
-	[self addRowWithTitle: _usesInspectorLayout ? NSLocalizedString(@"Permission",@"inspector row")
-												: NSLocalizedString(@"Permission:",@"")
+	[self addRowWithTitle: NSLocalizedString(@"Permission",@"inspector row")
 					value: [DIXFileInfoView permissionStringForURL: _URL]];
 
 	{
@@ -512,9 +457,8 @@ static const CGFloat kInspectorColumnGap  = 10.0;
 		}
 	}
 
-	//the inspector says "Where" above instead; the full path repeats the name
-	if ( !_usesInspectorLayout )
-		[self addRowWithTitle: NSLocalizedString(@"Path:",@"") value: [_URL path]];
+	//No Path row: "Where" above says the useful half of it, and the name is in
+	//the header.
 
 	NSURL *resolvedURL = nil;
 
@@ -538,9 +482,7 @@ static const CGFloat kInspectorColumnGap  = 10.0;
 		//for an application, the default opener is the application itself; that
 		//is not worth a row
 		if ( appURL != nil && ![appURL isEqualToURL: _URL] )
-			[self addRowWithTitle: _usesInspectorLayout
-									? NSLocalizedString(@"Opens with",@"inspector row")
-									: NSLocalizedString(@"Application:",@"")
+			[self addRowWithTitle: NSLocalizedString(@"Opens with",@"inspector row")
 							value: [appURL displayName]];
 	}
 

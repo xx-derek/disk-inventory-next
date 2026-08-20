@@ -141,3 +141,5 @@
 "All" = "Alle";
 "Path" = "Pfad";
 "Deselect All" = "Auswahl aufheben";
+"Chip = the kind filling the row · click to find it on the map" = "Das Feld zeigt die Art, die die Zeile füllt · klicken, um sie in der Karte zu finden";
+"Search scope" = "Suchbereich";

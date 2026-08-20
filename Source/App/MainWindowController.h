@@ -35,9 +35,12 @@
     //they are held by a container rather than by the content view.
     NSView *_centreColumn;
 
-    //The map's half of the outline/map split, holding the summary strip above
-    //the treemap. It is the split view's subview now, so hiding it is what
-    //collapses the map - see -placeSummaryStrip.
+    //The two halves of the outline/map split, each holding its pane and the band
+    //the design puts under or over it: the list its caption, the map the summary
+    //strip. They are the split view's subviews now, so hiding one is what
+    //collapses that pane - see -placeSummaryStrip.
+    NSView *_listColumn;
+    NSView *_listFooterView;
     NSView *_mapColumn;
 
     DIXSummaryStripView *_summaryStripView;
@@ -85,7 +88,8 @@
     //The right-hand pane, replacing the floating Info window.
     DIXInspectorView *_inspectorView;
     CGFloat _inspectorWidth;    //remembered across a collapse, like the sidebar's
-    BOOL _collapsingInspector;  //lifts its minimum while the divider goes to the edge
+    BOOL _collapsingInspector;  //lifts its minimum while the divider moves to the edge
+    NSTimer *_inspectorAnimationTimer;
 
     //Set once the panes have been given their opening widths. Until then the
     //split view is still being assembled and resized, and the widths it reports
@@ -126,6 +130,7 @@
 //The inspector pane down the right-hand side.
 - (BOOL) isInspectorVisible;
 - (void) setInspectorVisible: (BOOL) visible;
+- (void) setInspectorVisible: (BOOL) visible animated: (BOOL) animated;
 - (IBAction) toggleInspector: (id) sender;
 
 
@@ -156,6 +161,3 @@
 - (IBAction) performRenderBenchmark:(id)sender;
 - (IBAction) performLayoutBenchmark:(id)sender;
 @end
-
-//posted by MainWindowController when the selection list is shown or hidden, so
-//the list can stop recomputing itself while it is not on screen
