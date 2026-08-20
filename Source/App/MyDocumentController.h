@@ -29,3 +29,6 @@
 
 - (void) openDocumentWithContentsOfFile: (NSString*) fileName; //calls "openDocumentWithContentsOfFile: fileName display: [self shouldCreateUI]"
 @end
+
+//a folder was opened, so the recent list has changed; userInfo is nil
+extern NSString *DIXRecentDocumentsChangedNotification;

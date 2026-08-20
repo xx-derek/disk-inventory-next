@@ -64,6 +64,7 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
     FSItem *_rootItem;
     FSItem *_selectedItem;
     NSMutableArray *_zoomStack;
+    NSArray<FSItem*> *_focusedPile;   //see -focusedPile; nil unless a merged cell was opened
     NSMutableDictionary *_fileKindStatistics;	//dictionary: kind name -> FileKindStatistic
 	NSMutableDictionary *_viewOptions;
 	FileTypeColors *_kindColors;
@@ -129,6 +130,19 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 - (void) zoomOutToItem: (FSItem*) item;
 - (void) zoomOutOneStep;
 - (NSArray*) zoomStack;
+
+//A merged cell stands for a run of items too small to be drawn beside their
+//larger siblings. Zooming "into" one cannot go on the zoom stack, which holds
+//FSItems, and a merged cell is not one - so it is held here instead: while this
+//is set the map lays out these items as its whole content, which is what gives
+//them room. Nil the rest of the time.
+//
+//It is one level deep on purpose. A pile inside a pile would need a stack and
+//the zoom stack is already that; anything that changes what the map shows -
+//zooming either way, reloading the tree - drops the focus rather than trying to
+//keep it valid against a tree that moved underneath it.
+- (NSArray<FSItem*>*) focusedPile;
+- (void) setFocusedPile: (NSArray<FSItem*>*) items; //posts "FocusedPileChangedNotification"
 
 - (FSItem*) selectedItem;
 - (void) setSelectedItem: (FSItem*) item; //will post a "GlobalSelectionChangedNotification"
@@ -198,6 +212,9 @@ extern NSString *OldItem;
 
 //the reclaim basket gained or lost items, or was emptied; userInfo is nil
 extern NSString *ReclaimBasketChangedNotification;
+
+//the map is now showing a merged cell's contents, or has stopped; userInfo is nil
+extern NSString *FocusedPileChangedNotification;
 
 //Option names carried by ViewOptionChangedNotification for the two settings
 //that are not user defaults. The rest of the options are named by their

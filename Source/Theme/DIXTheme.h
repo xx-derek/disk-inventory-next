@@ -98,6 +98,17 @@
 //The flat "elsewhere" tile - neutral on purpose, since it is not a file kind.
 + (NSColor*) neutralFill;
 
+//A step quieter than bodyText and a step louder than secondaryText: the
+//design's tone for a figure or a label that accompanies something rather than
+//being the thing itself - a breadcrumb's parent segments, a size beside a name.
++ (NSColor*) detailText;        // #6b6663 / #a8a3a0
+
+//The breadcrumb's chevrons. Lighter than the segments either side of them in
+//light and *darker* in dark - the design mirrors this pair rather than stepping
+//it, which is why neither text tone fits: a chevron is punctuation, and should
+//recede from the names in whichever direction recedes.
++ (NSColor*) separatorGlyph;   // #b6b1ae / #6b6663
+
 //Between sections *inside* a pane, where -hairline separates the panes
 //themselves. The design draws three weights of line and this is the middle one;
 //using the pane border for both makes every internal division too heavy.
@@ -156,6 +167,11 @@
 //kind chips, share bars, section rules, the address box - stay square; that is
 //where the system's own geometry belongs.
 + (CGFloat) cornerRadius;           // 6
+
+//Sidebar rows are a point rounder than controls in the design - 7 against the
+//6 a button gets. Close enough to look like a mistake either way, which is why
+//it is named rather than written twice.
++ (CGFloat) rowCornerRadius;        // 7
 
 + (CGFloat) ruleThickness;          // 2
 + (CGFloat) hairlineThickness;      // 1

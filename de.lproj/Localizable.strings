@@ -126,3 +126,12 @@
 "Name" = "Name";
 "Size" = "Größe";
 "Share" = "Anteil";
+
+/* the inspector's attribute rows - the design sets these without colons */
+"Kind" = "Art";
+"Modified" = "Geändert";
+"Created" = "Erzeugt";
+"Owner" = "Besitzer";
+"Permission" = "Zugriffsrechte";
+"Where" = "Ort";
+"Opens with" = "Öffnen mit";

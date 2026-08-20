@@ -24,12 +24,33 @@ static const CGFloat kPadding      = 16.0;
 static const CGFloat kHeaderHeight = 30.0;
 static const CGFloat kRowHeight    = 26.0;
 static const CGFloat kBarHeight    = 56.0;
+
+//Below the list, between its last row and whatever is under it - the reclaim
+//bar's rule, or the bottom of the section when the basket is empty. The
+//design's 8px: without it the last row sits on the rule, which reads as the
+//list being cut off rather than ending.
+static const CGFloat kListBottomGap = 8.0;
 static const CGFloat kBoxSize      = 15.0;
 
 //Beyond this the list stops being something to read and starts being something
 //to scroll forever. The header still counts every one of them, so the figure
 //never lies about what is there.
 static const NSUInteger kMaximumRows = 200;
+
+//The scroll's document view, flipped.
+//
+//That is the whole of it, and it is not cosmetic. An unflipped document view
+//puts its origin at the bottom, so NSScrollView keeps the *bottom* of the
+//content still when the clip view changes size - and this one changes size
+//every time the reclaim bar appears, by the 56 points the bar takes. The list
+//slid down behind the header and the first row, the one just ticked, was the
+//one that went.
+@interface DIXSiblingsRowsView : NSView
+@end
+
+@implementation DIXSiblingsRowsView
+- (BOOL) isFlipped { return YES; }
+@end
 
 @interface DIXSiblingsView()
 {
@@ -92,7 +113,7 @@ static const NSUInteger kMaximumRows = 200;
 	[_headerDetail setTranslatesAutoresizingMaskIntoConstraints: YES];
 	[self addSubview: _headerDetail];
 
-	_rowsView = [[NSView alloc] initWithFrame: NSZeroRect];
+	_rowsView = [[DIXSiblingsRowsView alloc] initWithFrame: NSZeroRect];
 
 	_scrollView = [[NSScrollView alloc] initWithFrame: NSZeroRect];
 	[_scrollView setDocumentView: _rowsView];
@@ -283,6 +304,7 @@ static const NSUInteger kMaximumRows = 200;
 	[self layoutContents];
 }
 
+
 - (void) updateReclaimBar
 {
 	const NSUInteger count = [_document basketCount];
@@ -325,7 +347,8 @@ static const NSUInteger kMaximumRows = 200;
 
 	const CGFloat rows = kRowHeight * (CGFloat) MIN( [_siblings count], (NSUInteger) 8 );
 
-	return kHeaderHeight + rows + ( [_document basketCount] > 0 ? kBarHeight : 0.0 );
+	return kHeaderHeight + rows + kListBottomGap
+		 + ( [_document basketCount] > 0 ? kBarHeight + [DIXTheme ruleThickness] : 0.0 );
 }
 
 - (void) setFrameSize: (NSSize) newSize
@@ -353,11 +376,17 @@ static const NSUInteger kMaximumRows = 200;
 
 	const CGFloat barHeight = ( [_document basketCount] > 0 ) ? kBarHeight : 0.0;
 
-	[_scrollView setFrame: NSMakeRect( 0.0, barHeight, NSWidth( bounds ),
-									   MAX( 0.0, NSHeight( bounds ) - kHeaderHeight - barHeight ) )];
+	//Clear of the rule as well as the bar: the rule is the bar's top edge, drawn
+	//at kBarHeight and two points thick, so measuring the gap from the bar alone
+	//would leave only six.
+	const CGFloat listBottom = ( barHeight > 0.0 )
+		? barHeight + [DIXTheme ruleThickness] + kListBottomGap
+		: kListBottomGap;
 
-	//rows are laid out from the top of the (unflipped) document view
-	const CGFloat rowsHeight = NSHeight( [_rowsView frame] );
+	[_scrollView setFrame: NSMakeRect( 0.0, listBottom, NSWidth( bounds ),
+									   MAX( 0.0, NSHeight( bounds ) - kHeaderHeight - listBottom ) )];
+
+	//the document view is flipped, so a row's y counts down from the top
 	const CGFloat sizeWidth = 64.0;
 
 	NSRect rowsFrame = [_rowsView frame];
@@ -369,7 +398,7 @@ static const NSUInteger kMaximumRows = 200;
 		const NSUInteger tag = (NSUInteger) [(NSControl*) view tag];
 		const BOOL isSize = ( tag >= kMaximumRows );
 		const NSUInteger index = isSize ? ( tag - kMaximumRows ) : tag;
-		const CGFloat y = rowsHeight - kRowHeight * (CGFloat) ( index + 1 );
+		const CGFloat y = kRowHeight * (CGFloat) index;
 
 		if ( isSize )
 		{

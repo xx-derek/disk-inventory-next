@@ -23,6 +23,11 @@
 static const CGFloat kPadding      = 14.0;
 static const CGFloat kLabelHeight  = 18.0;
 static const CGFloat kHeaderHeight = 34.0;
+
+//Below the last row, so the list ends rather than running into the bottom of
+//the sidebar. The same 8 the rows use between themselves and either side of
+//them, and the same the siblings list gets under it.
+static const CGFloat kListBottomGap = 8.0;
 static const CGFloat kRowHeight    = 38.0;
 static const CGFloat kChipGap      = 10.0;
 static const CGFloat kBarHeight    =  3.0;
@@ -95,7 +100,7 @@ static const CGFloat kBarIndent    = 18.0;
 	};
 	NSDictionary *sizeAttributes = @{
 		NSFontAttributeName: [DIXTheme tabularFontOfSize: 11.0],
-		NSForegroundColorAttributeName: [DIXTheme secondaryText],
+		NSForegroundColorAttributeName: [DIXTheme detailText],
 	};
 
 	for ( NSUInteger i = 0; i < [_statistics count]; i++ )
@@ -115,8 +120,8 @@ static const CGFloat kBarIndent    = 18.0;
 			[( isFiltered ? [DIXTheme selectedRowFill] : [DIXTheme controlFill] ) set];
 
 			[[NSBezierPath bezierPathWithRoundedRect: NSInsetRect( row, 8.0, 2.0 )
-											 xRadius: [DIXTheme cornerRadius]
-											 yRadius: [DIXTheme cornerRadius]] fill];
+											 xRadius: [DIXTheme rowCornerRadius]
+											 yRadius: [DIXTheme rowCornerRadius]] fill];
 		}
 
 		const CGFloat chipSize = [DIXTheme kindChipSize];
@@ -360,8 +365,9 @@ static const CGFloat kBarIndent    = 18.0;
 	[_filterButton setFrame: NSMakeRect( NSMaxX( bounds ) - kPadding - buttonWidth, labelY,
 										 buttonWidth, kLabelHeight )];
 
-	[_scrollView setFrame: NSMakeRect( 0.0, 0.0, NSWidth( bounds ),
-									   MAX( 0.0, NSHeight( bounds ) - kHeaderHeight ) )];
+	[_scrollView setFrame: NSMakeRect( 0.0, kListBottomGap, NSWidth( bounds ),
+									   MAX( 0.0, NSHeight( bounds ) - kHeaderHeight
+													- kListBottomGap ) )];
 
 	NSRect rowsFrame = [_rowsView frame];
 	rowsFrame.size.width = NSWidth( [_scrollView contentView].bounds );

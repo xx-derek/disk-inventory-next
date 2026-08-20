@@ -36,4 +36,14 @@
 
 @property (nonatomic, strong) NSURL *URL;
 
+//The inspector pane draws these rows the way the design does - a fixed 74pt key
+//column in the muted tone, left aligned, no colons - and lists a different set
+//of them: no Name or Path, because the name is in the header above and "Where"
+//says which folder holds it, which is the useful half of a path.
+//
+//Off by default, so the floating Info panel this class also serves keeps the
+//shape it has. That panel retires with the nibs; until it does, one class has
+//to do both.
+@property (nonatomic) BOOL usesInspectorLayout;
+
 @end

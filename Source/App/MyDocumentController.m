@@ -15,6 +15,8 @@
 //
 
 #import "MyDocumentController.h"
+
+NSString *DIXRecentDocumentsChangedNotification = @"DIXRecentDocumentsChanged";
 #import "DonationPanelController.h"
 #import "DrivesPanelController.h"
 #import "Preferences.h"
@@ -84,8 +86,22 @@ BOOL g_EnableLogging;
 								display: YES
 					  completionHandler: ^( NSDocument *document, BOOL alreadyOpen, NSError *error )
 	{
-		if ( document == nil && error != nil )
-			LOG( @"could not open '%@': %@", fileName, [error localizedDescription] );
+		if ( document == nil )
+		{
+			if ( error != nil )
+				LOG( @"could not open '%@': %@", fileName, [error localizedDescription] );
+			return;
+		}
+
+		//Noted by hand. -application:openFile: has said "called if file from
+		//recent list is selected" since this app was written, but nothing ever
+		//put anything in that list: -recentDocumentURLs came back empty, so
+		//Open Recent was always empty too. The sidebar lists these below the
+		//volumes, so now it matters twice.
+		[self noteNewRecentDocumentURL: [NSURL fileURLWithPath: fileName]];
+
+		[[NSNotificationCenter defaultCenter]
+			postNotificationName: DIXRecentDocumentsChangedNotification object: self];
 	}];
 }
 

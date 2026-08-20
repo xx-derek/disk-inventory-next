@@ -193,6 +193,16 @@ static NSColor* NamedColor( NSString *name, NSColor *fallback )
 	return NamedColor( @"DIXNeutralFill", [NSColor systemGrayColor] );
 }
 
++ (NSColor*) detailText
+{
+	return NamedColor( @"DIXDetailText", [NSColor secondaryLabelColor] );
+}
+
++ (NSColor*) separatorGlyph
+{
+	return NamedColor( @"DIXSeparatorGlyph", [NSColor tertiaryLabelColor] );
+}
+
 + (NSColor*) contentHairline
 {
 	return NamedColor( @"DIXContentHairline", [NSColor separatorColor] );
@@ -279,6 +289,7 @@ static NSColor* NamedColor( NSString *name, NSColor *fallback )
 #pragma mark --------metrics-----------------
 
 + (CGFloat) cornerRadius                    { return 6.0; }
++ (CGFloat) rowCornerRadius                 { return 7.0; }
 + (CGFloat) ruleThickness                   { return 2.0; }
 + (CGFloat) hairlineThickness               { return 1.0; }
 + (CGFloat) kindChipSize                    { return 10.0; }

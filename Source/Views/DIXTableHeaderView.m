@@ -40,7 +40,9 @@ static const CGFloat kTextInset    = 10.0;
 	rule.size.height = [DIXTheme hairlineThickness];
 	rule.origin.y = NSMaxY( [self bounds] ) - rule.size.height;
 
-	[[DIXTheme hairline] set];
+	//the lighter content weight: this divides one pane, where -hairline
+	//is the edge *between* panes - between the header and the rows, inside the list
+	[[DIXTheme contentHairline] set];
 	NSRectFill( NSIntersectionRect( rule, dirtyRect ) );
 
 	for ( NSUInteger i = 0; i < [[[self tableView] tableColumns] count]; i++ )

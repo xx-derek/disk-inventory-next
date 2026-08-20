@@ -26,6 +26,7 @@
 #import "InfoPanelController.h"
 #import "FSItem-Utilities.h"
 #import "NSFileManager-Extensions.h"
+#import "DIXRecentScans.h"
 
 NSString *CollectFileKindStatisticsCanceledException = @"CollectFileKindStatisticsCanceledException";
 
@@ -182,6 +183,7 @@ NSString *ChangedViewOption = @"ChangedViewOption";
 NSString *NewItem = @"NewItem";
 NSString *OldItem = @"OldItem";
 NSString *ReclaimBasketChangedNotification = @"ReclaimBasketChanged";
+NSString *FocusedPileChangedNotification = @"FocusedPileChanged";
 NSString *DIXKindFilterOption = @"DIXKindFilter";
 NSString *DIXViewModeOption = @"DIXViewMode";
 
@@ -309,6 +311,12 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 		//"scanned 2 minutes ago" in the summary strip is measured from here -
 		//when the tree is complete, not when the walk was started
 		_scanCompletedAt = [NSDate date];
+
+		//What the sidebar offers as somewhere you have already been. Recorded
+		//here rather than when the document opened, because only now is there a
+		//total to show beside it.
+		[[DIXRecentScans sharedList] recordScanOfURL: [rootItem fileURL]
+												size: [[rootItem size] unsignedLongLongValue]];
 		[self _invalidateItemCounts];
 		
 		//the modal session must be ended in the same NS_DURING section (if no exception occured)
@@ -729,7 +737,10 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 {
     if ( [_zoomStack count] > 0 && item == [_zoomStack lastObject] )
         return;
-	
+
+	//zooming replaces what the map shows, so a pile focus does not survive it
+	_focusedPile = nil;
+
 	FSItem *oldZoomedItem = [self zoomedItem];
     
     //reset selection as the currently selected item might not be a child of the item to zoom in
@@ -752,12 +763,38 @@ NSString *DIXViewModeOption = @"DIXViewMode";
     [self postNotificationName: ZoomedItemChangedNotification oldItem: oldZoomedItem newItem: [self zoomedItem]];
 }
 
+#pragma mark --------the focused pile-----------------
+
+- (NSArray<FSItem*>*) focusedPile
+{
+	return _focusedPile;
+}
+
+- (void) setFocusedPile: (NSArray<FSItem*>*) items
+{
+	if ( items == _focusedPile || [items isEqualToArray: _focusedPile] )
+		return;
+
+	_focusedPile = [items count] > 0 ? [items copy] : nil;
+
+	//The selection is very likely no longer on screen: the map is about to show
+	//a different set of items. Cleared for the same reason -zoomIntoItem: clears
+	//it, and with the same consequence if it is not - the treemap controller
+	//asks for a path from the root down to the selection and there is none.
+	[self setSelectedItem: nil];
+
+	[[NSNotificationCenter defaultCenter] postNotificationName: FocusedPileChangedNotification
+														object: self];
+}
+
 - (void) zoomOutOneStep
 {
     if ( [_zoomStack count] > 0 )
     {
 		FSItem *oldZoomedItem = [self zoomedItem];
-		
+
+		_focusedPile = nil;
+
         [_zoomStack removeLastObject];
         
         //the file kind statistic should only cover the currently visible part of the file system tree

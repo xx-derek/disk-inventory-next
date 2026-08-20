@@ -30,6 +30,7 @@
 #import "DIXSourcesView.h"
 #import "DIXKindsView.h"
 #import "DIXVolumeList.h"
+#import "DIXRecentScans.h"
 #import "NSImage-Extensions.h"
 #import "DIXTheme.h"
 #import "DIXControls.h"
@@ -173,8 +174,15 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 		return;
 
 	const NSRect bounds = [_sidebarPane bounds];
-	const CGFloat sourcesHeight = MIN( [_sourcesView fittingHeight], NSHeight( bounds ) );
 	const CGFloat ruleThickness = [DIXTheme ruleThickness];
+
+	//What the section wants, and what it may have. Over about half the pane it
+	//would leave the kinds legend a sliver, so past that the folder list inside
+	//it scrolls - the volumes and Choose Folder do not, so the section is given
+	//a height and lays itself out within it.
+	const CGFloat wanted = [_sourcesView fittingHeight];
+	const CGFloat allowed = MAX( 0.0, floor( NSHeight( bounds ) * 0.55 ) );
+	const CGFloat sourcesHeight = MIN( wanted, allowed );
 
 	[_sourcesView setFrame: NSMakeRect( 0.0, NSMaxY( bounds ) - sourcesHeight,
 										NSWidth( bounds ), sourcesHeight )];
@@ -195,6 +203,22 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 	[self layoutSidebarPane];
 }
 
+- (void) onSidebarPaneResized: (NSNotification*) notification
+{
+	[self layoutSidebarPane];
+}
+
+//Deferred one turn, and not for the usual reason. DIXSourcesView observes this
+//notification too, to rebuild its rows; -layoutSidebarPane then asks it how
+//tall it wants to be. NSNotificationCenter does not promise which of the two
+//gets it first, so asking immediately can read the height the section had
+//before the row went - which would leave exactly the gap this is fixing.
+- (void) onRecentScansChanged: (NSNotification*) notification
+{
+	__weak MainWindowController *weakSelf = self;
+
+	dispatch_async( dispatch_get_main_queue(), ^{ [weakSelf layoutSidebarPane]; } );
+}
 - (void) buildSidePanes
 {
 	NSView *contentView = [[self window] contentView];
@@ -269,6 +293,15 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 	//it is the boundary between them - so the pane that holds both draws it.
 	_sectionRule = [DIXControls sectionRule];
 
+	//Every other view in this pane carries a mask; without one the rule kept
+	//whatever frame it was first given. -buildSidePanes runs while the pane is
+	//still the nib's size, so the rule was laid out against that and then left
+	//behind when the split view resized the pane - invisible until something
+	//else called -layoutSidebarPane. What eventually did was DIXSourcesView's
+	//five-second free-space timer, which is why it appeared seconds after the
+	//window opened and lagged a divider drag by up to five more.
+	[_sectionRule setAutoresizingMask: ( NSViewWidthSizable | NSViewMinYMargin )];
+
 	_sidebarPane = [[NSView alloc] initWithFrame: [_kindStatisticsPane frame]];
 	[_sidebarPane addSubview: _sourcesView];
 	[_sidebarPane addSubview: _sectionRule];
@@ -279,6 +312,16 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 
 	[_kindsView setDocument: (FileSystemDoc*) [self document]];
 
+	//The mask keeps the rule in place through a resize; this keeps it correct
+	//when the *contents* move under it - SOURCES grows a row and everything
+	//below it shifts - and makes a drag track instead of settling afterwards.
+	[_sidebarPane setPostsFrameChangedNotifications: YES];
+
+	[[NSNotificationCenter defaultCenter] addObserver: self
+											 selector: @selector(onSidebarPaneResized:)
+												 name: NSViewFrameDidChangeNotification
+											   object: _sidebarPane];
+
 	[self layoutSidebarPane];
 
 	//mounting or unmounting changes how tall SOURCES needs to be, and the
@@ -286,6 +329,15 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 	[[NSNotificationCenter defaultCenter] addObserver: self
 											 selector: @selector(onVolumeListChanged:)
 												 name: DIXVolumeListChangedNotification
+											   object: nil];
+
+	//Forgetting a folder, or scanning a new one, changes how tall SOURCES needs
+	//to be just as mounting a volume does. Without this the section kept its
+	//old height until the next volume refresh - up to five seconds later, which
+	//is what "takes some time before layout updates" was.
+	[[NSNotificationCenter defaultCenter] addObserver: self
+											 selector: @selector(onRecentScansChanged:)
+												 name: DIXRecentScansChangedNotification
 											   object: nil];
 
 	[_kindStatisticsSplitView addSubview: _sidebarPane];
@@ -393,6 +445,10 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 	[notificationCenter addObserver: self
 						   selector: @selector(documentChangedForSummaryStrip:)
 							   name: GlobalSelectionChangedNotification
+							 object: doc];
+	[notificationCenter addObserver: self
+						   selector: @selector(documentChangedForSummaryStrip:)
+							   name: FocusedPileChangedNotification
 							 object: doc];
 
 	[self updateSummaryStrip];
@@ -722,16 +778,27 @@ willBeInsertedIntoToolbar: willInsert];
 
 	if ( rootURL != nil )
 	{
+		//Built from the path's own components, and deliberately not by deleting
+		//the last one over and over. -URLByDeletingLastPathComponent does not
+		//stop at the volume root: asked about "/" it answers "/..", then
+		//"/../..", and on for as long as anything keeps asking. The loop that
+		//used to be here broke when it saw "/", which a scan of a volume root
+		//never produces - it starts at "/.." - so opening a volume span the main
+		//thread at a full core inside -windowDidLoad, allocating a URL and two
+		//strings a turn, until the process was killed for memory with its
+		//progress panel still on screen.
+		//
+		//-pathComponents is bounded by the depth of the path and answers exactly
+		//["/"] for a volume root, so the ancestor list there is simply empty.
+		NSArray<NSString*> *components = [rootURL pathComponents];
 		NSMutableArray<NSURL*> *ancestors = [NSMutableArray array];
 
-		for ( NSURL *url = [rootURL URLByDeletingLastPathComponent];
-			  url != nil && ![[url path] isEqualToString: [rootURL path]];
-			  url = [url URLByDeletingLastPathComponent] )
+		//from the volume root up to, but not including, the scan root itself,
+		//which is appended below
+		for ( NSUInteger i = 1; i < [components count]; i++ )
 		{
-			[ancestors insertObject: url atIndex: 0];
-
-			if ( [[url path] isEqualToString: @"/"] )
-				break;
+			[ancestors addObject: [NSURL fileURLWithPathComponents:
+				[components subarrayWithRange: NSMakeRange( 0, i )]]];
 		}
 
 		for ( NSURL *url in ancestors )
@@ -744,8 +811,12 @@ willBeInsertedIntoToolbar: willInsert];
 				 || [name length] == 0 )
 				name = [url lastPathComponent];
 
+			//Context, not a destination. There is no item in this document's
+			//tree for a folder above the scan root, so there is nothing to zoom
+			//to; it used to open a new scan, which is a lot to happen by
+			//accident on the way to clicking the folder next to it.
 			[titles addObject: name];
-			[items addObject: url];
+			[items addObject: [NSNull null]];
 		}
 	}
 
@@ -756,6 +827,21 @@ willBeInsertedIntoToolbar: willInsert];
 	{
 		[titles addObject: [item displayName]];
 		[items addObject: item];
+	}
+
+	//An open merged cell is the innermost thing on screen, so it ends the trail.
+	//It carries no represented object: there is no item to go back to, and it is
+	//the last segment, which the breadcrumb draws as a statement rather than a
+	//button in any case.
+	if ( [doc focusedPile] != nil )
+	{
+		NSNumberFormatter *countFormatter = [[NSNumberFormatter alloc] init];
+		[countFormatter setNumberStyle: NSNumberFormatterDecimalStyle];
+
+		[titles addObject: [NSString stringWithFormat:
+			NSLocalizedString( @"%@ smaller items", @"treemap, a merged remainder cell" ),
+			[countFormatter stringFromNumber: @([[doc focusedPile] count])]]];
+		[items addObject: [NSNull null]];
 	}
 
 	[_breadcrumbView setSegmentTitles: titles representedObjects: items];
@@ -952,6 +1038,7 @@ willBeInsertedIntoToolbar: willInsert];
 		volumeURL = nil;
 
 	[_sourcesView setCurrentVolumeURL: volumeURL];
+	[_sourcesView setCurrentRootURL: [rootItem fileURL]];
 
 	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
 
@@ -1253,7 +1340,16 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 - (IBAction) zoomOut:(id)sender
 {
     FileSystemDoc *doc = [self document];
-    
+
+	//An open merged cell is the innermost thing the map is showing, so it is the
+	//first thing zooming out closes - before any step of the zoom stack, which
+	//is where it visually sits.
+	if ( [doc focusedPile] != nil )
+	{
+		[doc setFocusedPile: nil];
+		return;
+	}
+
     FSItem *currentZoomedItem = [doc zoomedItem];
 
     if ( currentZoomedItem != [doc rootItem] )
@@ -1271,17 +1367,11 @@ constrainMaxCoordinate: (CGFloat) proposedMax
     FileSystemDoc *doc = [self document];
 	id represented = [sender representedObject];
 
-	//A segment above the scan root is an NSURL, not an item: there is nothing in
-	//this document's tree to zoom out to, so it opens a scan of that folder.
-	if ( [represented isKindOfClass: [NSURL class]] )
-	{
-		[[NSRunLoop currentRunLoop] performSelector: @selector(openDocumentWithContentsOfFile:)
-											 target: [NSDocumentController sharedDocumentController]
-										   argument: [(NSURL*) represented path]
-											  order: 1
-											  modes: @[ NSDefaultRunLoopMode ]];
+	//Segments that stand for no item - the folders above the scan root, and the
+	//open pile - are labels rather than buttons and cannot send this, but a
+	//menu item could.
+	if ( represented == nil || represented == [NSNull null] )
 		return;
-	}
 
 	FSItem *item = represented;
 

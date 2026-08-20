@@ -59,6 +59,11 @@
 						   selector: @selector(itemsChanged:)
 							   name: FSItemsChangedNotification
 							 object: doc];
+
+    [notificationCenter addObserver: self
+						   selector: @selector(focusedPileChanged:)
+							   name: FocusedPileChangedNotification
+							 object: doc];
 	
     [notificationCenter addObserver: self
 						   selector: @selector(windowWillClose:)
@@ -113,10 +118,23 @@
     return [[self document] zoomedItem];
 }
 
+//The items a merged cell stood for, while one is open, or nil. The map lays
+//these out as its whole content: that is what gives them the room they did not
+//have beside their larger siblings, and it is the only way "zoom in" can mean
+//anything for a pile of items that are not folders. See -focusedPile.
+- (NSArray*) focusedPile
+{
+    return [[self document] focusedPile];
+}
+
 #pragma mark --------TreeMapView data source-----------------
 
 - (id) treeMapView: (TreeMapView*) view child: (NSUInteger) index ofItem: (id) item
 {
+    //nil is the root, the way NSOutlineView addresses it
+    if ( item == nil && [self focusedPile] != nil )
+        return [[self focusedPile] objectAtIndex: index];
+
     FSItem *fsItem = ( item == nil ? [self rootItem] : item );
 	
 	if ( fsItem == [self rootItem]
@@ -140,6 +158,9 @@
 
 - (NSUInteger) treeMapView: (TreeMapView*) view numberOfChildrenOfItem: (id) item
 {
+    if ( item == nil && [self focusedPile] != nil )
+        return [[self focusedPile] count];
+
     FSItem *fsItem = ( item == nil ? [self rootItem] : item );
 
     NSUInteger childCount = [fsItem childCount];
@@ -159,6 +180,18 @@
 
 - (unsigned long long) treeMapView: (TreeMapView*) view weightByItem: (id) item
 {
+    //The root's weight has to be the pile's total, or the cells would be laid
+    //out as a fraction of a whole they are no longer part of.
+    if ( item == nil && [self focusedPile] != nil )
+    {
+        unsigned long long total = 0;
+
+        for ( FSItem *pileItem in [self focusedPile] )
+            total += [pileItem sizeValue];
+
+        return total;
+    }
+
     FSItem *fsItem = ( item == nil ? [self rootItem] : item );
 
 	unsigned long long size = [fsItem sizeValue];
@@ -473,6 +506,11 @@ static NSString* ShareOfScanString( unsigned long long part, unsigned long long 
 
 	[_treeMapView setUsesClassicCushions: classic];
 
+	//10pt of surface around the map, as the design draws it. Not in classic
+	//mode, which reproduces the original: the cells filled the view there, and
+	//an inset would be as much a change to it as the gutters it already skips.
+	[_treeMapView setContentInset: classic ? 0.0 : 10.0];
+
 	//The palette goes with the shading, not with the appearance: see
 	//FileTypeColors. Changing it drops every kind's assigned colour, so the map
 	//has to be re-asked for them.
@@ -548,13 +586,26 @@ static NSString* ShareOfScanString( unsigned long long part, unsigned long long 
 			FileSystemDoc *doc = [self document];
 			unsigned long long scanSize = [[[doc rootItem] size] unsignedLongLongValue];
 
-			detail = [NSString stringWithFormat: @"%@ · %@", [fsItem kindName], size];
-
+			//"1.24 GB · 1.3% of this scan · Movies" - size, then share, then
+			//where it is. The kind used to lead, which is the one thing the chip
+			//beside the name already says in colour; what the readout could not
+			//tell you was where in the tree you were pointing.
 			NSString *share =
 				ShareOfScanString( [[fsItem size] unsignedLongLongValue], scanSize );
 
+			NSMutableString *line = [NSMutableString stringWithString: size];
+
 			if ( share != nil )
-				detail = [detail stringByAppendingFormat: @" · %@", share];
+				[line appendFormat: @" · %@", share];
+
+			//the folder holding it, which is not the map's root - at the root
+			//there is nothing useful left to say
+			FSItem *parent = [fsItem parent];
+
+			if ( parent != nil && parent != [self rootItem] )
+				[line appendFormat: @" · %@", [parent displayName]];
+
+			detail = line;
 
 			//the synthetic cells keep a nil colour: free and other space are
 			//not file kinds, and a chip would claim they are
@@ -593,6 +644,8 @@ static NSString* ShareOfScanString( unsigned long long part, unsigned long long 
 //left for someone to notice.
 - (void) treeMapViewLayoutChanged: (NSNotification*) notification
 {
+
+
 	NSWindowController *windowController = [[[self document] windowControllers] firstObject];
 
 	DIXStatusBarView *statusBar = [windowController isKindOfClass: [MainWindowController class]]
@@ -643,19 +696,52 @@ static NSString* ShareOfScanString( unsigned long long part, unsigned long long 
 
 - (void) treeMapView: (TreeMapView*) view doubleClickedCellId: (TMVCellId) cellId
 {
-	FSItem *item = [view enclosingItemByCellId: cellId];
+	FileSystemDoc *doc = [self document];
+	FSItem *target = [view enclosingItemByCellId: cellId];
+
+	//The widget addresses the root as nil, the way NSOutlineView does, so its
+	//root renderer holds no item and a remainder sitting directly under it
+	//resolves to nil rather than to the root. Every data source method above
+	//already maps nil to the root; this was the one place that did not, and it
+	//is why *those* merged cells - and only those - were dead double-clicks.
+	if ( target == nil )
+		target = [self rootItem];
+
+	//A remainder has no item of its own and resolves to the folder that holds
+	//it. Zooming there is what gives its merged items rects big enough to draw
+	//- but only while that folder is not already what the map is showing.
+	//
+	//When it is, this was a dead double-click, and that is what "some merged
+	//cells cannot zoom into" was: -zoomIntoItem: declines to re-zoom whatever is
+	//on top of the stack, so nothing happened; and with an empty stack nothing
+	//declined it either, so it pushed the displayed root onto itself and gave
+	//the breadcrumb the same folder twice.
+	//
+	//At that point the pile is already drawn as large as this level allows, so
+	//the only thing "zoom in" can still mean is to go into the largest folder
+	//the pile itself contains. Where it lands is not a guess the user has to
+	//make: the breadcrumb names it.
+	TMVItem *cell = (TMVItem*) cellId;
+
+	//A pile that is already what the map shows has nowhere further to zoom by
+	//item: its contents are children of the displayed root, and zooming there
+	//changes nothing. What does work is to lay the pile's own items out as the
+	//map's whole content - they were merged for want of room beside their larger
+	//siblings, and without those siblings there is room. This is the only thing
+	//"zoom in" can mean for a pile holding no folder at all, which is most of
+	//them: 1,583 data files have no item to descend into.
+	if ( [cell isRemainder] && target == [doc zoomedItem] )
+	{
+		[doc setFocusedPile: [cell mergedItems]];
+		return;
+	}
 
 	//Zooming into a file would leave an empty map, and the two synthetic cells
-	//have no children to show. A remainder resolves to the folder that holds it,
-	//which is the one worth zooming into: at the larger scale its merged items
-	//get rects of their own, or re-form as a smaller remainder further in.
-	if ( item == nil || [item isSpecialItem] || ![item isFolder] )
+	//have no children to show.
+	if ( target == nil || [target isSpecialItem] || ![target isFolder] )
 		return;
 
-	//-zoomIntoItem: already declines to zoom into what is on top of the stack,
-	//so double-clicking a remainder whose folder is the zoom root does nothing -
-	//correctly. At that scale those items genuinely do not fit.
-	[[self document] zoomIntoItem: item];
+	[doc zoomIntoItem: target];
 }
 
 #pragma mark --------document notifications-----------------
@@ -670,6 +756,13 @@ static NSString* ShareOfScanString( unsigned long long part, unsigned long long 
 	_freeSpaceItem = [[FSItem alloc] initAsFreeSpaceItemForParent: rootItem];
 	
     [self reloadData];
+}
+
+//No zoom animation: it interpolates between two rects of one tree, and this
+//replaces what the tree's root *is*. A plain reload is honest about that.
+- (void) focusedPileChanged: (NSNotification*) notification
+{
+	[self reloadData];
 }
 
 - (void) zoomedItemChanged: (NSNotification*) notification

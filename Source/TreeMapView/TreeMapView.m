@@ -112,6 +112,7 @@ static const CGFloat TMVMinimumOutlinedCellSize =  6.0;
 - (void) applyDefaultAppearance
 {
 	_gutterWidth    = 2.0;
+	_contentInset   = 0.0;
 	_gutterColor    = [NSColor controlBackgroundColor];
 	_drawsCellLabels = YES;
 	//rgba(0,0,0,.66), from the design file; the README says .62 and the HTML is
@@ -128,6 +129,19 @@ static const CGFloat TMVMinimumOutlinedCellSize =  6.0;
 	_gutterWidth = width;
 	[self invalidateOverlay];
 	[self setNeedsDisplay: YES];	//an overlay: the cushion cache stays valid
+}
+
+- (void) setContentInset: (CGFloat) inset
+{
+	if ( _contentInset == inset )
+		return;
+
+	_contentInset = inset;
+
+	//a layout change, not a redraw: every cell rect moves
+	[self recalcLayout];
+	[self invalidateCanvasCache];
+	[self setNeedsDisplay: YES];
 }
 
 - (void) setGutterColor: (NSColor*) color
@@ -306,9 +320,23 @@ static const CGFloat TMVMinimumOutlinedCellSize =  6.0;
 	//rendered once per point and scaled up.
 	const NSSize backingSize = [self convertSizeToBackingRespectingFlipped: [self bounds].size];
 
-	[_rootItemRenderer calcLayout: NSMakeRect( 0.0, 0.0,
-											   floor( backingSize.width ),
-											   floor( backingSize.height ) )];
+	//The inset is given in points and applied here, in backing pixels, so it is
+	//the same width on screen at 1x and 2x. Expressing it in pixels instead
+	//would halve it on a Retina display.
+	const CGFloat scale = [self convertSizeToBackingRespectingFlipped: NSMakeSize( 1.0, 1.0 )].width;
+	const CGFloat inset = floor( _contentInset * scale );
+
+	//Never so much that there is nothing left to lay out: a narrow pane during a
+	//drag can be thinner than two margins.
+	const CGFloat width  = floor( backingSize.width )  - inset * 2.0;
+	const CGFloat height = floor( backingSize.height ) - inset * 2.0;
+
+	if ( width <= 0.0 || height <= 0.0 )
+		[_rootItemRenderer calcLayout: NSMakeRect( 0.0, 0.0,
+												   floor( backingSize.width ),
+												   floor( backingSize.height ) )];
+	else
+		[_rootItemRenderer calcLayout: NSMakeRect( inset, inset, width, height )];
 
 	[self invalidateOverlay];
 }
@@ -341,11 +369,38 @@ static const CGFloat TMVMinimumOutlinedCellSize =  6.0;
 	if ( _cachedContent == nil )
 		return;
 
-	//start from black; the cells cover the whole rect, but rounding can still
-	//leave hairline seams between them
-	unsigned char *bitmapData = [_cachedContent bitmapData];
-	if ( bitmapData != NULL )
-		memset( bitmapData, 0, [_cachedContent bytesPerRow] * [_cachedContent pixelsHigh] );
+	//The ground the cells sit on. It shows in two places: the hairline seams
+	//rounding can leave between cells, and - once there is a content inset - the
+	//margin around the whole map, which is most of what anyone sees of it.
+	//
+	//Drawn rather than memset, because the bitmap's layout comes from
+	//+imageRepCompatibleWithView: and writing bytes into it assumes an order and
+	//a channel count that are not ours to assume. Classic mode keeps the black
+	//it always had: it has no gutters and no inset, so this is only ever the
+	//seams there, and they are part of how the original looked.
+	if ( _usesClassicCushions || _gutterColor == nil )
+	{
+		unsigned char *bitmapData = [_cachedContent bitmapData];
+		if ( bitmapData != NULL )
+			memset( bitmapData, 0, [_cachedContent bytesPerRow] * [_cachedContent pixelsHigh] );
+	}
+	else
+	{
+		NSGraphicsContext *context =
+			[NSGraphicsContext graphicsContextWithBitmapImageRep: _cachedContent];
+
+		if ( context != nil )
+		{
+			[NSGraphicsContext saveGraphicsState];
+			[NSGraphicsContext setCurrentContext: context];
+
+			[_gutterColor set];
+			NSRectFill( NSMakeRect( 0.0, 0.0,
+									[_cachedContent pixelsWide], [_cachedContent pixelsHigh] ) );
+
+			[NSGraphicsContext restoreGraphicsState];
+		}
+	}
 
 	[_rootItemRenderer drawCushionInBitmap: _cachedContent];
 }

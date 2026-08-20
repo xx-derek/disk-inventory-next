@@ -76,6 +76,15 @@ typedef TMVItem* TMVCellId;
 @property (nonatomic, assign) CGFloat  gutterWidth;     //points, default 2
 @property (nonatomic, strong) NSColor *gutterColor;
 
+//A margin in points between the view's edge and the outermost cells, drawn in
+//-gutterColor like the gaps between the cells themselves. 0 by default: it is a
+//design decision, not something the widget assumes.
+//
+//It is part of the layout rather than something drawn on top, so the cells are
+//laid out inside it and hit testing follows without any change - a point in the
+//margin belongs to no cell, which is the truth.
+@property (nonatomic) CGFloat contentInset;
+
 //Names written into cells big enough to hold them. The strings come from the
 //delegate; a cell is labelled only if the text fits with its margins.
 @property (nonatomic, assign) BOOL     drawsCellLabels;

@@ -18,21 +18,59 @@
 #import "DIXControls.h"
 #import "FileSizeFormatter.h"
 #import "NSImage-Extensions.h"
+#import "DIXRecentScans.h"
 
 static const CGFloat kPadding       = 14.0;
 static const CGFloat kLabelHeight   = 18.0;
 static const CGFloat kLabelGap      = 10.0;
-static const CGFloat kRowHeight     = 41.0;
+//A row, from the top: 7 points of padding, the name and free-space line, a
+//6 point gap, the bar's line, 7 points of padding. 7+16+6+12+7.
+//
+//The design's row is 40, because its bar line is the bar's own 4 points. Ours
+//shares that line with the capacity figure - a 10pt number, which wants 12 -
+//and the row is 8 points taller for it. That figure is this fork's addition,
+//so the extra height is too.
+static const CGFloat kRowPaddingV   =  7.0;
+static const CGFloat kTextLine      = 16.0;
+static const CGFloat kCapacityLine  = 12.0;
+static const CGFloat kRowHeight     = 48.0;
 static const CGFloat kChooseHeight  = 34.0;
+
+//A folder that has been scanned before: its name and total on one line, then
+//where it is and when it was last looked at. 7 + 16 + 15 + 7.
+//
+//Drawn rather than built out of views, the way DIXKindsView draws its rows.
+//The one thing that *is* clickable inside a row - the button that forgets it -
+//is hit tested against its own rect in -mouseUp:, which is less machinery than
+//a button per row that has to be created and destroyed as the list changes.
+static const CGFloat kRecentRowHeight = 45.0;
+static const CGFloat kRecentDetailLine = 15.0;
+static const CGFloat kForgetSize = 16.0;
 static const CGFloat kIconSize      = 15.0;
 static const CGFloat kIconGap       = 10.0;
 static const CGFloat kBarHeight     =  4.0;
-static const CGFloat kBarTopGap     =  7.0;
+static const CGFloat kBarTopGap     =  6.0;   //the design's margin-top
 
 //Free space moves as the machine is used, and nothing announces it. Five
 //seconds is what the Drives panel already uses; the timer only runs while this
 //is in a window, so a closed sidebar costs nothing.
 static const NSTimeInterval kSizeRefreshInterval = 5.0;
+
+//The document view of the scroll around the folder list. It owns no state and
+//makes no decisions: the section draws into it and hit tests against it, so the
+//row code did not have to move or learn about two coordinate spaces - it simply
+//measures from this view's bounds instead of the section's.
+@interface DIXRecentsDocumentView : NSView
+@property (nonatomic, weak) DIXSourcesView *owner;
+@end
+
+//what the document view hands back
+@interface DIXSourcesView(RecentsDocumentView)
+- (void) drawRecentsInRect: (NSRect) dirtyRect;
+- (void) recentsMouseUp: (NSEvent*) event;
+- (void) recentsMouseMoved: (NSEvent*) event;
+- (void) recentsMouseExited;
+@end
 
 @interface DIXSourcesView()
 {
@@ -43,11 +81,43 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 	//bar, or NSNull for a volume that cannot say how big it is.
 	NSMutableArray *_bars;
 
+	//folders scanned before, most recent first, and their icons
+	NSScrollView *_recentsScroll;
+	DIXRecentsDocumentView *_recentsView;
+	NSMutableArray<DIXRecentScan*> *_recents;
+	NSMutableArray<NSImage*> *_recentIcons;
+	NSInteger _hoveredRecent;   //-1 for none; separate, so the forget button can show
+
 	NSURL *_currentVolumeURL;
+	NSURL *_currentRootURL;      //what this window scanned, which may be a folder
 	NSInteger _hoveredRow;                   //-1 for none
 	NSTimer *_refreshTimer;
 	NSTrackingArea *_trackingArea;
 }
+@end
+
+@implementation DIXRecentsDocumentView
+
+- (void) drawRect: (NSRect) dirtyRect      { [_owner drawRecentsInRect: dirtyRect]; }
+- (void) mouseUp: (NSEvent*) event         { [_owner recentsMouseUp: event]; }
+- (void) mouseMoved: (NSEvent*) event      { [_owner recentsMouseMoved: event]; }
+- (void) mouseExited: (NSEvent*) event     { [_owner recentsMouseExited]; }
+
+- (void) updateTrackingAreas
+{
+	[super updateTrackingAreas];
+
+	for ( NSTrackingArea *area in [self trackingAreas] )
+		[self removeTrackingArea: area];
+
+	[self addTrackingArea:
+		[[NSTrackingArea alloc] initWithRect: [self bounds]
+									 options: ( NSTrackingMouseMoved
+												| NSTrackingMouseEnteredAndExited
+												| NSTrackingActiveInKeyWindow )
+									   owner: self userInfo: nil]];
+}
+
 @end
 
 @implementation DIXSourcesView
@@ -88,11 +158,30 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 	_hoveredRow = -1;
 	_rowViews = [NSMutableArray array];
 	_bars = [NSMutableArray array];
+	_recents = [NSMutableArray array];
+	_recentIcons = [NSMutableArray array];
+	_hoveredRecent = -1;
 
 	_sectionLabel = [DIXControls sectionLabelWithTitle:
 		NSLocalizedString( @"SOURCES", @"sidebar section, what can be scanned" )];
 	[_sectionLabel setTranslatesAutoresizingMaskIntoConstraints: YES];
 	[self addSubview: _sectionLabel];
+
+	//Only the folders scroll. The volumes are the fixed part of the section and
+	//Choose Folder is how you add to it, so both stay put and the list between
+	//them takes whatever room is left.
+	_recentsView = [[DIXRecentsDocumentView alloc] initWithFrame: NSZeroRect];
+	[_recentsView setOwner: self];
+
+	_recentsScroll = [[NSScrollView alloc] initWithFrame: NSZeroRect];
+	[_recentsScroll setDocumentView: _recentsView];
+	[_recentsScroll setHasVerticalScroller: YES];
+	[_recentsScroll setAutohidesScrollers: YES];
+	[_recentsScroll setDrawsBackground: NO];
+	[_recentsScroll setBorderType: NSNoBorder];
+	[_recentsScroll setScrollerStyle: NSScrollerStyleOverlay];
+	[_recentsScroll setTranslatesAutoresizingMaskIntoConstraints: YES];
+	[self addSubview: _recentsScroll];
 
 	_chooseButton = [NSButton buttonWithTitle:
 		NSLocalizedString( @"Choose Folder…", @"sidebar, scan something that is not a volume" )
@@ -105,13 +194,18 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 	[_chooseButton setImagePosition: NSImageLeft];
 	[_chooseButton setAlignment: NSTextAlignmentLeft];
 	[_chooseButton setFont: [NSFont systemFontOfSize: 13.0]];
-	[_chooseButton setContentTintColor: [DIXTheme bodyText]];
+	[_chooseButton setContentTintColor: [DIXTheme detailText]];
 	[_chooseButton setTranslatesAutoresizingMaskIntoConstraints: YES];
 	[self addSubview: _chooseButton];
 
 	[[NSNotificationCenter defaultCenter] addObserver: self
 											 selector: @selector(onVolumesChanged:)
 												 name: DIXVolumeListChangedNotification
+											   object: nil];
+
+	[[NSNotificationCenter defaultCenter] addObserver: self
+											 selector: @selector(onVolumesChanged:)
+												 name: DIXRecentScansChangedNotification
 											   object: nil];
 
 	[self rebuildRows];
@@ -199,9 +293,39 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 		[_rowViews addObject: row];
 	}
 
+	[self rebuildRecents];
 	[self applyCurrentVolumeStyling];
 	[self layoutContents];
 	[self setNeedsDisplay: YES];
+}
+
+//Folders scanned before, most recent first, one row each - the store gives one
+//entry per folder, so scanning the same one twice moves it up rather than
+//listing it again with an older total beside it.
+//
+//Volumes are left out: they are listed above under their own names, with a
+//usage bar this row has no room and no figures for.
+- (void) rebuildRecents
+{
+	[_recents removeAllObjects];
+	[_recentIcons removeAllObjects];
+
+	NSMutableSet<NSString*> *volumePaths = [NSMutableSet set];
+
+	for ( DIXVolume *volume in [[DIXVolumeList sharedList] volumes] )
+	{
+		if ( [[volume url] path] != nil )
+			[volumePaths addObject: [[volume url] path]];
+	}
+
+	for ( DIXRecentScan *scan in [[DIXRecentScans sharedList] scans] )
+	{
+		if ( [volumePaths containsObject: [[scan url] path]] )
+			continue;
+
+		[_recents addObject: scan];
+		[_recentIcons addObject: [[NSWorkspace sharedWorkspace] iconForFile: [[scan url] path]]];
+	}
 }
 
 - (void) onVolumesChanged: (NSNotification*) notification
@@ -213,6 +337,7 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 {
 	return kPadding + kLabelHeight + kLabelGap
 		 + ( kRowHeight * (CGFloat) [_rowViews count] )
+		 + ( kRecentRowHeight * (CGFloat) [_recents count] )
 		 + kChooseHeight + kPadding;
 }
 
@@ -250,6 +375,15 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 	}
 }
 
+- (void) setCurrentRootURL: (NSURL*) url
+{
+	if ( url == _currentRootURL || [url isEqual: _currentRootURL] )
+		return;
+
+	_currentRootURL = url;
+	[self setNeedsDisplay: YES];
+}
+
 #pragma mark --------layout-----------------
 
 - (void) setFrameSize: (NSSize) newSize
@@ -265,6 +399,15 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 
 	return NSMakeRect( 0.0, top - kRowHeight * (CGFloat) ( index + 1 ),
 					   NSWidth( [self bounds] ), kRowHeight );
+}
+
+//In the document view's own coordinates, counting down from its top.
+- (NSRect) rectForRecentAtIndex: (NSUInteger) index
+{
+	const CGFloat contentHeight = kRecentRowHeight * (CGFloat) [_recents count];
+
+	return NSMakeRect( 0.0, contentHeight - kRecentRowHeight * (CGFloat) ( index + 1 ),
+					   NSWidth( [_recentsView bounds] ), kRecentRowHeight );
 }
 
 - (void) layoutContents
@@ -295,9 +438,17 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 		NSTextField *name = (NSTextField*) [parts objectAtIndex: 1];
 		NSTextField *free = (NSTextField*) [parts objectAtIndex: 2];
 
-		const CGFloat textTop = NSHeight( rowRect ) - 10.0;
+		//Measured down from the row's top padding rather than from a number that
+		//happened to look right: with the row at its old height the bar had 4
+		//points below it instead of 7 and the capacity figure sat at y=-1,
+		//hanging out of the row altogether.
+		const CGFloat textTop = NSHeight( rowRect ) - kRowPaddingV;
+		const CGFloat textY   = textTop - kTextLine;
 
-		[icon setFrame: NSMakeRect( kPadding, textTop - kIconSize, kIconSize, kIconSize )];
+		//the icon is smaller than the line, so it centres on it
+		[icon setFrame: NSMakeRect( kPadding,
+									textY + floor( ( kTextLine - kIconSize ) / 2.0 ),
+									kIconSize, kIconSize )];
 
 		[free sizeToFit];
 
@@ -305,9 +456,9 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 		const CGFloat nameX = kPadding + kIconSize + kIconGap;
 
 		[free setFrame: NSMakeRect( NSMaxX( rowRect ) - kPadding - freeWidth,
-									textTop - 16.0, freeWidth, 16.0 )];
-		[name setFrame: NSMakeRect( nameX, textTop - 16.0,
-									MAX( 0.0, NSMaxX( [free frame] ) - freeWidth - 8.0 - nameX ), 16.0 )];
+									textY, freeWidth, kTextLine )];
+		[name setFrame: NSMakeRect( nameX, textY,
+									MAX( 0.0, NSMaxX( [free frame] ) - freeWidth - 8.0 - nameX ), kTextLine )];
 
 		if ( [parts count] > 3 )
 		{
@@ -315,7 +466,13 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 			//capacity, which sits at the end of the same line: the bar is a
 			//proportion and that is the number it is a proportion of.
 			const CGFloat capacityWidth = 62.0;
-			const CGFloat barY = textTop - 16.0 - kBarTopGap - kBarHeight;
+
+			//The bar and the capacity figure share a line, and the figure is the
+			//taller of the two, so the line is its height and the bar centres in
+			//it. Its bottom is the row's bottom padding, which is what puts the
+			//7 points back underneath.
+			const CGFloat lineBottom = kRowPaddingV;
+			const CGFloat barY = lineBottom + floor( ( kCapacityLine - kBarHeight ) / 2.0 );
 
 			[[parts objectAtIndex: 3] setFrame:
 				NSMakeRect( nameX, barY,
@@ -325,8 +482,8 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 			if ( [parts count] > 4 )
 			{
 				[[parts objectAtIndex: 4] setFrame:
-					NSMakeRect( NSMaxX( rowRect ) - kPadding - capacityWidth, barY - 5.0,
-								capacityWidth, 14.0 )];
+					NSMakeRect( NSMaxX( rowRect ) - kPadding - capacityWidth, lineBottom,
+								capacityWidth, kCapacityLine )];
 			}
 		}
 	}
@@ -334,14 +491,34 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 	//No rule above Choose Folder: the design has none there. The 2pt rule the
 	//sidebar does have separates this whole section from FILE KINDS, and belongs
 	//to neither view - MainWindowController draws it between them.
-	const CGFloat chooseTop = NSMinY( [self rectForRowAtIndex: MAX( (NSInteger)[_rowViews count], 1 ) - 1 ] );
-
-	[_chooseButton setFrame: NSMakeRect( kPadding - 2.0, chooseTop - kChooseHeight,
+	//Choose Folder is pinned to the bottom of whatever height the section was
+	//given, the volumes sit under the heading at the top, and the folder list
+	//takes what is left between them - which is what scrolls when there is more
+	//of it than there is room.
+	[_chooseButton setFrame: NSMakeRect( kPadding - 2.0, kPadding,
 										 contentWidth, kChooseHeight )];
+
+	const CGFloat recentsTop = ( [_rowViews count] > 0 )
+		? NSMinY( [self rectForRowAtIndex: [_rowViews count] - 1] )
+		: NSMaxY( bounds ) - kPadding - kLabelHeight - kLabelGap;
+
+	const CGFloat recentsBottom = kPadding + kChooseHeight;
+	const CGFloat recentsHeight = MAX( 0.0, recentsTop - recentsBottom );
+
+	[_recentsScroll setFrame: NSMakeRect( 0.0, recentsBottom, NSWidth( bounds ), recentsHeight )];
+	[_recentsScroll setHidden: ( [_recents count] == 0 )];
+
+	//The document view is as tall as the rows need. When that is more than the
+	//scroll view can show, the scroller appears and this is what moves under it.
+	[_recentsView setFrame: NSMakeRect( 0.0, 0.0, NSWidth( bounds ),
+										MAX( recentsHeight,
+											 kRecentRowHeight * (CGFloat) [_recents count] ) )];
 }
 
 - (void) drawRect: (NSRect) dirtyRect
 {
+
+
 	//Clamped to this view's bounds - see the note in DIXStatusBarView's
 	//-drawRect:. The dirty rect can span the whole content view, and filling it
 	//paints over every sibling drawn before this one.
@@ -363,10 +540,132 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 		[( isCurrent ? [DIXTheme selectedRowFill] : [DIXTheme controlFill] ) set];
 
 		NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect: rowRect
-															xRadius: [DIXTheme cornerRadius]
-															yRadius: [DIXTheme cornerRadius]];
+															xRadius: [DIXTheme rowCornerRadius]
+															yRadius: [DIXTheme rowCornerRadius]];
 		[path fill];
 	}
+
+}
+
+//The same row treatment as a volume: name and total on one line, then where it
+//is and when it was last scanned. A folder gets no usage bar - it has no
+//capacity for one to be a proportion of.
+- (void) drawRecentsInRect: (NSRect) dirtyRect
+{
+	if ( [_recents count] == 0 )
+		return;
+
+	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
+
+	NSRelativeDateTimeFormatter *whenFormatter = [[NSRelativeDateTimeFormatter alloc] init];
+	[whenFormatter setDateTimeStyle: NSRelativeDateTimeFormatterStyleNamed];
+
+	NSDictionary *nameAttributes = @{
+		NSFontAttributeName: [NSFont systemFontOfSize: 13.0 weight: NSFontWeightMedium],
+		NSForegroundColorAttributeName: [DIXTheme ink],
+	};
+	NSDictionary *sizeAttributes = @{
+		NSFontAttributeName: [DIXTheme tabularFontOfSize: 11.0],
+		NSForegroundColorAttributeName: [DIXTheme detailText],
+	};
+
+	NSMutableParagraphStyle *middleTruncating = [[NSMutableParagraphStyle alloc] init];
+	[middleTruncating setLineBreakMode: NSLineBreakByTruncatingMiddle];
+
+	//The path is truncated in the *middle*: the two ends say which disk it is on
+	//and which folder it is, and the part worth losing is between them.
+	NSDictionary *detailAttributes = @{
+		NSFontAttributeName: [NSFont systemFontOfSize: 11.0],
+		NSForegroundColorAttributeName: [DIXTheme muted],
+		NSParagraphStyleAttributeName: middleTruncating,
+	};
+
+	for ( NSUInteger i = 0; i < [_recents count]; i++ )
+	{
+		const NSRect row = [self rectForRecentAtIndex: i];
+
+		if ( !NSIntersectsRect( row, dirtyRect ) )
+			continue;
+
+		DIXRecentScan *scan = [_recents objectAtIndex: i];
+
+		const BOOL isCurrent = ( _currentRootURL != nil && [[scan url] isEqual: _currentRootURL] );
+		const BOOL isHovered = ( (NSInteger) i == _hoveredRecent );
+
+		if ( isCurrent || isHovered )
+		{
+			[( isCurrent ? [DIXTheme selectedRowFill] : [DIXTheme controlFill] ) set];
+
+			[[NSBezierPath bezierPathWithRoundedRect: NSInsetRect( row, kPadding - 6.0, 1.0 )
+											 xRadius: [DIXTheme rowCornerRadius]
+											 yRadius: [DIXTheme rowCornerRadius]] fill];
+		}
+
+		const CGFloat nameY = NSMaxY( row ) - kRowPaddingV - kTextLine;
+		const CGFloat detailY = nameY - kRecentDetailLine;
+
+		[[_recentIcons objectAtIndex: i]
+			drawInRect: NSMakeRect( kPadding, nameY + floor( ( kTextLine - kIconSize ) / 2.0 ),
+									kIconSize, kIconSize )
+			  fromRect: NSZeroRect operation: NSCompositingOperationSourceOver
+			  fraction: 1.0 respectFlipped: YES hints: nil];
+
+		//The button that forgets a row only appears under the pointer. It takes
+		//the space the total would use, so the two never overlap.
+		CGFloat rightEdge = NSMaxX( row ) - kPadding;
+
+		if ( isHovered )
+		{
+			const NSRect forget = [self forgetButtonRectForRecentAtIndex: i];
+
+			[[DIXTheme muted] set];
+
+			NSBezierPath *cross = [NSBezierPath bezierPath];
+			const CGFloat inset = 4.5;
+			[cross moveToPoint: NSMakePoint( NSMinX(forget) + inset, NSMinY(forget) + inset )];
+			[cross lineToPoint: NSMakePoint( NSMaxX(forget) - inset, NSMaxY(forget) - inset )];
+			[cross moveToPoint: NSMakePoint( NSMinX(forget) + inset, NSMaxY(forget) - inset )];
+			[cross lineToPoint: NSMakePoint( NSMaxX(forget) - inset, NSMinY(forget) + inset )];
+			[cross setLineWidth: 1.5];
+			[cross setLineCapStyle: NSLineCapStyleRound];
+			[cross stroke];
+
+			rightEdge = NSMinX( forget ) - 6.0;
+		}
+		else
+		{
+			NSString *total = [sizeFormatter stringForObjectValue: @([scan size])];
+			const NSSize extent = [total sizeWithAttributes: sizeAttributes];
+
+			[total drawAtPoint: NSMakePoint( rightEdge - extent.width, nameY + 2.0 )
+				withAttributes: sizeAttributes];
+
+			rightEdge -= extent.width + 6.0;
+		}
+
+		const CGFloat nameX = kPadding + kIconSize + kIconGap;
+
+		[[scan name] drawInRect: NSMakeRect( nameX, nameY, MAX( 0.0, rightEdge - nameX ), kTextLine )
+				 withAttributes: nameAttributes];
+
+		NSString *detail = [NSString stringWithFormat: @"%@ · %@",
+			[scan abbreviatedPath],
+			[whenFormatter localizedStringForDate: [scan scannedAt] relativeToDate: [NSDate date]]];
+
+		[detail drawInRect: NSMakeRect( nameX, detailY,
+										MAX( 0.0, NSMaxX( row ) - kPadding - nameX ), kRecentDetailLine )
+			withAttributes: detailAttributes];
+	}
+}
+
+- (NSRect) forgetButtonRectForRecentAtIndex: (NSUInteger) index
+{
+	const NSRect row = [self rectForRecentAtIndex: index];
+
+	return NSMakeRect( NSMaxX( row ) - kPadding - kForgetSize,
+					   NSMaxY( row ) - kRowPaddingV - kTextLine
+						 + floor( ( kTextLine - kForgetSize ) / 2.0 ),
+					   kForgetSize, kForgetSize );
 }
 
 #pragma mark --------opening-----------------
@@ -384,6 +683,50 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 		[self openURL: [[volumes objectAtIndex: i] url]];
 		return;
 	}
+
+}
+
+- (void) recentsMouseUp: (NSEvent*) event
+{
+	const NSPoint point = [_recentsView convertPoint: [event locationInWindow] fromView: nil];
+
+	for ( NSUInteger i = 0; i < [_recents count]; i++ )
+	{
+		if ( !NSPointInRect( point, [self rectForRecentAtIndex: i] ) )
+			continue;
+
+		//the forget button sits inside the row, so it is tested first
+		if ( NSPointInRect( point, [self forgetButtonRectForRecentAtIndex: i] ) )
+		{
+			[[DIXRecentScans sharedList] removeScanForURL: [[_recents objectAtIndex: i] url]];
+			return;
+		}
+
+		[self openURL: [[_recents objectAtIndex: i] url]];
+		return;
+	}
+}
+
+- (void) recentsMouseMoved: (NSEvent*) event
+{
+	const NSPoint point = [_recentsView convertPoint: [event locationInWindow] fromView: nil];
+
+	for ( NSUInteger i = 0; i < [_recents count]; i++ )
+	{
+		if ( NSPointInRect( point, [self rectForRecentAtIndex: i] ) )
+		{
+			[self setHoveredRow: -1];
+			[self setHoveredRecent: (NSInteger) i];
+			return;
+		}
+	}
+
+	[self setHoveredRecent: -1];
+}
+
+- (void) recentsMouseExited
+{
+	[self setHoveredRecent: -1];
 }
 
 //Deferred to the next turn of the run loop, the way DrivesPanelController opens
@@ -455,6 +798,7 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 		if ( NSPointInRect( point, [self rectForRowAtIndex: i] ) )
 		{
 			[self setHoveredRow: (NSInteger) i];
+			[self setHoveredRecent: -1];
 			return;
 		}
 	}
@@ -465,6 +809,16 @@ static const NSTimeInterval kSizeRefreshInterval = 5.0;
 - (void) mouseExited: (NSEvent*) event
 {
 	[self setHoveredRow: -1];
+	[self setHoveredRecent: -1];
+}
+
+- (void) setHoveredRecent: (NSInteger) row
+{
+	if ( row == _hoveredRecent )
+		return;
+
+	_hoveredRecent = row;
+	[_recentsView setNeedsDisplay: YES];
 }
 
 //The timer follows the view in and out of a window, so a closed document stops

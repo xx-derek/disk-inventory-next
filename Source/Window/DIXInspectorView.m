@@ -104,6 +104,7 @@ static const CGFloat kHeaderBottomGap  =  14.0;
 		[button setTranslatesAutoresizingMaskIntoConstraints: YES];
 
 	_infoView = [[DIXFileInfoView alloc] initWithFrame: NSZeroRect];
+	[_infoView setUsesInspectorLayout: YES];
 
 	_siblingsView = [[DIXSiblingsView alloc] initWithFrame: NSZeroRect];
 

@@ -33,4 +33,9 @@
 //volumes is the one on screen. Pass nil for a scan that is not a volume.
 - (void) setCurrentVolumeURL: (NSURL*) url;
 
+//What this window actually scanned. Marks the matching row among the recent
+//folders, the way -setCurrentVolumeURL: marks one among the volumes; a scan of
+//a whole volume matches up there instead and nothing here.
+- (void) setCurrentRootURL: (NSURL*) url;
+
 @end

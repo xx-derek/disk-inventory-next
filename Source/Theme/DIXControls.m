@@ -307,4 +307,29 @@
 	return button;
 }
 
++ (void) setImageTitleGap: (CGFloat) gap onButton: (NSButton*) button
+{
+	NSString *title = [button title];
+
+	if ( [title length] == 0 )
+		return;
+
+	NSFont *font = [button font] ?: [NSFont systemFontOfSize: [NSFont systemFontSize]];
+
+	//A space is about a quarter of the point size; the kern makes up the rest,
+	//so the figure asked for is the figure drawn whatever the font does.
+	const CGFloat spaceWidth = [@" " sizeWithAttributes: @{ NSFontAttributeName: font }].width;
+
+	NSMutableAttributedString *spaced = [[NSMutableAttributedString alloc]
+		initWithString: [@" " stringByAppendingString: title]
+			attributes: @{ NSFontAttributeName: font }];
+
+	[spaced addAttribute: NSKernAttributeName
+				   value: @( MAX( 0.0, gap - spaceWidth ) )
+				   range: NSMakeRange( 0, 1 )];
+
+	[button setAttributedTitle: spaced];
+	[button setAccessibilityTitle: title];
+}
+
 @end

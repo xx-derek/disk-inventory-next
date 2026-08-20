@@ -96,7 +96,7 @@ static const NSTimeInterval kFlashDuration = 4.0;
 	[_chip setWantsLayer: YES];
 	[_chip setHidden: YES];
 
-	_nameField = [self labelWithSize: 12.0 weight: NSFontWeightSemibold color: [DIXTheme ink]];
+	_nameField = [self labelWithSize: 12.0 weight: NSFontWeightMedium color: [DIXTheme ink]];
 	[_nameField setLineBreakMode: NSLineBreakByTruncatingMiddle];
 
 	_detailField = [self labelWithSize: 12.0 weight: NSFontWeightRegular color: [DIXTheme secondaryText]];
@@ -138,7 +138,9 @@ static const NSTimeInterval kFlashDuration = 4.0;
 	const NSRect bounds = [self bounds];
 	const CGFloat midY = NSMidY( bounds );
 
-	const CGFloat chipSize = [DIXTheme kindChipSize];
+	//11, not [DIXTheme kindChipSize]: the legend's chip is 10 and this one is
+	//11 in the design - they sit at different sizes of text
+	const CGFloat chipSize = 11.0;
 	CGFloat x = kHorizontalPadding;
 
 	[_chip setFrame: NSMakeRect( x, midY - chipSize / 2.0, chipSize, chipSize )];
@@ -188,7 +190,9 @@ static const NSTimeInterval kFlashDuration = 4.0;
 	//the view is unflipped, so its top edge is at the maximum y
 	line.origin.y = NSMaxY( [self bounds] ) - 1.0;
 
-	[[DIXTheme hairline] set];
+	//the lighter content weight: this divides one pane, where -hairline
+	//is the edge *between* panes - between the map and the bar, inside the centre column
+	[[DIXTheme contentHairline] set];
 	NSRectFill( NSIntersectionRect( line, dirtyRect ) );
 }
 

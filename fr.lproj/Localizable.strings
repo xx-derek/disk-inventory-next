@@ -133,3 +133,12 @@
 "Name" = "Nom";
 "Size" = "Taille";
 "Share" = "Part";
+
+/* the inspector's attribute rows - the design sets these without colons */
+"Kind" = "Type";
+"Modified" = "Modifié";
+"Created" = "Créé";
+"Owner" = "Propriétaire";
+"Permission" = "Autorisations";
+"Where" = "Emplacement";
+"Opens with" = "Ouvrir avec";

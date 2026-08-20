@@ -96,6 +96,15 @@ static const CGFloat kRuleHeight        = 36.0;
 
 	_rescanButton = [DIXControls secondaryButtonWithTitle:
 		NSLocalizedString( @"Rescan", @"summary strip button" ) target: nil action: NULL];
+
+	//The design puts a refresh glyph before the word. The accessibility
+	//description is the title, so VoiceOver reads the button once rather than
+	//announcing an image and then a label that say the same thing.
+	[_rescanButton setImage: [NSImage imageForSymbolName: @"arrow.clockwise"
+								   accessibilityDescription: [_rescanButton title]]];
+	[_rescanButton setImagePosition: NSImageLeft];
+	[DIXControls setImageTitleGap: 6.0 onButton: _rescanButton];
+
 	[_rescanButton setTranslatesAutoresizingMaskIntoConstraints: YES];
 
 	_zoomInButton  = [self iconButtonWithSymbol: @"plus.magnifyingglass"
@@ -226,7 +235,9 @@ static const CGFloat kRuleHeight        = 36.0;
 	NSRect line = [self bounds];
 	line.size.height = 1.0;
 
-	[[DIXTheme hairline] set];
+	//the lighter content weight: this divides one pane, where -hairline
+	//is the edge *between* panes - between the strip and the map, inside the centre column
+	[[DIXTheme contentHairline] set];
 	NSRectFill( NSIntersectionRect( line, dirtyRect ) );
 }
 

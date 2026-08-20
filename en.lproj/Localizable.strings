@@ -131,3 +131,12 @@
 "Name" = "Name";
 "Size" = "Size";
 "Share" = "Share";
+
+/* the inspector's attribute rows - the design sets these without colons */
+"Kind" = "Kind";
+"Modified" = "Modified";
+"Created" = "Created";
+"Owner" = "Owner";
+"Permission" = "Permission";
+"Where" = "Where";
+"Opens with" = "Opens with";

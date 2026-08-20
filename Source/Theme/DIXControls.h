@@ -81,4 +81,13 @@
 								target: (id) target
 								action: (SEL) action;
 
+//Puts "gap" points between a button's image and its title.
+//
+//NSButton has no such property - imageHugsTitle changes nothing for a rounded
+//bezel, measured, and a paragraph style's firstLineHeadIndent is ignored by the
+//cell - so the space is a leading space in an attributed title, kerned out to
+//the width asked for. The accessible title is set separately, so what VoiceOver
+//reads has no stray space in it.
++ (void) setImageTitleGap: (CGFloat) gap onButton: (NSButton*) button;
+
 @end

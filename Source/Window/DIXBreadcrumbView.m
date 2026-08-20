@@ -41,7 +41,7 @@ static NSString * const kSeparator = @"›";
 
 @interface DIXBreadcrumbView()
 {
-	NSMutableArray<DIXBreadcrumbSegment*> *_segments;
+	NSMutableArray<NSView*> *_segments;   //buttons where you can go, labels elsewhere
 	NSMutableArray<NSTextField*> *_separators;
 
 	__weak id _target;
@@ -69,10 +69,14 @@ static NSString * const kSeparator = @"›";
 	_target = target;
 	_action = action;
 
-	for ( DIXBreadcrumbSegment *segment in _segments )
+	//labels have neither, and are not destinations
+	for ( NSView *segment in _segments )
 	{
-		[segment setTarget: target];
-		[segment setAction: action];
+		if ( ![segment isKindOfClass: [DIXBreadcrumbSegment class]] )
+			continue;
+
+		[(DIXBreadcrumbSegment*) segment setTarget: target];
+		[(DIXBreadcrumbSegment*) segment setAction: action];
 	}
 }
 
@@ -95,35 +99,55 @@ static NSString * const kSeparator = @"›";
 	{
 		const BOOL isLast = ( i == count - 1 );
 
-		DIXBreadcrumbSegment *segment = [[DIXBreadcrumbSegment alloc] initWithFrame: NSZeroRect];
+		id represented = ( i < [objects count] ) ? [objects objectAtIndex: i] : nil;
 
-		[segment setTranslatesAutoresizingMaskIntoConstraints: YES];
-		[segment setButtonType: NSButtonTypeMomentaryChange];
-		[segment setBordered: NO];
-		[segment setBezelStyle: NSBezelStyleInline];
+		//A segment is a button only where clicking it can go somewhere. The
+		//last one is where you already are, and the folders above the scan root
+		//are context - there is nothing in this document's tree for them, and
+		//re-scanning on a stray click is not what a breadcrumb is for.
+		const BOOL isDestination = ( !isLast && represented != nil
+									 && represented != [NSNull null] );
 
 		//Where you are is a statement, not a control: the last segment is ink
-		//and semibold, is not clickable, and does not take a cursor.
+		//and semibold.
 		NSDictionary *attributes = @{
 			NSFontAttributeName: [NSFont systemFontOfSize: kSegmentFontSize
 													weight: isLast ? NSFontWeightSemibold
 																   : NSFontWeightRegular],
-			NSForegroundColorAttributeName: isLast ? [DIXTheme ink] : [DIXTheme secondaryText],
+			NSForegroundColorAttributeName: isLast ? [DIXTheme ink] : [DIXTheme detailText],
 		};
 
-		[segment setAttributedTitle:
+		NSAttributedString *title =
 			[[NSAttributedString alloc] initWithString: [titles objectAtIndex: i]
-											attributes: attributes]];
+											attributes: attributes];
 
-		[segment setEnabled: !isLast];
+		NSView *segment = nil;
 
-		if ( !isLast )
+		if ( isDestination )
 		{
-			[segment setRepresentedObject: ( i < [objects count] )
-											? [objects objectAtIndex: i] : nil];
-			[segment setTarget: _target];
-			[segment setAction: _action];
+			DIXBreadcrumbSegment *button = [[DIXBreadcrumbSegment alloc] initWithFrame: NSZeroRect];
+
+			[button setButtonType: NSButtonTypeMomentaryChange];
+			[button setBordered: NO];
+			[button setBezelStyle: NSBezelStyleInline];
+			[button setAttributedTitle: title];
+			[button setRepresentedObject: represented];
+			[button setTarget: _target];
+			[button setAction: _action];
+
+			segment = button;
 		}
+		else
+		{
+			//A label rather than a disabled button. A disabled button draws its
+			//title dimmed whatever colour the attributed string asks for, and in
+			//dark mode that colour is #f0eeec - dimming a near-white on a dark
+			//ground washes it out far more than dimming near-black on white did,
+			//which is why this only looked wrong in dark.
+			segment = [NSTextField labelWithAttributedString: title];
+		}
+
+		[segment setTranslatesAutoresizingMaskIntoConstraints: YES];
 
 		[_segments addObject: segment];
 		[self addSubview: segment];
@@ -134,7 +158,7 @@ static NSString * const kSeparator = @"›";
 
 			[separator setTranslatesAutoresizingMaskIntoConstraints: YES];
 			[separator setFont: [NSFont systemFontOfSize: kSeparatorFontSize]];
-			[separator setTextColor: [DIXTheme tertiaryText]];
+			[separator setTextColor: [DIXTheme separatorGlyph]];
 
 			[_separators addObject: separator];
 			[self addSubview: separator];
@@ -161,9 +185,9 @@ static NSString * const kSeparator = @"›";
 
 	for ( NSUInteger i = 0; i < [_segments count]; i++ )
 	{
-		DIXBreadcrumbSegment *segment = [_segments objectAtIndex: i];
+		NSView *segment = [_segments objectAtIndex: i];
 
-		[segment sizeToFit];
+		[(NSControl*) segment sizeToFit];
 
 		const NSSize size = [segment frame].size;
 		[segment setFrame: NSMakeRect( x, midY - size.height / 2.0, size.width, size.height )];
