@@ -148,3 +148,10 @@
 "Deselect All" = "Deselect All";
 "Chip = the kind filling the row · click to find it on the map" = "Chip = the kind filling the row · click to find it on the map";
 "Search scope" = "Search scope";
+"Where did the space go?" = "Where did the space go?";
+"Pick a volume or a folder. Scanning does not change anything on disk." = "Pick a volume or a folder. Scanning does not change anything on disk.";
+"%@ free" = "%@ free";
+"Scanned %@ · %@" = "Scanned %@ · %@";
+"Never scanned" = "Never scanned";
+"Last scan of %@: %@, %@" = "Last scan of %@: %@, %@";
+"Scan" = "Scan";

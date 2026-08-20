@@ -143,3 +143,10 @@
 "Deselect All" = "Auswahl aufheben";
 "Chip = the kind filling the row · click to find it on the map" = "Das Feld zeigt die Art, die die Zeile füllt · klicken, um sie in der Karte zu finden";
 "Search scope" = "Suchbereich";
+"Where did the space go?" = "Wo ist der Speicherplatz geblieben?";
+"Pick a volume or a folder. Scanning does not change anything on disk." = "Wählen Sie ein Volume oder einen Ordner. Das Scannen ändert nichts auf der Festplatte.";
+"%@ free" = "%@ frei";
+"Scanned %@ · %@" = "Gescannt %@ · %@";
+"Never scanned" = "Nie gescannt";
+"Last scan of %@: %@, %@" = "Letzter Scan von %@: %@, %@";
+"Scan" = "Scannen";

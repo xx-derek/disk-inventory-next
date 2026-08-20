@@ -19,6 +19,7 @@
 NSString *DIXRecentDocumentsChangedNotification = @"DIXRecentDocumentsChanged";
 #import "DonationPanelController.h"
 #import "DrivesPanelController.h"
+#import "DIXScanPickerController.h"
 #import "Preferences.h"
 #import "PrefsPanelController.h"
 #import "FileSystemDoc.h"
@@ -219,9 +220,10 @@ static NSMenuItem* FindMenuItemWithAction( NSMenu *menu, SEL action )
     
 	[self _renameSettingsMenuItem];
 
-	//show the drives panel before "applicationDidFinishLaunching" so the panel is visible before the first document is loaded
-	//(e.g. through drag&drop)
-	[[DrivesPanelController sharedController] showPanel];
+	//Shown before -applicationDidFinishLaunching:, so it is up before the first
+	//document can be loaded from a drag or a Recent Item - which would otherwise
+	//open a window behind it.
+	[[DIXScanPickerController sharedController] showPicker];
 }
 
 //macOS 13 renamed Preferences to Settings. The item lives in the main menu nib,

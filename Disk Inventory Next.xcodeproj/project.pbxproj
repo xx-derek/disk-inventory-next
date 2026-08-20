@@ -85,6 +85,7 @@
 		DEC8DE000000000000000C /* DIXSiblingsView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE000000000000000B /* DIXSiblingsView.m */; };
 		DEC8DE000000000000000F /* DIXTableHeaderView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE000000000000000E /* DIXTableHeaderView.m */; };
 		DEC8DE0000000000000012 /* DIXRecentScans.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000011 /* DIXRecentScans.m */; };
+		DEC8DE0000000000000022 /* DIXScanPickerController.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000021 /* DIXScanPickerController.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -273,6 +274,8 @@
 		DEC8DE000000000000000E /* DIXTableHeaderView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXTableHeaderView.m; sourceTree = "<group>"; };
 		DEC8DE0000000000000010 /* DIXRecentScans.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXRecentScans.h; sourceTree = "<group>"; };
 		DEC8DE0000000000000011 /* DIXRecentScans.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXRecentScans.m; sourceTree = "<group>"; };
+		DEC8DE0000000000000020 /* DIXScanPickerController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXScanPickerController.h; sourceTree = "<group>"; };
+		DEC8DE0000000000000021 /* DIXScanPickerController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXScanPickerController.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -419,6 +422,8 @@
 				FCCFB2D6097FA42B009EA2B6 /* DIXFileInfoView.m */,
 				FCCFB2E1097FA42B009EA2B6 /* DrivesPanelController.h */,
 				FCCFB2E2097FA42B009EA2B6 /* DrivesPanelController.m */,
+				DEC8DE0000000000000020 /* DIXScanPickerController.h */,
+				DEC8DE0000000000000021 /* DIXScanPickerController.m */,
 				FCCFB2E3097FA42B009EA2B6 /* VolumeNameTransformer.h */,
 				FCCFB2E4097FA42B009EA2B6 /* VolumeNameTransformer.m */,
 				FCCFB2E5097FA42B009EA2B6 /* VolumeUsageTransformer.h */,
@@ -710,6 +715,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DEC8DE0000000000000012 /* DIXRecentScans.m in Sources */,
+				DEC8DE0000000000000022 /* DIXScanPickerController.m in Sources */,
 				DEC8DE000000000000000F /* DIXTableHeaderView.m in Sources */,
 				DEC8DE000000000000000C /* DIXSiblingsView.m in Sources */,
 				DEC8DE0000000000000009 /* DIXKindsView.m in Sources */,

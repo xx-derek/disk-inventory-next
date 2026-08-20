@@ -150,3 +150,10 @@
 "Deselect All" = "Tout désélectionner";
 "Chip = the kind filling the row · click to find it on the map" = "Le carré indique le type qui remplit la ligne · cliquez pour le trouver sur la carte";
 "Search scope" = "Portée de la recherche";
+"Where did the space go?" = "Où est passé l’espace ?";
+"Pick a volume or a folder. Scanning does not change anything on disk." = "Choisissez un volume ou un dossier. L’analyse ne modifie rien sur le disque.";
+"%@ free" = "%@ libres";
+"Scanned %@ · %@" = "Analysé %@ · %@";
+"Never scanned" = "Jamais analysé";
+"Last scan of %@: %@, %@" = "Dernière analyse de %@ : %@, %@";
+"Scan" = "Analyser";
