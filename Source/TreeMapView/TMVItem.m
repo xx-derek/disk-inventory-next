@@ -119,6 +119,7 @@ static const NSUInteger TMVMinimumUsefulCells = 4;
 	_item = nil;
 	_rect = NSZeroRect;
 	_childRenderers = nil;
+	_isLeafCache = -1;	//not asked yet - -isLeaf answers YES from _isRemainder first
 	_cushionRenderer = [[TMVCushionRenderer alloc] init];
 	_depth = depth;
 	_cellStyle = TMVCellStyleRemainder;

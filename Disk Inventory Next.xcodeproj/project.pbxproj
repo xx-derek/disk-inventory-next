@@ -81,6 +81,11 @@
 		DEC8DE000000000000000006 /* DIXSummaryStripView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE000000000000000005 /* DIXSummaryStripView.m */; };
 		DEC8DE00000000000000000A /* DIXBreadcrumbView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE000000000000000009 /* DIXBreadcrumbView.m */; };
 		DEC8DE00000000000000000D /* DIXInspectorView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE00000000000000000C /* DIXInspectorView.m */; };
+		DEC8DE0000000000000003 /* DIXVolumeList.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000002 /* DIXVolumeList.m */; };
+		DEC8DE0000000000000006 /* DIXSourcesView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000005 /* DIXSourcesView.m */; };
+		DEC8DE0000000000000009 /* DIXKindsView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000008 /* DIXKindsView.m */; };
+		DEC8DE000000000000000C /* DIXSiblingsView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE000000000000000B /* DIXSiblingsView.m */; };
+		DEC8DE000000000000000F /* DIXTableHeaderView.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE000000000000000E /* DIXTableHeaderView.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -263,6 +268,16 @@
 		DEC8DE000000000000000009 /* DIXBreadcrumbView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXBreadcrumbView.m; sourceTree = "<group>"; };
 		DEC8DE00000000000000000B /* DIXInspectorView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXInspectorView.h; sourceTree = "<group>"; };
 		DEC8DE00000000000000000C /* DIXInspectorView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXInspectorView.m; sourceTree = "<group>"; };
+		DEC8DE0000000000000001 /* DIXVolumeList.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXVolumeList.h; sourceTree = "<group>"; };
+		DEC8DE0000000000000002 /* DIXVolumeList.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXVolumeList.m; sourceTree = "<group>"; };
+		DEC8DE0000000000000004 /* DIXSourcesView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXSourcesView.h; sourceTree = "<group>"; };
+		DEC8DE0000000000000005 /* DIXSourcesView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXSourcesView.m; sourceTree = "<group>"; };
+		DEC8DE0000000000000007 /* DIXKindsView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXKindsView.h; sourceTree = "<group>"; };
+		DEC8DE0000000000000008 /* DIXKindsView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXKindsView.m; sourceTree = "<group>"; };
+		DEC8DE000000000000000A /* DIXSiblingsView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXSiblingsView.h; sourceTree = "<group>"; };
+		DEC8DE000000000000000B /* DIXSiblingsView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXSiblingsView.m; sourceTree = "<group>"; };
+		DEC8DE000000000000000D /* DIXTableHeaderView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXTableHeaderView.h; sourceTree = "<group>"; };
+		DEC8DE000000000000000E /* DIXTableHeaderView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXTableHeaderView.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -373,6 +388,8 @@
 				FCCFB301097FA42B009EA2B6 /* FileSystemDoc.m */,
 				FCCFB300097FA42B009EA2B6 /* FileTypeColors.h */,
 				FCCFB2FF097FA42B009EA2B6 /* FileTypeColors.m */,
+				DEC8DE0000000000000001 /* DIXVolumeList.h */,
+				DEC8DE0000000000000002 /* DIXVolumeList.m */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -451,6 +468,8 @@
 				FCCFB2B3097FA42B009EA2B6 /* ImageAndTextCell.m */,
 				FCCFB2B1097FA42B009EA2B6 /* GenericArrayController.h */,
 				FCCFB2B0097FA42B009EA2B6 /* GenericArrayController.m */,
+				DEC8DE000000000000000D /* DIXTableHeaderView.h */,
+				DEC8DE000000000000000E /* DIXTableHeaderView.m */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -481,6 +500,12 @@
 				DEC8DE000000000000000009 /* DIXBreadcrumbView.m */,
 				DEC8DE00000000000000000B /* DIXInspectorView.h */,
 				DEC8DE00000000000000000C /* DIXInspectorView.m */,
+				DEC8DE0000000000000004 /* DIXSourcesView.h */,
+				DEC8DE0000000000000005 /* DIXSourcesView.m */,
+				DEC8DE0000000000000007 /* DIXKindsView.h */,
+				DEC8DE0000000000000008 /* DIXKindsView.m */,
+				DEC8DE000000000000000A /* DIXSiblingsView.h */,
+				DEC8DE000000000000000B /* DIXSiblingsView.m */,
 			);
 			path = Window;
 			sourceTree = "<group>";
@@ -691,6 +716,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DEC8DE000000000000000F /* DIXTableHeaderView.m in Sources */,
+				DEC8DE000000000000000C /* DIXSiblingsView.m in Sources */,
+				DEC8DE0000000000000009 /* DIXKindsView.m in Sources */,
+				DEC8DE0000000000000006 /* DIXSourcesView.m in Sources */,
+				DEC8DE0000000000000003 /* DIXVolumeList.m in Sources */,
 				DEC2DE000000000000000003 /* NSAlert-Extensions.m in Sources */,
 				DEC4DE000000000000000003 /* NSImage-Extensions.m in Sources */,
 				DEC7DE000000000000000003 /* DIXTheme.m in Sources */,

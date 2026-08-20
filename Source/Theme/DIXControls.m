@@ -100,7 +100,7 @@
 
 	if ( self != nil )
 	{
-		_trackColor = [NSColor quaternaryLabelColor];
+		_trackColor = [DIXTheme barTrack];
 		[self setTranslatesAutoresizingMaskIntoConstraints: NO];
 	}
 
@@ -234,9 +234,12 @@
 	[rule setBoxType: NSBoxCustom];
 	[rule setBorderWidth: 0.0];
 	[rule setFillColor: [DIXTheme rule]];
-	[rule setTranslatesAutoresizingMaskIntoConstraints: NO];
 
-	[[[rule heightAnchor] constraintEqualToConstant: [DIXTheme ruleThickness]] setActive: YES];
+	//Deliberately no height constraint. The windows that use this lay out with
+	//frames, and a constraint on the returned box would be the only thing in
+	//that hierarchy asking the layout engine for an opinion. Callers give it a
+	//frame [DIXTheme ruleThickness] points tall.
+	[rule setTranslatesAutoresizingMaskIntoConstraints: YES];
 
 	return rule;
 }

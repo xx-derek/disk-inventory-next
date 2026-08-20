@@ -27,8 +27,12 @@
 #import "DIXStatusBarView.h"
 #import "DIXBreadcrumbView.h"
 #import "DIXInspectorView.h"
+#import "DIXSourcesView.h"
+#import "DIXKindsView.h"
+#import "DIXVolumeList.h"
 #import "NSImage-Extensions.h"
 #import "DIXTheme.h"
+#import "DIXControls.h"
 
 NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibilityChanged";
 
@@ -40,18 +44,17 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 
 @interface MainWindowController()
 - (void) setKindStatisticsVisible: (BOOL) visible animated: (BOOL) animated;
-- (NSToolbarItem*) buildBreadcrumbItem;
 - (NSToolbarItem*) buildViewModeItem;
 - (NSToolbarItem*) buildInspectorToggleItem;
+- (void) installTitleAccessory;
 - (void) updateBreadcrumb;
-- (void) updateBreadcrumbSizingItem: (NSToolbarItem*) item;
+- (void) layoutTitleAccessory;
 - (void) updateViewModeControl;
 - (void) applyViewMode;
 - (void) updateStatusBarHintForViewMode;
 - (void) chooseInitialViewMode;
 - (void) updateInspector;
 - (void) placePaneDividers;
-- (NSToolbarItem*) toolbarItemWithIdentifier: (NSString*) identifier;
 - (void) animateKindStatisticsDividerTo: (CGFloat) targetWidth completion: (void (^)(void)) completion;
 @end
 
@@ -155,6 +158,43 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 //which is where the drawers they replaced used to slide out from. The split
 //views are built here rather than in the nib because four localized copies of a
 //nested split layout would be four chances to get it subtly different.
+//SOURCES takes exactly the height its rows need and the statistics take the
+//rest. Frames rather than constraints, like the rest of this window's chrome.
+- (void) layoutSidebarPane
+{
+	//Between the two sections, at the design's margins: 16 above the rule and 8
+	//below it, inset 14 either side. SOURCES already ends with 14 points of its
+	//own padding, so 2 more here makes the 16.
+	static const CGFloat kRuleInset    = 14.0;
+	static const CGFloat kRuleGapAbove =  2.0;
+	static const CGFloat kRuleGapBelow =  8.0;
+
+	if ( _sidebarPane == nil || _sourcesView == nil )
+		return;
+
+	const NSRect bounds = [_sidebarPane bounds];
+	const CGFloat sourcesHeight = MIN( [_sourcesView fittingHeight], NSHeight( bounds ) );
+	const CGFloat ruleThickness = [DIXTheme ruleThickness];
+
+	[_sourcesView setFrame: NSMakeRect( 0.0, NSMaxY( bounds ) - sourcesHeight,
+										NSWidth( bounds ), sourcesHeight )];
+
+	const CGFloat ruleY = NSMaxY( bounds ) - sourcesHeight - kRuleGapAbove - ruleThickness;
+
+	[_sectionRule setFrame: NSMakeRect( kRuleInset, ruleY,
+										MAX( 0.0, NSWidth( bounds ) - kRuleInset * 2.0 ),
+										ruleThickness )];
+
+	[_kindsView setFrame: NSMakeRect( 0.0, 0.0,
+									  NSWidth( bounds ),
+									  MAX( 0.0, ruleY - kRuleGapBelow ) )];
+}
+
+- (void) onVolumeListChanged: (NSNotification*) notification
+{
+	[self layoutSidebarPane];
+}
+
 - (void) buildSidePanes
 {
 	NSView *contentView = [[self window] contentView];
@@ -197,14 +237,59 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 	[_selectionListSplitView addSubview: _splitter];
 	[_selectionListSplitView addSubview: _selectionListPane];
 
+	//The middle column of the three. The summary strip and the status bar belong
+	//to it rather than to the window, which is what lets the sidebar and the
+	//inspector run the full height beside them - in the design they start under
+	//the title bar and finish at the window's bottom edge. The split view still
+	//sees exactly one subview per column, so none of the divider logic changes.
+	_centreColumn = [[NSView alloc] initWithFrame: paneFrame];
+	[_centreColumn setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
+
+	[_selectionListSplitView setFrame: [_centreColumn bounds]];
+	[_selectionListSplitView setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
+	[_centreColumn addSubview: _selectionListSplitView];
+
 	//A third column: statistics, the outline and map, then the inspector. The
 	//inspector is a peer of the other two rather than a floating window, which
 	//is the whole point - it describes the selection next to it instead of over
 	//it, and cannot be left behind on another space.
 	_inspectorView = [[DIXInspectorView alloc] initWithFrame: paneFrame];
 
-	[_kindStatisticsSplitView addSubview: _kindStatisticsPane];
-	[_kindStatisticsSplitView addSubview: _selectionListSplitView];
+	//SOURCES sits above the kind statistics in the same column. The nib's view
+	//keeps its job and its outlet; it just no longer starts at the top.
+	_sourcesView = [[DIXSourcesView alloc] initWithFrame: NSZeroRect];
+
+	//The nib's kind-statistics view is left behind here rather than reparented:
+	//it is a headered, cell-based NSTableView driven by two NSArrayControllers,
+	//and the legend replacing it is neither. The nib still builds it - the nib
+	//goes as a whole in the last step of this phase - it simply is not shown.
+	_kindsView = [[DIXKindsView alloc] initWithFrame: NSZeroRect];
+
+	//The 2pt rule between SOURCES and FILE KINDS. It belongs to neither view -
+	//it is the boundary between them - so the pane that holds both draws it.
+	_sectionRule = [DIXControls sectionRule];
+
+	_sidebarPane = [[NSView alloc] initWithFrame: [_kindStatisticsPane frame]];
+	[_sidebarPane addSubview: _sourcesView];
+	[_sidebarPane addSubview: _sectionRule];
+	[_sidebarPane addSubview: _kindsView];
+
+	[_sourcesView setAutoresizingMask: ( NSViewWidthSizable | NSViewMinYMargin )];
+	[_kindsView setAutoresizingMask: ( NSViewWidthSizable | NSViewHeightSizable )];
+
+	[_kindsView setDocument: (FileSystemDoc*) [self document]];
+
+	[self layoutSidebarPane];
+
+	//mounting or unmounting changes how tall SOURCES needs to be, and the
+	//statistics below it have to give up or take back the difference
+	[[NSNotificationCenter defaultCenter] addObserver: self
+											 selector: @selector(onVolumeListChanged:)
+												 name: DIXVolumeListChangedNotification
+											   object: nil];
+
+	[_kindStatisticsSplitView addSubview: _sidebarPane];
+	[_kindStatisticsSplitView addSubview: _centreColumn];
 	[_kindStatisticsSplitView addSubview: _inspectorView];
 
 	[_kindStatisticsSplitView setFrame: paneFrame];
@@ -215,55 +300,72 @@ NSString *SelectionListVisibilityChangedNotification = @"SelectionListVisibility
 	[self setKindStatisticsVisible: YES];
 	[self setSelectionListVisible: NO];
 
+	[_inspectorView setDocument: (FileSystemDoc*) [self document]];
+
 	[_inspectorView setTarget: self
 				 revealAction: @selector(showInFinder:)
 				   openAction: @selector(openFile:)
 				  trashAction: @selector(moveToTrash:)];
+
+	[_inspectorView setReclaimTarget: self action: @selector(reclaimBasket:)];
 
 	[self setInspectorVisible: YES];
 
 	[self buildWindowChrome];
 }
 
-//Installs the two code-built chrome views as siblings of the nib's views:
-//summary strip across the top of the content area, status bar along the bottom,
-//with the split view squeezed between them.
+//Installs the two code-built chrome views inside the middle column: summary
+//strip across its top, status bar along its bottom, with the outline/treemap
+//split squeezed between them. The sidebar and the inspector are unaffected and
+//keep the window's full height, which is how the design draws all three.
 - (void) buildWindowChrome
 {
 	NSView *contentView = [[self window] contentView];
 	const NSRect contentBounds = [contentView bounds];
 
-	const CGFloat statusHeight = [DIXStatusBarView preferredHeight];
-	const CGFloat stripHeight  = [DIXSummaryStripView preferredHeight];
-
-	_statusBarView = [[DIXStatusBarView alloc] initWithFrame:
-		NSMakeRect( NSMinX( contentBounds ), NSMinY( contentBounds ),
-					NSWidth( contentBounds ), statusHeight )];
-	[_statusBarView setAutoresizingMask: NSViewWidthSizable | NSViewMaxYMargin];
-	[contentView addSubview: _statusBarView];
-
-	_summaryStripView = [[DIXSummaryStripView alloc] initWithFrame:
-		NSMakeRect( NSMinX( contentBounds ), NSMaxY( contentBounds ) - stripHeight,
-					NSWidth( contentBounds ), stripHeight )];
-	[_summaryStripView setAutoresizingMask: NSViewWidthSizable | NSViewMinYMargin];
-	[contentView addSubview: _summaryStripView];
-
-	//the split view now owns only the band between the two chrome views
-	NSRect squeezed = contentBounds;
-	squeezed.origin.y = statusHeight;
-	squeezed.size.height = NSHeight( contentBounds ) - statusHeight - stripHeight;
-	[_kindStatisticsSplitView setFrame: squeezed];
-
-	//The status bar replaces the nib's two loose labels, which sat where it now
-	//stands. They are not outlets on this controller - TreeMapViewController
+	//The status bar replaces the nib's two loose labels, which sat below the
+	//splitter. They are not outlets on this controller - TreeMapViewController
 	//owns them and no longer writes to them - so they are found by class: after
 	//-buildSidePanes moved the splitter, the only NSTextFields left as direct
 	//subviews are those two.
+	//
+	//Done before the split view is expanded over them, because that is what
+	//makes the space they occupied safe to take.
 	for ( NSView *subview in [contentView subviews] )
 	{
 		if ( [subview isKindOfClass: [NSTextField class]] )
 			[subview setHidden: YES];
 	}
+
+	//The columns now run the whole content view. -buildSidePanes could only take
+	//the splitter's own frame, because those two labels were still showing below
+	//it; with them hidden the space is free, and the sidebar and inspector need
+	//it to reach the bottom of the window.
+	[_kindStatisticsSplitView setFrame: contentBounds];
+	[_kindStatisticsSplitView setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
+
+	const NSRect columnBounds = [_centreColumn bounds];
+
+	const CGFloat statusHeight = [DIXStatusBarView preferredHeight];
+	const CGFloat stripHeight  = [DIXSummaryStripView preferredHeight];
+
+	_statusBarView = [[DIXStatusBarView alloc] initWithFrame:
+		NSMakeRect( NSMinX( columnBounds ), NSMinY( columnBounds ),
+					NSWidth( columnBounds ), statusHeight )];
+	[_statusBarView setAutoresizingMask: NSViewWidthSizable | NSViewMaxYMargin];
+	[_centreColumn addSubview: _statusBarView];
+
+	_summaryStripView = [[DIXSummaryStripView alloc] initWithFrame:
+		NSMakeRect( NSMinX( columnBounds ), NSMaxY( columnBounds ) - stripHeight,
+					NSWidth( columnBounds ), stripHeight )];
+	[_summaryStripView setAutoresizingMask: NSViewWidthSizable | NSViewMinYMargin];
+	[_centreColumn addSubview: _summaryStripView];
+
+	//the outline/treemap split owns only the band between the two chrome views
+	NSRect squeezed = columnBounds;
+	squeezed.origin.y = statusHeight;
+	squeezed.size.height = NSHeight( columnBounds ) - statusHeight - stripHeight;
+	[_selectionListSplitView setFrame: squeezed];
 
 	//the strip's buttons drive the actions the menu already validates
 	[_summaryStripView setTarget: self
@@ -351,6 +453,9 @@ static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
 	if ( splitView != _kindStatisticsSplitView && splitView != _splitter )
 		return;
 
+	//The breadcrumb starts where the sidebar ends, so it moves with the divider.
+	[self layoutTitleAccessory];
+
 	//Nothing is worth saving until the opening widths have been applied. The
 	//split view resizes several times while the window is being assembled, and
 	//saving then meant -placePaneDividers read back the arbitrary widths it was
@@ -361,7 +466,7 @@ static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
 	if ( ![self isKindStatisticsVisible] || ![self isInspectorVisible] )
 		return;
 
-	const CGFloat statistics = NSWidth( [_kindStatisticsPane frame] );
+	const CGFloat statistics = NSWidth( [_sidebarPane frame] );
 	const CGFloat fileList   = NSWidth( [[_filesOutlineView enclosingScrollView] frame] );
 	const CGFloat inspector  = NSWidth( [_inspectorView frame] );
 
@@ -401,6 +506,18 @@ static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
 			inspector  = floor( inspector  * MAX( share, 0.0 ) );
 		}
 
+		//A saved width under the minimum goes back to the *designed* width, not to
+		//the minimum. Nobody chose 140pt for the sidebar - it is either a value
+		//saved before these minimums existed, or one scaled down by the share
+		//above - and answering it with the bare minimum honours a preference that
+		//was never expressed. 244 is the design's, and the user narrowing it to
+		//210 by hand still gets 210 back.
+		if ( statistics < kMinimumSidebarWidth )
+			statistics = [DIXTheme sidebarWidth];
+
+		if ( inspector < kMinimumInspectorWidth )
+			inspector = [DIXTheme inspectorWidth];
+
 		//The inspector first: it is measured from the trailing edge, so placing
 		//the statistics divider first would only move it again.
 		if ( [self isInspectorVisible] )
@@ -413,8 +530,19 @@ static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
 	//The outline against the map. Left to itself the split gave the outline
 	//whatever was left after the treemap, which at the window's opening width
 	//truncated every file name to an ellipsis.
+	if ( fileList < kMinimumFileListWidth )
+		fileList = [DIXTheme fileListWidth];
+
 	if ( [_splitter isVertical] && NSWidth( [_splitter bounds] ) > fileList * 2.0 )
 		[_splitter setPosition: fileList ofDividerAtIndex: 0];
+
+	//And then the view mode again, because -setPosition:ofDividerAtIndex:
+	//*un-collapses* the subview it gives width to - which quietly undid Map and
+	//List mode. This runs a run-loop turn after the window loads, so the order at
+	//launch was: choose the mode, hide the pane it does not want, then hand that
+	//pane its designed width straight back. A narrow window opened in Map mode
+	//and showed the file list anyway, with the mode control still reading Map.
+	[self applyViewMode];
 
 	//from here on the widths are the user's, and worth remembering
 	_paneWidthsPlaced = YES;
@@ -454,9 +582,6 @@ static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
 	 itemForItemIdentifier: (NSString*) identifier
  willBeInsertedIntoToolbar: (BOOL) willInsert
 {
-	if ( [identifier isEqualToString: @"Breadcrumb"] )
-		return [self buildBreadcrumbItem];
-
 	if ( [identifier isEqualToString: @"ViewMode"] )
 		return [self buildViewModeItem];
 
@@ -466,33 +591,6 @@ static NSString * const kPaneWidthsKey = @"MainWindowPaneWidths";
 	return [super toolbar: toolbar
 	itemForItemIdentifier: identifier
 willBeInsertedIntoToolbar: willInsert];
-}
-
-- (NSToolbarItem*) buildBreadcrumbItem
-{
-	NSToolbarItem *item = [[NSToolbarItem alloc] initWithItemIdentifier: @"Breadcrumb"];
-
-	_breadcrumbView = [[DIXBreadcrumbView alloc] initWithFrame: NSMakeRect( 0.0, 0.0, 240.0, 22.0 )];
-	[_breadcrumbView setTarget: self action: @selector(zoomOutTo:)];
-
-	[item setView: _breadcrumbView];
-
-	//No label under it. The breadcrumb stands where the window title would be
-	//and reads as a title; captioning it "Location" would be labelling the
-	//title bar. The palette label is still set, since the customization sheet
-	//has to call it something.
-	[item setLabel: @""];
-	[item setPaletteLabel: NSLocalizedString( @"Location", @"toolbar item label" )];
-
-	//The breadcrumb stands in for the window title, so it should not also be
-	//removable from the toolbar - a window with neither would say nowhere.
-	[item setVisibilityPriority: NSToolbarItemVisibilityPriorityHigh];
-
-	//Sized against the item in hand: -updateBreadcrumb looks the item up in the
-	//toolbar, and at this point it has not been inserted yet.
-	[self updateBreadcrumbSizingItem: item];
-
-	return item;
 }
 
 //The right-hand counterpart of NSToolbarToggleSidebarItem. AppKit has no
@@ -537,16 +635,71 @@ willBeInsertedIntoToolbar: willInsert];
 	return item;
 }
 
+#pragma mark -----------------the title bar's leading accessory-----------------------
+
+//The breadcrumb and the sidebar button sit in a title bar accessory rather than
+//in the toolbar, and that is not a stylistic preference.
+//
+//The app is built against the macOS 26 SDK, so it opts into Liquid Glass, and on
+//26 a toolbar draws each of its items inside a glass capsule: the item's view
+//goes into an NSToolbarItemViewer inside an NSGlassContainerView. That is right
+//for the view-mode control and the inspector button, which are controls and are
+//drawn with a background in the design too. It is wrong for the breadcrumb,
+//which is a title - it came out looking like text inside a button.
+//
+//Nothing supported turns the capsule off. NSToolbarItemViewer has -glassBehavior
+//and -setTransparentBackground:, and both are private. A title bar accessory
+//goes into an NSTitlebarAccessoryClipView instead, never entering the toolbar's
+//glass container, so it is the supported way to put plain text up there.
+//
+//The sidebar button comes along because a leading accessory is laid out *before*
+//the toolbar's own items - measured: the accessory at x=88, the first toolbar
+//item at x=274. Leaving NSToolbarToggleSidebarItem in the toolbar would have put
+//it to the right of the breadcrumb, where the design has it to the left.
+- (void) installTitleAccessory
+{
+	if ( _titleAccessoryView != nil )
+		return;
+
+	NSString *label = NSLocalizedString( @"Sidebar", @"toolbar item label" );
+
+	_sidebarButton = [NSButton buttonWithImage: [NSImage imageForSymbolName: @"sidebar.left"
+													  accessibilityDescription: label]
+										target: self
+										action: @selector(toggleSidebar:)];
+
+	[_sidebarButton setBordered: NO];
+	[_sidebarButton setToolTip: NSLocalizedString( @"Show or hide the sidebar",
+												   @"toolbar item tooltip" )];
+
+	_breadcrumbView = [[DIXBreadcrumbView alloc] initWithFrame: NSMakeRect( 0.0, 0.0, 240.0, 22.0 )];
+	[_breadcrumbView setTarget: self action: @selector(zoomOutTo:)];
+
+	//AppKit stretches the accessory to the full height of the title bar, which is
+	//taller than either child. Both margins flexible keeps them centred through
+	//that, and -layoutTitleAccessory centres them again whenever the path changes.
+	[_sidebarButton setAutoresizingMask: NSViewMinYMargin | NSViewMaxYMargin];
+	[_breadcrumbView setAutoresizingMask: NSViewMinYMargin | NSViewMaxYMargin];
+
+	_titleAccessoryView = [[NSView alloc] initWithFrame: NSMakeRect( 0.0, 0.0, 300.0, 22.0 )];
+	[_titleAccessoryView addSubview: _sidebarButton];
+	[_titleAccessoryView addSubview: _breadcrumbView];
+
+	NSTitlebarAccessoryViewController *accessory =
+		[[NSTitlebarAccessoryViewController alloc] init];
+
+	[accessory setView: _titleAccessoryView];
+	[accessory setLayoutAttribute: NSLayoutAttributeLeading];
+
+	[[self window] addTitlebarAccessoryViewController: accessory];
+
+	[self updateBreadcrumb];
+}
+
 //"Macintosh HD › Users › derek › Movies". The zoom stack holds what has been
 //zoomed into; the root is not on it, and is prepended here because it is where
 //the scan began and the one place you always want to be able to get back to.
 - (void) updateBreadcrumb
-{
-	[self updateBreadcrumbSizingItem: nil];
-}
-
-//"item" is the toolbar item to resize, or nil to find it in the toolbar.
-- (void) updateBreadcrumbSizingItem: (NSToolbarItem*) item
 {
 	FileSystemDoc *doc = [self document];
 	FSItem *rootItem = [doc rootItem];
@@ -556,6 +709,45 @@ willBeInsertedIntoToolbar: willInsert];
 
 	NSMutableArray<NSString*> *titles = [NSMutableArray array];
 	NSMutableArray *items = [NSMutableArray array];
+
+	//The path down to the scan root, before the root itself. The design's
+	//breadcrumb reads "Macintosh HD › Users › derek › Movies" - it starts at the
+	//volume, not at whatever was scanned - and without these a scan of
+	///usr/share showed a single segment saying "share", which locates nothing.
+	//
+	//They carry an NSURL rather than an FSItem because they are outside the
+	//scanned tree: there is no item for them and they cannot be zoom targets.
+	//Clicking one scans it, which is the only thing it could honestly mean.
+	NSURL *rootURL = [rootItem fileURL];
+
+	if ( rootURL != nil )
+	{
+		NSMutableArray<NSURL*> *ancestors = [NSMutableArray array];
+
+		for ( NSURL *url = [rootURL URLByDeletingLastPathComponent];
+			  url != nil && ![[url path] isEqualToString: [rootURL path]];
+			  url = [url URLByDeletingLastPathComponent] )
+		{
+			[ancestors insertObject: url atIndex: 0];
+
+			if ( [[url path] isEqualToString: @"/"] )
+				break;
+		}
+
+		for ( NSURL *url in ancestors )
+		{
+			NSString *name = nil;
+
+			//the volume's own name for "/" and for a mount point, the folder's
+			//otherwise - which is what the Finder shows and what the design draws
+			if ( ![url getResourceValue: &name forKey: NSURLLocalizedNameKey error: NULL]
+				 || [name length] == 0 )
+				name = [url lastPathComponent];
+
+			[titles addObject: name];
+			[items addObject: url];
+		}
+	}
 
 	[titles addObject: [rootItem displayName]];
 	[items addObject: rootItem];
@@ -568,44 +760,76 @@ willBeInsertedIntoToolbar: willInsert];
 
 	[_breadcrumbView setSegmentTitles: titles representedObjects: items];
 
-	//The item's own width has to follow the path, or a deep breadcrumb is
-	//clipped to whatever width it was built at.
-	const CGFloat width = [_breadcrumbView fittingWidth];
-	const NSSize size = NSMakeSize( width, 22.0 );
-
-	NSRect frame = [_breadcrumbView frame];
-	frame.size = size;
-	[_breadcrumbView setFrame: frame];
-
-	//A view-based toolbar item does not measure its own view. -minSize/-maxSize
-	//are formally deprecated in favour of Auto Layout, but they are what works
-	//against a hand-laid-out view on the macOS 11 deployment target, and the
-	//alternative would put constraints in this window for one label's width.
-	if ( item == nil )
-		item = [self toolbarItemWithIdentifier: @"Breadcrumb"];
-
-	[item setMinSize: size];
-	[item setMaxSize: size];
+	[self layoutTitleAccessory];
 }
 
-- (NSToolbarItem*) toolbarItemWithIdentifier: (NSString*) identifier
+//The accessory has no layout of its own, and its width has to follow the path or
+//a deep breadcrumb is clipped to whatever width it was built at.
+- (void) layoutTitleAccessory
 {
-	for ( NSToolbarItem *item in [[[self window] toolbar] items] )
+	const CGFloat kLeadingInset  =  6.0;
+	const CGFloat kButtonWidth   = 28.0;
+	const CGFloat kGap           = 12.0;
+	const CGFloat kContentHeight = 22.0;
+
+	if ( _titleAccessoryView == nil )
+		return;
+
+	const CGFloat height = NSHeight( [_titleAccessoryView frame] );
+	const CGFloat y = floor( (height - kContentHeight) / 2.0 );
+
+	[_sidebarButton setFrame: NSMakeRect( kLeadingInset, y, kButtonWidth, kContentHeight )];
+
+	//The design starts the breadcrumb just past the sidebar, at the same x as the
+	//file list below it, so it reads as a heading for the content rather than for
+	//the window. That edge moves: the divider is draggable and the sidebar
+	//collapses, so it is measured rather than assumed, and the button's own width
+	//is the floor for when the sidebar is closed.
+	CGFloat x = kLeadingInset + kButtonWidth + kGap;
+
+	if ( [self isKindStatisticsVisible] )
 	{
-		if ( [[item itemIdentifier] isEqualToString: identifier] )
-			return item;
+		//Both in the window's own coordinates: the accessory is in the title bar
+		//and the pane is in the content view, so neither one's bounds will do.
+		NSView *frameView = [[[self window] contentView] superview];
+
+		const CGFloat paneEdge = NSMaxX( [_sidebarPane convertRect: [_sidebarPane bounds]
+															toView: frameView] );
+		const CGFloat originX  = NSMinX( [_titleAccessoryView convertRect: [_titleAccessoryView bounds]
+																   toView: frameView] );
+
+		//14 points past the sidebar's edge, which is the design's own padding
+		//inside the content area, so the breadcrumb sits over the file list's
+		//left margin rather than merely after the divider.
+		x = MAX( x, paneEdge - originX + 14.0 );
 	}
 
-	return nil;
+	const CGFloat width = [_breadcrumbView fittingWidth];
+
+	[_breadcrumbView setFrame: NSMakeRect( x, y, width, kContentHeight )];
+
+	NSRect box = [_titleAccessoryView frame];
+	box.size.width = x + width + kGap;
+	[_titleAccessoryView setFrame: box];
+
+	//The title bar lays accessories out from their frames, and does not watch
+	//them for changes: without this a zoom that lengthens the path leaves the
+	//clip view at the old width and the last segment is cut off.
+	[[_titleAccessoryView superview] setNeedsLayout: YES];
 }
 
-//The toolbar carries the breadcrumb, which is a title, so the window's own
+//The title bar carries the breadcrumb, which is a title, so the window's own
 //title is turned off rather than repeated beside it. Icon-only is the design's
 //toolbar: glyphs with no captions, which is also what leaves the breadcrumb
 //room to grow.
 - (void) windowDidLoad
 {
 	[super windowDidLoad];
+
+	//After -super, which is what builds the toolbar: the accessory has to be the
+	//leading thing in the title bar, and it is added to the window rather than
+	//to the toolbar, so the two do not race.
+	[self installTitleAccessory];
 
 	//Deferred one turn of the run loop. The panes are built during
 	//-awakeFromNib, when the window is still the nib's 572 points wide, and
@@ -716,6 +940,19 @@ willBeInsertedIntoToolbar: willInsert];
 	if ( _summaryStripView == nil || rootItem == nil )
 		return;
 
+	//Which volume this window is showing, so SOURCES can mark its row. Asked of
+	//the scan root's URL rather than matched by path prefix: a scan of a folder
+	//inside a volume is still that volume's, and the URL knows which one it is
+	//where string comparison would have to guess about mount points.
+	NSURL *volumeURL = nil;
+
+	if ( ![[rootItem fileURL] getResourceValue: &volumeURL
+										forKey: NSURLVolumeURLKey
+										 error: NULL] )
+		volumeURL = nil;
+
+	[_sourcesView setCurrentVolumeURL: volumeURL];
+
 	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
 
 	NSNumberFormatter *countFormatter = [[NSNumberFormatter alloc] init];
@@ -753,7 +990,11 @@ willBeInsertedIntoToolbar: willInsert];
 //its constraints but gives it no space, which is what the drawers did visually.
 - (BOOL) isKindStatisticsVisible
 {
-	return _kindStatisticsPane != nil && ![_kindStatisticsPane isHidden];
+	//The sidebar pane, not the nib's statistics view inside it: NSSplitView
+	//collapses by hiding *its own* subview, and since SOURCES moved in above the
+	//statistics that subview is the container. Asking the inner view would have
+	//answered YES for a collapsed sidebar.
+	return _sidebarPane != nil && ![_sidebarPane isHidden];
 }
 
 - (void) setKindStatisticsVisible: (BOOL) visible
@@ -767,12 +1008,12 @@ willBeInsertedIntoToolbar: willInsert];
 //subview has no width to animate from.
 - (void) setKindStatisticsVisible: (BOOL) visible animated: (BOOL) animated
 {
-	if ( _kindStatisticsPane == nil || visible == [self isKindStatisticsVisible] )
+	if ( _sidebarPane == nil || visible == [self isKindStatisticsVisible] )
 		return;
 
 	if ( !animated || ![[self window] isVisible] )
 	{
-		[_kindStatisticsPane setHidden: !visible];
+		[_sidebarPane setHidden: !visible];
 		[_kindStatisticsSplitView adjustSubviews];
 		return;
 	}
@@ -780,7 +1021,7 @@ willBeInsertedIntoToolbar: willInsert];
 	//Remember the width so reopening restores it. The split view's own autosave
 	//only records a position it has been left at, and collapsing writes zero.
 	if ( !visible )
-		_kindStatisticsWidth = NSWidth( [_kindStatisticsPane frame] );
+		_kindStatisticsWidth = NSWidth( [_sidebarPane frame] );
 
 	const CGFloat targetWidth = visible ? ( _kindStatisticsWidth > 0.0 ? _kindStatisticsWidth
 																	  : kDefaultKindStatisticsWidth )
@@ -789,7 +1030,7 @@ willBeInsertedIntoToolbar: willInsert];
 	if ( visible )
 	{
 		//give it a zero-width starting point to grow from
-		[_kindStatisticsPane setHidden: NO];
+		[_sidebarPane setHidden: NO];
 		_animatingKindStatistics = YES;
 		[_kindStatisticsSplitView setPosition: 0.0 ofDividerAtIndex: 0];
 	}
@@ -800,7 +1041,7 @@ willBeInsertedIntoToolbar: willInsert];
 		//the divider draggable and -isKindStatisticsVisible would still say YES.
 		if ( !visible )
 		{
-			[self->_kindStatisticsPane setHidden: YES];
+			[self->_sidebarPane setHidden: YES];
 			[self->_kindStatisticsSplitView adjustSubviews];
 		}
 	}];
@@ -818,7 +1059,7 @@ willBeInsertedIntoToolbar: willInsert];
 {
 	[_kindStatisticsAnimationTimer invalidate];
 
-	const CGFloat startWidth = NSWidth( [_kindStatisticsPane frame] );
+	const CGFloat startWidth = NSWidth( [_sidebarPane frame] );
 	const NSTimeInterval duration = 0.18;
 	NSDate *startedAt = [NSDate date];
 
@@ -880,28 +1121,60 @@ willBeInsertedIntoToolbar: willInsert];
 
 #pragma mark -----------------NSSplitView delegate-----------------------
 
+//What each pane needs before it stops being worth having.
+//
+//The sidebar's was 120pt, from when it held nothing but a statistics table. It
+//now carries volume names beside their free space and a legend of kind names,
+//and at 120 both truncate to a couple of characters - which is what made the
+//capacity figure look unplaceable when it was really the pane being too narrow.
+//200 keeps "Macintosh HD" and "MacBinary archive" whole; the design opens it at
+//244.
+//
+//The file list had no minimum at all: its divider fell through to whatever
+//NSSplitView proposed, so it could be dragged down to a sliver of truncated
+//names. 260 is the Size and Share columns (74 + 46) plus the indentation and
+//enough left for a name to be recognisable.
+static const CGFloat kMinimumSidebarWidth  = 200.0;
+static const CGFloat kMinimumFileListWidth = 260.0;
+static const CGFloat kMinimumTreeMapWidth  = 260.0;
+
+//Below this the inspector's two-column attribute grid stops being readable and
+//its three header buttons start truncating their titles.
+static const CGFloat kMinimumInspectorWidth = 220.0;
+
 - (BOOL) splitView: (NSSplitView*) splitView canCollapseSubview: (NSView*) subview
 {
-	return subview == _kindStatisticsPane || subview == _selectionListPane;
+	return subview == _sidebarPane || subview == _selectionListPane;
 }
 
 - (CGFloat) splitView: (NSSplitView*) splitView
 constrainMinCoordinate: (CGFloat) proposedMin
 		  ofSubviewAt: (NSInteger) dividerIndex
 {
+	//The outline against the map. Only while both are showing: in Map or List
+	//mode one of them is collapsed, and holding a minimum against a pane that is
+	//meant to have no width at all would stop the mode taking effect.
+	if ( splitView == _splitter )
+	{
+		if ( [[_filesOutlineView enclosingScrollView] isHidden] || [_treeMapView isHidden] )
+			return proposedMin;
+
+		return MAX( proposedMin, kMinimumFileListWidth );
+	}
+
 	if ( splitView != _kindStatisticsSplitView )
 		return proposedMin;
 
 	//Divider 1 is the one before the inspector; dragging it left is what makes
 	//the inspector wider, so its minimum is what keeps the centre usable.
 	if ( dividerIndex == 1 )
-		return MAX( proposedMin, NSMinX( [_selectionListSplitView frame] ) + 320.0 );
+		return MAX( proposedMin, NSMinX( [_centreColumn frame] ) + 320.0 );
 
 	//The minimum keeps the pane usable rather than letting it be dragged to a
 	//sliver, but it has to be lifted while collapsing or the slide would stop
 	//dead at 120 points instead of reaching zero.
 	if ( !_animatingKindStatistics )
-		return MAX( proposedMin, 120.0 );
+		return MAX( proposedMin, kMinimumSidebarWidth );
 
 	return proposedMin;
 }
@@ -910,13 +1183,19 @@ constrainMinCoordinate: (CGFloat) proposedMin
 constrainMaxCoordinate: (CGFloat) proposedMax
 		  ofSubviewAt: (NSInteger) dividerIndex
 {
+	if ( splitView == _splitter )
+	{
+		if ( [[_filesOutlineView enclosingScrollView] isHidden] || [_treeMapView isHidden] )
+			return proposedMax;
+
+		return MIN( proposedMax, NSWidth([splitView bounds]) - kMinimumTreeMapWidth );
+	}
+
 	if ( splitView != _kindStatisticsSplitView )
 		return MIN( proposedMax, NSHeight([splitView bounds]) - 150.0 );
 
-	//Below this the inspector's two-column attribute grid stops being readable,
-	//and its three header buttons start truncating their titles.
 	if ( dividerIndex == 1 )
-		return MIN( proposedMax, NSWidth([splitView bounds]) - 220.0 );
+		return MIN( proposedMax, NSWidth([splitView bounds]) - kMinimumInspectorWidth );
 
 	//and leave room for the outline and treemap
 	return MIN( proposedMax, NSWidth([splitView bounds]) - 250.0 );
@@ -990,8 +1269,22 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 - (IBAction) zoomOutTo:(id)sender
 {
     FileSystemDoc *doc = [self document];
-	FSItem *item = [sender representedObject];
-	
+	id represented = [sender representedObject];
+
+	//A segment above the scan root is an NSURL, not an item: there is nothing in
+	//this document's tree to zoom out to, so it opens a scan of that folder.
+	if ( [represented isKindOfClass: [NSURL class]] )
+	{
+		[[NSRunLoop currentRunLoop] performSelector: @selector(openDocumentWithContentsOfFile:)
+											 target: [NSDocumentController sharedDocumentController]
+										   argument: [(NSURL*) represented path]
+											  order: 1
+											  modes: @[ NSDefaultRunLoopMode ]];
+		return;
+	}
+
+	FSItem *item = represented;
+
 	NSAssert( [doc rootItem] == [item root], @"item belongs to a different document" );
 
 	//The root is a legitimate destination and is deliberately not on the zoom
@@ -1041,6 +1334,47 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 	//the zoomed item might have changed
 	[self synchronizeWindowTitleWithDocumentName];
 }	
+
+//The basket, rather than the selection. Confirmation names both figures,
+//because this is several files at once and the count alone does not say how
+//much of the disk is about to go.
+- (IBAction) reclaimBasket: (id) sender
+{
+	FileSystemDoc *doc = (FileSystemDoc*) [self document];
+
+	if ( [doc basketCount] == 0 )
+		return;
+
+	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
+	NSString *total = [sizeFormatter stringForObjectValue: @([doc basketSize])];
+
+	NSAlert *alert = [[NSAlert alloc] init];
+
+	[alert setMessageText:
+		[NSString stringWithFormat: NSLocalizedString( @"Move %lu items to the Trash?",
+													   @"reclaim confirmation" ),
+									(unsigned long) [doc basketCount] ]];
+	[alert setInformativeText:
+		[NSString stringWithFormat: NSLocalizedString( @"This frees %@.", @"reclaim confirmation" ),
+									total]];
+
+	[alert addButtonWithTitle: NSLocalizedString( @"Move to Trash", @"reclaim confirmation" )];
+	[alert addButtonWithTitle: NSLocalizedString( @"Cancel", @"reclaim confirmation" )];
+
+	if ( [alert runModal] != NSAlertFirstButtonReturn )
+		return;
+
+	//A copy, because trashing posts FSItemsChangedNotification and the basket
+	//prunes itself against the tree as it goes
+	for ( FSItem *item in [[doc basketItems] copy] )
+		[self moveItemToTrash: item];
+
+	[doc clearBasket];
+
+	[_statusBarView flashMessage:
+		[NSString stringWithFormat: NSLocalizedString( @"Freed %@", @"status bar, after reclaiming" ),
+									total]];
+}
 
 - (IBAction) moveToTrash:(id)sender
 {
@@ -1326,9 +1660,13 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 //Bumped again for the breadcrumb and the view-mode control. An existing user's
 //saved layout has neither, and since the breadcrumb stands in for the window
 //title they would otherwise be left with a window that never says where it is.
+//
+//And again when the breadcrumb and the sidebar button left the toolbar for the
+//title bar accessory: a saved layout still names both, and would draw a second
+//sidebar button beside the accessory's own.
 - (NSString *)toolbarAutosaveIdentifier
 {
-    return @"MainWindowToolbar-3";
+    return @"MainWindowToolbar-4";
 }
 
 #pragma mark -----------------NSWindow delegates-----------------------

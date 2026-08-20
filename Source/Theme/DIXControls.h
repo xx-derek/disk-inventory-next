@@ -46,7 +46,7 @@
 //rather than something to draw
 @property (nonatomic, assign) double   fraction;
 @property (nonatomic, strong) NSColor *fillColor;
-@property (nonatomic, strong) NSColor *trackColor;  //defaults to a quaternary fill
+@property (nonatomic, strong) NSColor *trackColor;  //defaults to [DIXTheme barTrack]
 
 @end
 

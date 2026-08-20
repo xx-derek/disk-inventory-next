@@ -18,6 +18,7 @@
 #import "DIXControls.h"
 #import "FSItem.h"
 #import "FileSizeFormatter.h"
+#import "DIXSiblingsView.h"
 
 static const CGFloat kInspectorWidth   = 300.0;
 static const CGFloat kPadding          =  16.0;
@@ -38,6 +39,8 @@ static const CGFloat kHeaderBottomGap  =  14.0;
 	NSButton *_trashButton;
 
 	DIXFileInfoView *_infoView;
+	DIXSiblingsView *_siblingsView;
+	__weak FileSystemDoc *_document;
 
 	NSTextField *_emptyLabel;
 }
@@ -102,6 +105,8 @@ static const CGFloat kHeaderBottomGap  =  14.0;
 
 	_infoView = [[DIXFileInfoView alloc] initWithFrame: NSZeroRect];
 
+	_siblingsView = [[DIXSiblingsView alloc] initWithFrame: NSZeroRect];
+
 	//What the pane says when nothing is selected. The floating panel it replaces
 	//simply went blank, which read as broken rather than as empty.
 	_emptyLabel = [NSTextField labelWithString:
@@ -112,7 +117,7 @@ static const CGFloat kHeaderBottomGap  =  14.0;
 	[_emptyLabel setTranslatesAutoresizingMaskIntoConstraints: YES];
 
 	for ( NSView *view in @[ _iconView, _nameField, _sizeField, _revealButton,
-							 _openButton, _trashButton, _infoView, _emptyLabel ] )
+							 _openButton, _trashButton, _infoView, _siblingsView, _emptyLabel ] )
 		[self addSubview: view];
 
 	[self setItem: nil];
@@ -172,8 +177,17 @@ static const CGFloat kHeaderBottomGap  =  14.0;
 
 		top -= kButtonHeight + kHeaderBottomGap;
 
-		[_infoView setFrame: NSMakeRect( 0.0, NSMinY( bounds ), NSWidth( bounds ),
-										 top - NSMinY( bounds ) )];
+		//The siblings section takes what it needs from the bottom and the
+		//attribute rows take the rest, so a selection with no siblings looks
+		//exactly as it did before this section existed.
+		const CGFloat siblingsHeight = MIN( [_siblingsView fittingHeight],
+											MAX( 0.0, ( top - NSMinY( bounds ) ) * 0.55 ) );
+
+		[_siblingsView setFrame: NSMakeRect( 0.0, NSMinY( bounds ), NSWidth( bounds ),
+											 siblingsHeight )];
+
+		[_infoView setFrame: NSMakeRect( 0.0, NSMinY( bounds ) + siblingsHeight, NSWidth( bounds ),
+										 top - NSMinY( bounds ) - siblingsHeight )];
 	}
 	else
 	{
@@ -200,6 +214,32 @@ static const CGFloat kHeaderBottomGap  =  14.0;
 
 	[[DIXTheme hairline] set];
 	NSRectFill( NSIntersectionRect( line, dirtyRect ) );
+
+	//And two across it: under the header block, and under the attribute rows.
+	//Without them the three sections run together into one column of text, which
+	//is what the design uses these lines to prevent. They are the lighter
+	//content weight, not the pane border above - a division inside a pane should
+	//not read as strongly as the edge of one.
+	//
+	//Taken from the section frames rather than recomputed, so a change to
+	//-layoutContents cannot leave a rule floating where a section used to end.
+	if ( [_emptyLabel isHidden] )
+	{
+		const CGFloat thickness = [DIXTheme hairlineThickness];
+
+		[[DIXTheme contentHairline] set];
+
+		for ( NSView *section in @[ _infoView, _siblingsView ] )
+		{
+			if ( [section isHidden] || NSHeight( [section frame] ) <= 0.0 )
+				continue;
+
+			NSRect rule = NSMakeRect( NSMinX( [self bounds] ), NSMaxY( [section frame] ),
+									  NSWidth( [self bounds] ), thickness );
+
+			NSRectFill( NSIntersectionRect( rule, dirtyRect ) );
+		}
+	}
 }
 
 #pragma mark --------contents-----------------
@@ -209,10 +249,12 @@ static const CGFloat kHeaderBottomGap  =  14.0;
 	const BOOL empty = ( item == nil );
 
 	for ( NSView *view in @[ _iconView, _nameField, _sizeField,
-							 _revealButton, _openButton, _trashButton, _infoView ] )
+							 _revealButton, _openButton, _trashButton, _infoView, _siblingsView ] )
 		[view setHidden: empty];
 
 	[_emptyLabel setHidden: !empty];
+
+	[_siblingsView setDocument: _document item: empty ? nil : item];
 
 	if ( empty )
 	{
@@ -239,6 +281,17 @@ static const CGFloat kHeaderBottomGap  =  14.0;
 
 	[self layoutContents];
 	[self setNeedsDisplay: YES];
+}
+
+- (void) setDocument: (FileSystemDoc*) document
+{
+	_document = document;
+	[_siblingsView setDocument: document item: nil];
+}
+
+- (void) setReclaimTarget: (id) target action: (SEL) action
+{
+	[_siblingsView setTrashTarget: target action: action];
 }
 
 - (void) setTarget: (id) target

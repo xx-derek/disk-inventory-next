@@ -123,3 +123,6 @@
 " · mostly %@" = " · überwiegend %@";
 "%@ items are too small to draw separately" = "%@ Objekte sind zu klein, um einzeln gezeichnet zu werden";
 " · %@ of this scan" = " · %@ dieses Scans";
+"Name" = "Name";
+"Size" = "Größe";
+"Share" = "Anteil";

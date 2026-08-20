@@ -128,3 +128,6 @@
 " · mostly %@" = " · mostly %@";
 "%@ items are too small to draw separately" = "%@ items are too small to draw separately";
 " · %@ of this scan" = " · %@ of this scan";
+"Name" = "Name";
+"Size" = "Size";
+"Share" = "Share";

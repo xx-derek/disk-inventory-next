@@ -571,36 +571,62 @@ compatibility copy and `iconutil` only ever extracts four sizes from it — that
 and not a sign the catalog is short. To check what the system actually shows, ask
 `-[NSWorkspace iconForFile:]` for the built `.app`.
 
-## The sidebar toggle
+## The title bar accessory, and why it is not the toolbar
 
-The statistics pane is toggled by `NSToolbarToggleSidebarItemIdentifier` — AppKit's own
-item, so the glyph, the leading placement and the short localized label ("Sidebar") come
-from the system. `ToolbarWindowController` gets it for free: it returns nil for any
-identifier with no `itemInfoByIdentifier` entry, and AppKit builds standard items itself.
+The breadcrumb and the sidebar button live in an `NSTitlebarAccessoryViewController`
+(`-installTitleAccessory`), not in the toolbar. That is forced, not stylistic.
 
-Three things here are not guessable, and each one cost a probe:
+The app builds against the macOS 26 SDK, so it opts into Liquid Glass, and **on macOS 26 a
+toolbar draws every item inside a glass capsule** — the item's view goes into an
+`NSToolbarItemViewer` inside an `NSGlassContainerView`. Right for the view-mode control and
+the inspector button, which the design also draws with a background; wrong for the
+breadcrumb, which is a title and came out looking like text inside a button.
 
-- **`NSWindow` implements `-toggleSidebar:` itself.** The standard item has a nil target,
-  so the action walks the responder chain — and the walk stops at the window, which comes
-  *before* the window controller. Left alone the button is present, enabled, and does
-  nothing. `MainWindow` overrides `-toggleSidebar:` and forwards to its window controller;
-  that forward is the only reason the button works. AppKit's own sidebars do not need it
-  because `NSSplitViewController` sits ahead of the window via the content view controller.
-- **The identifier's *value* is `NSToolbarToggleSidebarItem`**, not
-  `…ItemIdentifier`. The plist stores values, as the neighbouring
-  `NSToolbarFlexibleSpaceItem` shows. Writing the constant's name gives an item AppKit
-  silently declines to build.
+Nothing supported switches the capsule off. `NSToolbarItemViewer` has `-glassBehavior` and
+`-setTransparentBackground:`, and both are private. An accessory goes into an
+`NSTitlebarAccessoryClipView` instead, never entering the glass container.
+
+Four things here are not guessable:
+
+- **A leading accessory is laid out before the toolbar's own items** — measured, the
+  accessory at x=88 and the first toolbar item at x=274. That is why the sidebar button had
+  to come along: left as `NSToolbarToggleSidebarItem` it would have sat to the *right* of
+  the breadcrumb, where the design has it to the left. It is now a plain borderless
+  `NSButton` targeting the window controller directly, so the responder-chain problem below
+  no longer arises — `MainWindow`'s `-toggleSidebar:` override is kept for the menu.
+- **`NSWindow` implements `-toggleSidebar:` itself**, so a nil-target action walks the
+  responder chain and stops at the window, which comes *before* the window controller.
+  AppKit's own sidebars do not hit this because `NSSplitViewController` sits ahead of the
+  window via the content view controller.
+- **The accessory is laid out from its view's frame, and the title bar does not watch it.**
+  Widening the breadcrumb without `-setNeedsLayout:` on the clip view leaves the old width
+  and clips the last segment. AppKit stretches the accessory to the full title-bar height
+  (52 pt) whatever height its view was created at, so the children carry
+  `NSViewMinYMargin | NSViewMaxYMargin` to stay centred.
 - **`-[NSSplitView setPosition:ofDividerAtIndex:]` is not animatable.** Going through the
   `-animator` proxy sets it immediately; sampling the pane width midway showed it already
   at the target. `-animateKindStatisticsDividerTo:completion:` steps it on a timer
   instead, and `splitView:constrainMinCoordinate:ofSubviewAt:` has to stop enforcing its
   120-point minimum while that runs, or the slide stops dead instead of reaching zero.
 
+The breadcrumb starts 14 pt past the sidebar's trailing edge, measured from the live pane
+rather than from `[DIXTheme sidebarWidth]`, because the divider is draggable and the pane
+collapses; `-splitViewDidResizeSubviews:` re-runs the layout. At the designed 244 pt
+sidebar that puts it at x=258, which is where the design has it.
+
+**Glass cannot be screenshotted from inside the process.** `-cacheDisplayInRect:` over the
+toolbar comes back fully transparent — the capsule is composited by the window server via
+`CABackdropLayer`/`CAPortalLayer`, not drawn into the view tree. Verify this area by
+asserting on the view hierarchy instead: the breadcrumb's ancestors must include
+`NSTitlebarAccessoryClipView` and must not include `NSToolbarItemViewer`.
+
 `-toolbarAutosaveIdentifier` is deliberately separate from `-toolbarConfigurationName`:
 AppKit keys the saved toolbar layout on the `NSToolbar` identifier, so bumping it discards
-a layout that refers to items which no longer exist. It was bumped to `MainWindowToolbar-2`
-when the drawer toggle gave way to this item. **Bump it again whenever items are removed**,
-or existing users keep a stale toolbar and never see the new ones.
+a layout that refers to items which no longer exist. It is at `MainWindowToolbar-4` — most
+recently because the breadcrumb and the sidebar button left the toolbar, and a saved layout
+still naming both would draw a second sidebar button beside the accessory's own.
+**Bump it again whenever items are removed**, or existing users keep a stale toolbar and
+never see the new ones.
 
 ## Pasteboard types have two spellings
 

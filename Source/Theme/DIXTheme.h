@@ -98,6 +98,26 @@
 //The flat "elsewhere" tile - neutral on purpose, since it is not a file kind.
 + (NSColor*) neutralFill;
 
+//Between sections *inside* a pane, where -hairline separates the panes
+//themselves. The design draws three weights of line and this is the middle one;
+//using the pane border for both makes every internal division too heavy.
++ (NSColor*) contentHairline;   // #e6e3e1 / #333130
+
+//A band that sits above the surface it is on - the inspector's reclaim bar.
+//One step lighter than the pane in light, one step lighter in dark too, which
+//is why it pairs with neither -surface nor -sidebar.
++ (NSColor*) raised;            // #ffffff / #232120
+
+//The unfilled part of a share bar. Two of them: a share bar on a highlighted
+//row sits on a darker background than one on the sidebar's own, so it needs a
+//deeper track to read as a track at all.
++ (NSColor*) barTrack;          // #e2dfdd / #333130
++ (NSColor*) barTrackDeep;      // #d3cfcc / #161514
+
+//Quieter than secondaryText and, unlike it, the *same* step in both
+//appearances. Section labels, and a share bar that is not the current one.
++ (NSColor*) muted;             // #8d8885 / #7d7875
+
 //The free-space cell: a pale fill inside a dashed outline, drawn as an absence
 //rather than as a tile.
 + (NSColor*) freeSpaceFill;

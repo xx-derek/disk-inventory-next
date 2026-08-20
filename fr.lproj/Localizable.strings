@@ -130,3 +130,6 @@
 " · mostly %@" = " · principalement %@";
 "%@ items are too small to draw separately" = "%@ éléments sont trop petits pour être dessinés séparément";
 " · %@ of this scan" = " · %@ de cette analyse";
+"Name" = "Nom";
+"Size" = "Taille";
+"Share" = "Part";

@@ -9,6 +9,8 @@
 @class DIXStatusBarView;
 @class DIXBreadcrumbView;
 @class DIXInspectorView;
+@class DIXSourcesView;
+@class DIXKindsView;
 
 @interface MainWindowController : ToolbarWindowController <NSSplitViewDelegate>
 {
@@ -24,14 +26,28 @@
     NSSplitView *_kindStatisticsSplitView;
     NSSplitView *_selectionListSplitView;
 
-    //Code-built window chrome, installed as siblings of the nib's views:
-    //the summary strip above the split view, the status bar along the bottom.
+    //The middle column: the summary strip, the outline/treemap split, and the
+    //status bar. The design scopes the strip and the bar to this column - the
+    //sidebar and the inspector run the window's full height beside them - so
+    //they are held by a container rather than by the content view.
+    NSView *_centreColumn;
     DIXSummaryStripView *_summaryStripView;
     DIXStatusBarView *_statusBarView;
 
-    //Toolbar items with custom views. Held so they can be refreshed when the
-    //document changes without walking the toolbar's item array.
+    //The title bar's leading accessory: the sidebar button and the breadcrumb.
+    //Neither is a toolbar item - see -installTitleAccessory for why - so both
+    //are held here rather than looked up in the toolbar's item array.
+    NSView *_titleAccessoryView;
+    NSButton *_sidebarButton;
     DIXBreadcrumbView *_breadcrumbView;
+
+    //The sidebar is two sections in one pane: SOURCES over FILE KINDS. The pane
+    //is a plain container so the split view still sees one subview per column
+    //and the collapse logic does not have to learn about the split inside it.
+    DIXSourcesView *_sourcesView;
+    DIXKindsView *_kindsView;
+    NSBox *_sectionRule;        //the 2pt rule between the two sections
+    NSView *_sidebarPane;
     NSSegmentedControl *_viewModeControl;
 
     //The right-hand pane, replacing the floating Info window.
@@ -91,6 +107,7 @@
 - (IBAction) refresh:(id)sender;
 - (IBAction) refreshAll:(id)sender;
 - (IBAction) moveToTrash:(id)sender;
+- (IBAction) reclaimBasket:(id)sender;
 - (IBAction) showPackageContents:(id)sender;
 - (IBAction) showFreeSpace:(id)sender;
 - (IBAction) showOtherSpace:(id)sender;

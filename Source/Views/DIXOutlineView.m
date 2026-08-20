@@ -14,8 +14,62 @@
 //
 
 #import "DIXOutlineView.h"
+#import "DIXTheme.h"
+
+//The accent stripe down the leading edge of a selected row.
+static const CGFloat kSelectionEdgeWidth = 3.0;
 
 @implementation DIXOutlineView
+
+#pragma mark --------the selected row-----------------
+
+//The design marks the selected item with one accent treatment in both places it
+//appears: the map outlines its cell, and the list tints its row and puts an
+//accent edge down the leading side. Left alone this drew the system's
+//emphasized blue, so the same file was blue here and red over there - which is
+//exactly the connection the design is making.
+//
+//Kept in this view rather than in the controller that styles the columns:
+//the outline is rebuilt in code later in this phase, and a highlight that lives
+//on the class survives that where one bolted on from outside would not.
+- (void) highlightSelectionInClipRect: (NSRect) clipRect
+{
+	//deliberately no super: it is what paints the blue
+	NSIndexSet *selection = [self selectedRowIndexes];
+
+	if ( [selection count] == 0 )
+		return;
+
+	const NSRange rows = [self rowsInRect: clipRect];
+
+	[selection enumerateIndexesInRange: rows
+							   options: 0
+							usingBlock: ^( NSUInteger row, BOOL *stop )
+	{
+		const NSRect rowRect = [self rectOfRow: (NSInteger) row];
+
+		[[DIXTheme accentTint] set];
+		NSRectFill( rowRect );
+
+		NSRect edge = rowRect;
+		edge.size.width = kSelectionEdgeWidth;
+
+		[[DIXTheme accent] set];
+		NSRectFill( edge );
+	}];
+}
+
+//The selected row is now a pale tint, not the emphasized system fill, so its
+//cells have to keep their own colours. AppKit sets NSBackgroundStyleEmphasized
+//on a cell in a selected row, which turns its text white - invisible on #fdf1ef.
+- (NSCell*) preparedCellAtColumn: (NSInteger) col row: (NSInteger) row
+{
+	NSCell *cell = [super preparedCellAtColumn: col row: row];
+
+	[cell setBackgroundStyle: NSBackgroundStyleNormal];
+
+	return cell;
+}
 
 // return the selected item
 - (id) selectedItem
@@ -79,52 +133,6 @@ sourceOperationMaskForDraggingContext: (NSDraggingContext) context
 		return [delegate dragOperationMaskForLocalDestination: isLocal];
 	else
 		return [super draggingSession: session sourceOperationMaskForDraggingContext: context];
-}
-
-//@@test
-- (NSCell*) preparedCellAtColumn: (NSInteger) col row: (NSInteger) row
-{
- //   @try
-    {
-        return [super preparedCellAtColumn:col row:row];
-    }
-/*    @catch (NSException *exception)
-    {
-        NSString *msg = [exception reason];
-        
-        NSLog(@"%@ exception catched: %@", [exception className], msg);
-        
-        
-        NSError *error = NULL;
-        NSRegularExpression *regex = [NSRegularExpression
-                                      regularExpressionWithPattern:@"0x([a-f]*\\d*)*(\\w|$)"
-                                      options:NSRegularExpressionCaseInsensitive
-                                      error:&error];
-        
-        [regex enumerateMatchesInString:msg
-                                options:NSMatchingReportCompletion
-                                  range:NSMakeRange(0, [msg length])
-                             usingBlock:^(NSTextCheckingResult *match, NSMatchingFlags flags, BOOL *stop)
-         {
-             for (NSUInteger i = 0; i < [match numberOfRanges]; i++)
-             {
-                 NSObject *obj = nil;
-                 NSString *objAddress = [msg substringWithRange:[match rangeAtIndex:i]];
-                 
-                 NSScanner* scanner = [NSScanner scannerWithString:objAddress];
-                 if ( [scanner scanHexLongLong:(unsigned long long*)&objAddress] )
-                 {
-                     NSLog(@"%@: %@", objAddress, [obj className]);
-                 }
-                 else
-                 {
-                     NSLog(@"'%@' could not be parsed as hex string", objAddress);
-                 }
-             }
-         }];
-        
-        @throw exception;
-    }*/
 }
 
 @end

@@ -193,7 +193,7 @@
 	{
 		case FileFolderItem:
 			[renderer setCellStyle: TMVCellStyleCushion];
-			[renderer setCushionColor: [[[self document] fileTypeColors] colorForItem: fsItem]];
+			[renderer setCushionColor: [self cellColorForItem: fsItem]];
 			break;
 
 		//The two synthetic cells are deliberately neutral, so they read as "not
@@ -222,6 +222,26 @@
 			[renderer setLabelColor: [DIXTheme ink]];
 			break;
 	}
+}
+
+//A kind filter dims what it excludes rather than removing it. Removing would
+//mean relaying out the map, so every cell would move and the totals along the
+//bottom would stop describing what is drawn - and the one thing this window is
+//built around is that a cell's area is its size. Dimming leaves every rectangle
+//where it was and lets the filtered kind be the only colour on it, which is what
+//makes the legend a filter rather than a highlighter.
+- (NSColor*) cellColorForItem: (FSItem*) fsItem
+{
+	FileSystemDoc *doc = [self document];
+	NSColor *kindColor = [[doc fileTypeColors] colorForItem: fsItem];
+
+	if ( [doc kindFilter] == nil || [doc itemPassesKindFilter: fsItem] )
+		return kindColor;
+
+	//Toward the neutral tile rather than toward grey: that is already the colour
+	//this map uses for "not a file kind", so an excluded cell reads as being of
+	//the same nothing-in-particular.
+	return [kindColor blendedColorWithFraction: 0.86 ofColor: [DIXTheme neutralFill]];
 }
 
 #pragma mark --------remainder cells-----------------
@@ -685,6 +705,17 @@ static NSString* ShareOfScanString( unsigned long long part, unsigned long long 
 {
 	NSString *theOption = [[notification userInfo] objectForKey:ChangedViewOption];
 	
+	//The filter is a colour, not a layout, so the shaded bitmap is what goes
+	//stale - not the tree. Reloading would relayout for nothing and lose the
+	//selection on the way.
+	if ( [theOption isEqualToString: DIXKindFilterOption] )
+	{
+		[_treeMapView invalidateCanvasCache];
+		[_treeMapView reloadData];
+		[self onDocumentSelectionChanged];
+		return;
+	}
+
 	if ( [theOption isEqualToString: ShowPackageContents]
 		 || [theOption isEqualToString: ShowPhysicalFileSize]
 		 || [theOption isEqualToString: IgnoreCreatorCode]

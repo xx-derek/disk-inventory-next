@@ -15,6 +15,8 @@
 //
 
 #import "FilesOutlineViewController.h"
+#import "DIXTheme.h"
+#import "DIXTableHeaderView.h"
 #import "FSItem.h"
 #import "FSItem-Utilities.h"
 #import "MainWindowController.h"
@@ -26,6 +28,7 @@
 - (void) reloadPackages: (FSItem*) parent;
 - (void) reloadData;
 - (void) setOutlineViewFont;
+- (void) applyDesignAppearance;
 - (void) observeValueForKeyPath:(NSString*)keyPath ofObject:(id)object change:(NSDictionary*)change context:(void*)context;
 
 @end
@@ -74,6 +77,8 @@
 	
 	//set small font for all for all columns if needed
 	[self setOutlineViewFont];
+
+	[self applyDesignAppearance];
      
     [self reloadData];
 }
@@ -119,7 +124,30 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
 {
     NSString *columnTag = [tableColumn identifier];
     FSItem *fsItem = item;
-	
+
+	//Computed rather than a property of the item: it is a share of the *scan*,
+	//so it changes with the root and belongs to the view, not to the file.
+	if ( [columnTag isEqualToString: @"dixShare"] )
+	{
+		const unsigned long long scanSize =
+			[[[[self document] rootItem] size] unsignedLongLongValue];
+
+		if ( scanSize == 0 )
+			return @"";
+
+		NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
+
+		[formatter setNumberStyle: NSNumberFormatterPercentStyle];
+
+		//One decimal always, not at most one. This is a column, and dropping the
+		//trailing zero puts "18%" beside "24.3%" so the figures stop lining up -
+		//which is the whole reason they are set in tabular figures.
+		[formatter setMinimumFractionDigits: 1];
+		[formatter setMaximumFractionDigits: 1];
+
+		return [formatter stringFromNumber: @( (double) [fsItem sizeValue] / scanSize )];
+	}
+
 	return [fsItem valueForKey: columnTag];
 }
 
@@ -305,22 +333,114 @@ objectValueForTableColumn: (NSTableColumn *) tableColumn
     }
 }
 
+//The design's rows are 26pt with the size in tabular figures and a share column
+//beside it, under a 28pt header. The header is worth a note: the README says
+//the design has no table headers, and the design file has one over this list -
+//Name, Size, Share, 11pt in the tertiary colour over a 0.5pt rule. The HTML is
+//the source of truth for values, as it was for the cell gaps and the label ink,
+//so the header stays. This restyles the nib's
+//outline in place rather than replacing it: the nib still owns the view, so
+//building a replacement now would mean duplicating this controller's wiring -
+//data source, delegate, drag, context menu, the poof effect's cell rect - and
+//throwing the duplicate away at the end of this phase, where the outline is
+//created in code anyway. The per-row kind chip needs view-based rows and lands
+//there with it.
+- (void) applyDesignAppearance
+{
+	[_outlineView setGridStyleMask: NSTableViewGridNone];
+
+	//AppKit's header draws a bezel, a gradient and a separator per column; the
+	//design's is a flat band with one rule. Both the view and the cells have to
+	//be replaced - the cell paints its own background before its text.
+	DIXTableHeaderView *header = [[DIXTableHeaderView alloc] initWithFrame:
+		NSMakeRect( 0.0, 0.0, NSWidth( [_outlineView bounds] ),
+					[DIXTableHeaderView preferredHeight] )];
+
+	[_outlineView setHeaderView: header];
+
+	for ( NSTableColumn *column in [_outlineView tableColumns] )
+	{
+		DIXTableHeaderCell *cell = [[DIXTableHeaderCell alloc] initTextCell:
+			[[column headerCell] stringValue]];
+
+		[cell setAlignment: [[column headerCell] alignment]];
+		[column setHeaderCell: cell];
+	}
+	[_outlineView setIntercellSpacing: NSMakeSize( 6.0, 0.0 )];
+	[_outlineView setBackgroundColor: [DIXTheme surface]];
+
+	NSTableColumn *size = [_outlineView tableColumnWithIdentifier: @"size"];
+
+	[size setWidth: 74.0];
+	[[size dataCell] setAlignment: NSTextAlignmentRight];
+	[[size dataCell] setTextColor: [DIXTheme bodyText]];
+
+	[[[_outlineView outlineTableColumn] headerCell] setStringValue:
+		NSLocalizedString( @"Name", @"file list column" )];
+	[[size headerCell] setStringValue: NSLocalizedString( @"Size", @"file list column" )];
+	[[size headerCell] setAlignment: NSTextAlignmentRight];
+
+	//The row's percentage of the whole scan - the number the map is drawing, and
+	//the one thing a list of sizes cannot tell you at a glance.
+	if ( [_outlineView tableColumnWithIdentifier: @"dixShare"] == nil )
+	{
+		NSTableColumn *share = [[NSTableColumn alloc] initWithIdentifier: @"dixShare"];
+
+		[share setWidth: 46.0];
+		[share setMinWidth: 46.0];
+		[share setMaxWidth: 46.0];
+		[[share dataCell] setAlignment: NSTextAlignmentRight];
+		[[share dataCell] setTextColor: [DIXTheme tertiaryText]];
+
+		//its own header cell, since this column is created after the swap above
+		DIXTableHeaderCell *shareHeader = [[DIXTableHeaderCell alloc] initTextCell:
+			NSLocalizedString( @"Share", @"file list column" )];
+
+		[shareHeader setAlignment: NSTextAlignmentRight];
+		[share setHeaderCell: shareHeader];
+
+		[_outlineView addTableColumn: share];
+	}
+}
+
 - (void) setOutlineViewFont
 {
-	CGFloat fontSize = 0;
+	//The design's rows are 12pt, which is a point under +systemFontSize. Written
+	//out rather than taken from the system, because the figure is the design's
+	//and not the platform's, and the row height below is measured against it.
+	CGFloat fontSize = 12.0;
+
 	if ( [[NSUserDefaults standardUserDefaults] boolForKey: UseSmallFontInFilesView] )
 		fontSize = [NSFont smallSystemFontSize];
-	else
-		fontSize = [NSFont systemFontSize];
 	
 	NSFont *font = [NSFont systemFontOfSize: fontSize];
-	
+
 	//NSTableView has no font of its own; it lives on each column's data cell
 	for ( NSTableColumn *column in [_outlineView tableColumns] )
-		[[column dataCell] setFont: font];
+	{
+		//figures line up in a column only if they are the same width, which the
+		//proportional system font does not promise
+		const BOOL isNumeric = ( [[column identifier] isEqualToString: @"size"]
+								 || [[column identifier] isEqualToString: @"dixShare"] );
+
+		[[column dataCell] setFont: isNumeric ? [DIXTheme tabularFontOfSize: fontSize] : font];
+	}
+
 	[_outlineView setNeedsDisplay: YES];
-	
-	[_outlineView setRowHeight: fontSize +4];
+
+	//The header is the design's 11pt in the secondary tone, whatever the row font
+	//does - it labels the columns rather than being part of the list. The
+	//quieter tertiary step belongs to the share figures, which had it the other
+	//way round.
+	for ( NSTableColumn *column in [_outlineView tableColumns] )
+	{
+		[[column headerCell] setFont: [NSFont systemFontOfSize: 11.0]];
+		[[column headerCell] setTextColor: [DIXTheme secondaryText]];
+	}
+
+	//26pt rows, or the font's own height if the small-font preference has pushed
+	//it past that - a clipped name is worse than a row out of step with the design
+	[_outlineView setRowHeight: MAX( 26.0, fontSize + 4.0 )];
 }
 
 - (void) reloadData

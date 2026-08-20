@@ -15,6 +15,7 @@
 #import <Cocoa/Cocoa.h>
 
 @class FSItem;
+@class FileSystemDoc;
 @class DIXFileInfoView;
 
 //The pane down the right-hand side of the window: what is selected, how big it
@@ -32,6 +33,12 @@
 
 //Shows one item, or nothing when it is nil.
 - (void) setItem: (FSItem*) item;
+
+//The document behind the siblings section, which needs the kind statistics and
+//the reclaim basket. Separate from -setItem: because it changes once and the
+//selection changes constantly.
+- (void) setDocument: (FileSystemDoc*) document;
+- (void) setReclaimTarget: (id) target action: (SEL) action;
 
 //Wires the three header buttons to actions that already exist on the window
 //controller: -showInFinder:, -openFile:, -moveToTrash:.

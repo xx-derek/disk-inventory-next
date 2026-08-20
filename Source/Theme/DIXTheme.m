@@ -193,6 +193,38 @@ static NSColor* NamedColor( NSString *name, NSColor *fallback )
 	return NamedColor( @"DIXNeutralFill", [NSColor systemGrayColor] );
 }
 
++ (NSColor*) contentHairline
+{
+	return NamedColor( @"DIXContentHairline", [NSColor separatorColor] );
+}
+
++ (NSColor*) raised
+{
+	return NamedColor( @"DIXRaised", [NSColor controlBackgroundColor] );
+}
+
++ (NSColor*) barTrack
+{
+	return NamedColor( @"DIXBarTrack", [NSColor quaternaryLabelColor] );
+}
+
++ (NSColor*) barTrackDeep
+{
+	//For a bar on a row that is filled - the current volume's. On the sidebar's
+	//own ground the ordinary track already reads; on the highlighted row it is
+	//nearly the same tone as the fill behind it, and the bar loses its extent.
+	return NamedColor( @"DIXBarTrackDeep", [NSColor tertiaryLabelColor] );
+}
+
++ (NSColor*) muted
+{
+	//Not secondaryText: that one *swaps direction* between appearances (#7d7875
+	//light, #a8a3a0 dark) because it is text and has to keep its distance from
+	//the ink. This is the same step either way, which is what the design uses
+	//for a section label and for a bar that is not the current one.
+	return NamedColor( @"DIXMuted", [NSColor secondaryLabelColor] );
+}
+
 + (NSColor*) freeSpaceFill
 {
 	return NamedColor( @"DIXFreeSpace", [NSColor windowBackgroundColor] );
@@ -239,7 +271,7 @@ static NSColor* NamedColor( NSString *name, NSColor *fallback )
 {
 	return @{
 		NSFontAttributeName:            [self sectionLabelFont],
-		NSForegroundColorAttributeName: [self secondaryText],
+		NSForegroundColorAttributeName: [self muted],
 		NSKernAttributeName:            @( kSectionLabelTrackingEm * kSectionLabelSize ),
 	};
 }
