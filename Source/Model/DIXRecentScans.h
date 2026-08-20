@@ -51,6 +51,9 @@
 //Most recent first. Entries whose folder has gone are left out.
 - (NSArray<DIXRecentScan*>*) scans;
 
+//What the last scan of this folder came to, or nil for one never scanned.
+- (DIXRecentScan*) scanForURL: (NSURL*) url;
+
 //Records a completed scan, moving the folder to the front if it is already
 //known. Posts DIXRecentScansChangedNotification.
 - (void) recordScanOfURL: (NSURL*) url size: (unsigned long long) size;

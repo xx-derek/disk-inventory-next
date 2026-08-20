@@ -88,6 +88,11 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 
 	DIXViewMode _viewMode;
 
+	//What the previous scan of this same folder came to, read before this one
+	//overwrites it - see -previousScanSize.
+	unsigned long long _previousScanSize;
+	NSDate *_previousScanDate;
+
 	//What the summary strip reports. The counts are derived from the tree and
 	//cached, rather than read from FSItem's g_fileCount/g_folderCount: those are
 	//process wide and reset by whichever document scanned last, so a window left
@@ -220,6 +225,12 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 #pragma mark --------the view mode-----------------
 
 //Posts a "ViewOptionChangedNotification" naming DIXViewModeOption.
+//What the last scan of this folder found, and when, or zero and nil if this is
+//the first. Read at the moment the tree completes, because recording this scan
+//is what overwrites it.
+- (unsigned long long) previousScanSize;
+- (NSDate*) previousScanDate;
+
 - (DIXViewMode) viewMode;
 - (void) setViewMode: (DIXViewMode) mode;
 

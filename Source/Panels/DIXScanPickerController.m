@@ -173,9 +173,11 @@ static const CGFloat kFooterButtonH   =  30.0;
 	//"Scanned 8 Aug · 91.8 GB", or the plain statement that it never has been
 	if ( _lastScan != nil )
 	{
+		//"Scanned 8 Aug", the design's wording, in the locale's day/month order
 		NSDateFormatter *when = [[NSDateFormatter alloc] init];
-		[when setDateStyle: NSDateFormatterMediumStyle];
-		[when setTimeStyle: NSDateFormatterNoStyle];
+		[when setDateFormat: [NSDateFormatter dateFormatFromTemplate: @"dMMM"
+															 options: 0
+															  locale: [NSLocale currentLocale]]];
 
 		[_historyField setStringValue: [NSString stringWithFormat:
 			NSLocalizedString( @"Scanned %@ · %@", @"volume card, last scan" ),
@@ -512,8 +514,9 @@ static const CGFloat kFooterButtonH   =  30.0;
 		if ( scan != nil )
 		{
 			NSDateFormatter *when = [[NSDateFormatter alloc] init];
-			[when setDateStyle: NSDateFormatterMediumStyle];
-			[when setTimeStyle: NSDateFormatterNoStyle];
+			[when setDateFormat: [NSDateFormatter dateFormatFromTemplate: @"dMMM"
+																 options: 0
+																  locale: [NSLocale currentLocale]]];
 
 			FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
 

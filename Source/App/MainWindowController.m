@@ -62,6 +62,7 @@
 - (void) updateInspector;
 - (void) placeSummaryStrip;
 - (void) updateSummarySubtitle;
+- (void) updateSummaryDelta;
 - (void) startSummaryAgeClock;
 - (CGFloat) minimumCentreColumnWidth;
 - (void) setPaneWidthsSettled: (BOOL) settled;
@@ -1835,13 +1836,56 @@ static NSBox *FilledBox( NSColor *color )
 
 	[self updateSummarySubtitle];
 
-	//no scan history yet, so there is nothing truthful to say about growth
-	[_summaryStripView setDelta: nil caption: nil isGrowth: YES];
+	[self updateSummaryDelta];
 
 	//the same conditions -validateMenuItem: applies to the zoom menu items
 	FSItem *selectedItem = [doc selectedItem];
 	[_summaryStripView setZoomInEnabled: selectedItem != nil && [selectedItem isFolder]
 						 zoomOutEnabled: [doc rootItem] != [doc zoomedItem]];
+}
+
+//"+2.81 GB / since 8 Aug" - what this folder has gained or lost since the last
+//time it was scanned. Nothing is said on a first scan, or when the two totals
+//are equal: a delta of zero is noise, not news.
+- (void) updateSummaryDelta
+{
+	FileSystemDoc *doc = [self document];
+	NSDate *previousDate = [doc previousScanDate];
+
+	if ( _summaryStripView == nil || previousDate == nil )
+	{
+		[_summaryStripView setDelta: nil caption: nil isGrowth: YES];
+		return;
+	}
+
+	const unsigned long long now = [[[doc rootItem] size] unsignedLongLongValue];
+	const unsigned long long before = [doc previousScanSize];
+
+	if ( now == before )
+	{
+		[_summaryStripView setDelta: nil caption: nil isGrowth: YES];
+		return;
+	}
+
+	const BOOL growth = ( now > before );
+	const unsigned long long difference = growth ? ( now - before ) : ( before - now );
+
+	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
+
+	//"since 8 Aug", not "since Aug 21, 2026": the year is noise on a comparison
+	//with the last scan, and the order of day and month is the locale's.
+	NSDateFormatter *when = [[NSDateFormatter alloc] init];
+	[when setDateFormat: [NSDateFormatter dateFormatFromTemplate: @"dMMM"
+														 options: 0
+														  locale: [NSLocale currentLocale]]];
+
+	[_summaryStripView
+		 setDelta: [NSString stringWithFormat: @"%@%@", growth ? @"+" : @"−",
+					[sizeFormatter stringForObjectValue: @(difference)]]
+		  caption: [NSString stringWithFormat:
+					NSLocalizedString( @"since %@", @"summary strip, when the last scan was" ),
+					[when stringFromDate: previousDate]]
+		 isGrowth: growth];
 }
 
 //The total and the two counts do not change while a document is open; "scanned

@@ -150,3 +150,4 @@
 "Never scanned" = "Nie gescannt";
 "Last scan of %@: %@, %@" = "Letzter Scan von %@: %@, %@";
 "Scan" = "Scannen";
+"since %@" = "seit %@";

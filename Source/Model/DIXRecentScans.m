@@ -188,6 +188,15 @@ static const NSUInteger kMaximumScans = 20;
 	return live;
 }
 
+- (DIXRecentScan*) scanForURL: (NSURL*) url
+{
+	for ( DIXRecentScan *scan in [self scans] )
+		if ( [[[scan url] path] isEqualToString: [url path]] )
+			return scan;
+
+	return nil;
+}
+
 - (void) recordScanOfURL: (NSURL*) url size: (unsigned long long) size
 {
 	if ( [[url path] length] == 0 )

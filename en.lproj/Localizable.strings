@@ -155,3 +155,4 @@
 "Never scanned" = "Never scanned";
 "Last scan of %@: %@, %@" = "Last scan of %@: %@, %@";
 "Scan" = "Scan";
+"since %@" = "since %@";

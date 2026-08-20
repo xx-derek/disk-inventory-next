@@ -316,6 +316,13 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 		//when the tree is complete, not when the walk was started
 		_scanCompletedAt = [NSDate date];
 
+		//Read before the record below overwrites it: what this same folder came
+		//to last time is the whole of the summary strip's "+2.81 GB since 8 Aug".
+		DIXRecentScan *previous = [[DIXRecentScans sharedList] scanForURL: [rootItem fileURL]];
+
+		_previousScanSize = [previous size];
+		_previousScanDate = [previous scannedAt];
+
 		//What the sidebar offers as somewhere you have already been. Recorded
 		//here rather than when the document opened, because only now is there a
 		//total to show beside it.
@@ -1235,6 +1242,16 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 }
 
 #pragma mark --------the view mode-----------------
+
+- (unsigned long long) previousScanSize
+{
+	return _previousScanSize;
+}
+
+- (NSDate*) previousScanDate
+{
+	return _previousScanDate;
+}
 
 - (DIXViewMode) viewMode
 {

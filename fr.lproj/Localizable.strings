@@ -157,3 +157,4 @@
 "Never scanned" = "Jamais analysé";
 "Last scan of %@: %@, %@" = "Dernière analyse de %@ : %@, %@";
 "Scan" = "Analyser";
+"since %@" = "depuis le %@";
