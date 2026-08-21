@@ -56,9 +56,11 @@
 					titles: @[ @"Last scanned volume", @"The volume picker", @"Nothing" ]
 					values: @[ @(DIXOpenWithLastVolume), @(DIXOpenWithPicker), @(DIXOpenWithNothing) ]];
 
-	[layout addToggleTitled: @"Reopen the last scan"
-					   help: @"Restores the saved result instead of rescanning. Rescan is one click away."
-				defaultsKey: ReopenLastScan];
+	//"Reopen the last scan" is in the design and is deliberately not here: it
+	//offers to restore a saved result instead of rescanning, and nothing is
+	//saved - a scan is a tree in memory that goes when the window closes.
+	//"Last scanned volume" above therefore means scanning it again, which is
+	//why the default is the picker rather than that.
 
 	[self addRestoreDefaultsSectionTo: layout
 								 help: @"Returns this tab to its factory settings. Hold ⌥ to reset every tab."];

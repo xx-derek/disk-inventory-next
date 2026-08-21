@@ -228,11 +228,11 @@ static NSMenuItem* FindMenuItemWithAction( NSMenu *menu, SEL action )
 		{
 			DIXRecentScan *last = [[[DIXRecentScans sharedList] scans] firstObject];
 
-			//"Reopen the last scan" is what decides between going straight back
-			//to it and offering the picker with it selected. There is nothing
-			//saved to restore yet - a scan is not written to disk - so what this
-			//really means today is "scan it again without asking".
-			if ( last != nil && [defaults boolForKey: ReopenLastScan] )
+			//Scanning it again, because there is nothing saved to restore: a
+			//scan is a tree in memory. That is why this is not the default -
+			//a launch that starts a twenty-second walk unasked is worse than
+			//one that asks.
+			if ( last != nil )
 			{
 				[self openDocumentWithContentsOfURL: [last url]
 											display: YES

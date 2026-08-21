@@ -53,10 +53,6 @@ typedef NS_ENUM( NSInteger, DIXOpenWithChoice )
 
 extern NSString *OpenWith;
 
-//Reopen the last scan rather than rescanning it. Only meaningful when OpenWith
-//is DIXOpenWithLastVolume.
-extern NSString *ReopenLastScan;
-
 //How long a scan snapshot is kept, in days. 0 keeps none - which also turns the
 //change view and the summary strip's delta off, since both are answers this
 //would have no data for - and -1 keeps them forever.

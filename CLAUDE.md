@@ -455,6 +455,33 @@ where it sat in the menu.
 `-buildControlBox` returning nil still falls back to loading the page record's nib, so a
 page needing something a grid of checkboxes cannot express is not locked out.
 
+The window was rebuilt to the design on 2026-08-21: **a rail, not a toolbar** — four tabs
+beside a pane, the window titled with the tab. A toolbar on macOS 26 would draw every item
+in a glass capsule, and the rail is what current macOS settings windows have. Its rows are
+a custom `NSControl`, and getting one into the accessibility tree took three things that
+each look optional and are not: `-setAccessibilityElement: YES` (a control with no cell is
+not an element), `-setAccessibilityTitle:` rather than `-setAccessibilityLabel:` (only the
+title is announced as a control's name), and `-accessibilityPerformPress` (press behaviour
+comes from the cell it has none of). Without all three the rail can be seen and not used.
+
+**`NSSwitch` cannot be tinted.** Its fill is the *system* accent colour and there is no
+per-control or per-application override, so the one control the design colours would have
+been the one drawn in somebody else's blue. `DIXSwitch` is an `NSButton` underneath, which
+is what keeps `NSValueBinding` working exactly as it does for a checkbox.
+
+**Three rows in the design are deliberately not built**, each for the same reason: the
+switch's On position would have done nothing, which is a claim about the application rather
+than a setting. *Send anonymous crash reports* — nothing sends anything anywhere, and the
+handoff itself says to ship the row only if implemented. *Follow symbolic links* — the walk
+does not follow them; making it would mean cycle detection on the hot path of every
+directory. *Reopen the last scan* — it offers to restore a saved result, and nothing is
+saved: a scan is a tree in memory. That last one is why `OpenWith` defaults to the picker
+rather than to the last volume, which would start a twenty-second walk at every launch.
+
+The history folder is stored as a **plain bookmark, not a security-scoped one**. The handoff
+asks for security scope; this application is not sandboxed — its entitlements are empty —
+and asking for scope without the entitlement fails to make a bookmark at all.
+
 Two things to know. Checkboxes bind to `NSUserDefaultsController`, which is what makes a
 change take effect immediately and what lets Restore Defaults show up without reloading
 the page. And **`PrefsPageLayout` must size its grid with `-setFrameSize:[grid fittingSize]`**
@@ -481,6 +508,15 @@ checkForProtectedFolders:` detects them before scanning via
 shows a one-time explanatory alert gated on `DontShowPrivacyWarningMessage`.
 `NSURL-Extensions` adds `stillExists` for revalidating URLs after a volume is ejected.
 Background and localized strings: `documentation/macOS privacy protected folders.txt`.
+
+That alert is now only half of it. `DIXPrivacyBannerView` says the same thing **after** the
+scan, across the top of the centre column, because that is where the total is: it is the
+total being wrong that matters, and agreeing to something before seeing anything is what
+the alert asked for. Which folders were skipped is worked out *after* the walk, by whether
+each protected folder can be listed — the list of protected folders says what macOS
+protects, not what was actually missed, and a folder the user has already granted access to
+is both. The banner is built once per window and never rebuilt: dismissing it is meant to
+be final, and one that came back on the next redraw would be a nag.
 
 ## UI files are binary `.nib`, not `.xib`
 

@@ -146,9 +146,7 @@ No data will be read.</string>
 				<key>LabelLargeCells</key>
 				<true/>
 				<key>OpenWith</key>
-				<integer>0</integer>
-				<key>ReopenLastScan</key>
-				<true/>
+				<integer>1</integer>
 				<key>ScanConcurrency</key>
 				<integer>2</integer>
 				<key>ScanHistoryRetentionDays</key>
@@ -189,7 +187,6 @@ No data will be read.</string>
 					<string>ShowPhysicalFileSize</string>
 					<string>IgnoreCreatorCode</string>
 					<string>OpenWith</string>
-					<string>ReopenLastScan</string>
 				</array>
 				<key>identifier</key>
 				<string>GeneralPrefPage</string>

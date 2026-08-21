@@ -37,7 +37,6 @@ NSString *DontShowPrivacyWarningMessage        = @"DontShowPrivacyWarningMessage
 NSString *ShareKindColors				= @"ShareKindColors";
 
 NSString *OpenWith                      = @"OpenWith";
-NSString *ReopenLastScan                = @"ReopenLastScan";
 NSString *ScanHistoryRetentionDays      = @"ScanHistoryRetentionDays";
 NSString *ScanHistoryLocationBookmark   = @"ScanHistoryLocationBookmark";
 NSString *ShowPartialResults            = @"ShowPartialResults";
