@@ -33,6 +33,7 @@
 #import "NSImage-Extensions.h"
 #import "DIXTheme.h"
 #import "DIXControls.h"
+#import "DIXChangesController.h"
 
 
 //Used the first time a pane is opened, when nothing has been remembered for it.
@@ -41,8 +42,9 @@
 #define kDefaultKindStatisticsWidth  ([DIXTheme sidebarWidth])
 #define kDefaultFileListWidth        ([DIXTheme fileListWidth])
 
-@interface MainWindowController()
+@interface MainWindowController() <DIXChangesDelegate>
 - (void) setKindStatisticsVisible: (BOOL) visible animated: (BOOL) animated;
+- (IBAction) showWhatChanged: (id) sender;
 - (void) installTrailingAccessory;
 - (void) layoutTrailingAccessory;
 - (NSSearchField*) buildSearchField;
@@ -1867,6 +1869,11 @@ static NSBox *FilledBox( NSColor *color )
 		return;
 	}
 
+	//"what grew" beside the caption, which is where the design puts the way in
+	//to the change window. Offered only when there is a list behind it: a link
+	//to six rows of nothing is worse than no link.
+	const BOOL hasRows = ( [[doc changesSinceLastScan] count] > 0 );
+
 	const BOOL growth = ( now > before );
 	const unsigned long long difference = growth ? ( now - before ) : ( before - now );
 
@@ -1886,6 +1893,48 @@ static NSBox *FilledBox( NSColor *color )
 					NSLocalizedString( @"since %@", @"summary strip, when the last scan was" ),
 					[when stringFromDate: previousDate]]
 		 isGrowth: growth];
+
+	[_summaryStripView setChangesLinkTitle:
+		hasRows ? ( [doc showsOnlyChanges]
+					? NSLocalizedString( @"showing what grew", @"summary strip link, filter on" )
+					: NSLocalizedString( @"what grew", @"summary strip link" ) )
+				: nil
+									target: self
+									action: @selector(showWhatChanged:)];
+}
+
+#pragma mark --------what changed since the last scan-----------------
+
+- (IBAction) showWhatChanged: (id) sender
+{
+	if ( _changesController == nil )
+	{
+		_changesController = [[DIXChangesController alloc]
+								 initWithDocument: [self document]];
+		[_changesController setChangesDelegate: self];
+	}
+
+	[_changesController showChanges];
+}
+
+- (void) changesControllerSetShowsOnlyChanges: (BOOL) showsOnlyChanges
+{
+	[[self document] setShowsOnlyChanges: showsOnlyChanges];
+
+	//the caption says which of the two states the map is in
+	[self updateSummaryDelta];
+
+	[[self window] makeKeyAndOrderFront: nil];
+}
+
+- (void) changesControllerReviewItem: (FSItem*) item
+{
+	//Straight to the document, which posts GlobalSelectionChangedNotification;
+	//the outline expands to the row and the map outlines the cell off the back
+	//of that, rather than this reaching into either of them.
+	[[self document] setSelectedItem: item];
+
+	[[self window] makeKeyAndOrderFront: nil];
 }
 
 //The total and the two counts do not change while a document is open; "scanned

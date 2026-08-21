@@ -82,6 +82,7 @@
 		DEC8DE0000000000000012 /* DIXRecentScans.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000011 /* DIXRecentScans.m */; };
 		DEC8DE0000000000000032 /* DIXScanHistory.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000031 /* DIXScanHistory.m */; };
 		DEC8DE0000000000000022 /* DIXScanPickerController.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000021 /* DIXScanPickerController.m */; };
+		DEC8DE0000000000000042 /* DIXChangesController.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000041 /* DIXChangesController.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -262,6 +263,8 @@
 		DEC8DE0000000000000031 /* DIXScanHistory.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXScanHistory.m; sourceTree = "<group>"; };
 		DEC8DE0000000000000020 /* DIXScanPickerController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXScanPickerController.h; sourceTree = "<group>"; };
 		DEC8DE0000000000000021 /* DIXScanPickerController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXScanPickerController.m; sourceTree = "<group>"; };
+		DEC8DE0000000000000040 /* DIXChangesController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DIXChangesController.h; sourceTree = "<group>"; };
+		DEC8DE0000000000000041 /* DIXChangesController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DIXChangesController.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -410,6 +413,8 @@
 				FCCFB2D6097FA42B009EA2B6 /* DIXFileInfoView.m */,
 				DEC8DE0000000000000020 /* DIXScanPickerController.h */,
 				DEC8DE0000000000000021 /* DIXScanPickerController.m */,
+				DEC8DE0000000000000040 /* DIXChangesController.h */,
+				DEC8DE0000000000000041 /* DIXChangesController.m */,
 				FCCFB2F5097FA42B009EA2B6 /* LoadingPanelController.h */,
 				FCCFB2F6097FA42B009EA2B6 /* LoadingPanelController.m */,
 			);
@@ -695,6 +700,7 @@
 				DEC8DE0000000000000012 /* DIXRecentScans.m in Sources */,
 				DEC8DE0000000000000032 /* DIXScanHistory.m in Sources */,
 				DEC8DE0000000000000022 /* DIXScanPickerController.m in Sources */,
+				DEC8DE0000000000000042 /* DIXChangesController.m in Sources */,
 				DEC8DE000000000000000F /* DIXTableHeaderView.m in Sources */,
 				DEC8DE000000000000000C /* DIXSiblingsView.m in Sources */,
 				DEC8DE0000000000000009 /* DIXKindsView.m in Sources */,

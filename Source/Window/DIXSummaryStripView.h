@@ -36,6 +36,13 @@
 		  caption: (NSString*) caption
 		 isGrowth: (BOOL) isGrowth;
 
+//The design's caption is "since 8 Aug · what grew", where the second half is
+//the accent and opens the change window - the one place the strip has room to
+//offer more than the figure. A nil title leaves the caption on its own.
+- (void) setChangesLinkTitle: (NSString*) title
+					   target: (id) target
+					   action: (SEL) action;
+
 //Wired by the window controller to the actions that already exist on it:
 //-refreshAll:, -zoomIn:, -zoomOut:.
 - (void) setTarget: (id) target

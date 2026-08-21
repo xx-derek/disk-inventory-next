@@ -12,6 +12,7 @@
 @class DIXSourcesView;
 @class DIXKindsView;
 @class DIXSegmentedControl;
+@class DIXChangesController;
 
 @interface MainWindowController : ToolbarWindowController <NSSplitViewDelegate>
 {
@@ -84,6 +85,10 @@
 
     //The toolbar's search field. The query itself lives on the document.
     NSSearchField *_searchField;
+
+    //"Since 8 Aug", built on the first ask and kept: it is one window per
+    //document, and rebuilding it would lose where the user had scrolled to.
+    DIXChangesController *_changesController;
 
     //The right-hand pane, replacing the floating Info window.
     DIXInspectorView *_inspectorView;

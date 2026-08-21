@@ -340,6 +340,38 @@ The two synthetic cells are deliberately neutral so they read as "not a file kin
 free space is the lightest thing on the map, other space a mid grey (set in
 `TreeMapViewController treeMapView:willDisplayItem:withRenderer:`, not in the palette).
 
+### What changed since the last scan
+
+Two stores, and they are not the same thing. `DIXRecentScans` keeps **one total per
+folder** in a user default — that is what the sidebar's SOURCES rows and the summary strip's
+`+2.81 GB` are made of. `DIXScanHistory` keeps the sizes **inside** a scan, one plist per
+scanned folder under Application Support, which is the only way to answer *what* changed
+rather than *how much*. Both are read in `-readFromFile:ofType:` immediately before they are
+overwritten, and the result is parked on the document (`-previousScanSize`,
+`-previousScanDate`, `-changesSinceLastScan`) because no window exists yet.
+
+The snapshot is bounded by a **megabyte floor applied on the way down**: a child cannot
+exceed its parent, so a folder under the floor is never descended into. That, plus a
+5,000-row cap, is what keeps a scan of a whole volume from writing a file the size of the
+scan. The walk is iterative — `/` is deep enough in places that the stack is the wrong
+place to find that out.
+
+A folder and the one thing inside it that explains its change **collapse to one row**
+(deeper wins at ≥90% of the same-signed delta), which is what names `IMG_4821.MOV` rather
+than `Movies`, while still naming `DerivedData` rather than the thousand files under it.
+
+Two things about the window (`DIXChangesController`, opened from the strip's *what grew*):
+
+- **"Show only these on the map" dims, it does not remove** — the same choke point as the
+  kind filter, `-[TreeMapViewController cellColorForItem:]`. Removing cells would relayout
+  the map, and the one thing this window is built around is that a cell's area is its size.
+  The two filters read as `AND`, so a kind and a change narrow together.
+- **The filter is resolved to `FSItem`s once and re-resolved whenever the tree changes.**
+  Paths outlive a refresh (which replaces items wholesale) and a trash (which removes one);
+  resolved items do not. `-_resolveChangeFilter` runs beside `-_pruneReclaimBasket` at both
+  `FSItemsChangedNotification` sites — dropping the filter instead would undo it at exactly
+  the moment reviewing a change leads to trashing something.
+
 ### Controllers
 
 `MainWindowController` owns the split view (outline + treemap) and nearly every `IBAction`

@@ -158,3 +158,14 @@
 "Last scan of %@: %@, %@" = "Dernière analyse de %@ : %@, %@";
 "Scan" = "Analyser";
 "since %@" = "depuis le %@";
+"what grew" = "ce qui a grossi";
+"showing what grew" = "affiche ce qui a grossi";
+"Since %@" = "Depuis le %@";
+"What Changed" = "Ce qui a changé";
+"%@ → %@ in %@" = "%@ → %@ en %@";
+"%@ → %@" = "%@ → %@";
+"Review %@" = "Examiner %@";
+"Show Only These on the Map" = "N’afficher que ceux-ci sur la carte";
+"Show Everything on the Map" = "Tout afficher sur la carte";
+"Nothing has changed by more than a megabyte." = "Rien n’a changé de plus d’un mégaoctet.";
+"This folder has not been scanned before, so there is nothing to compare against." = "Ce dossier n’a jamais été analysé, il n’y a donc rien à comparer.";

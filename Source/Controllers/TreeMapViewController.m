@@ -258,18 +258,21 @@
 	}
 }
 
-//A kind filter dims what it excludes rather than removing it. Removing would
-//mean relaying out the map, so every cell would move and the totals along the
-//bottom would stop describing what is drawn - and the one thing this window is
-//built around is that a cell's area is its size. Dimming leaves every rectangle
-//where it was and lets the filtered kind be the only colour on it, which is what
-//makes the legend a filter rather than a highlighter.
+//A filter dims what it excludes rather than removing it. Removing would mean
+//relaying out the map, so every cell would move and the totals along the bottom
+//would stop describing what is drawn - and the one thing this window is built
+//around is that a cell's area is its size. Dimming leaves every rectangle where
+//it was and lets what passes be the only colour on it, which is what makes the
+//legend a filter rather than a highlighter.
+//
+//Both filters read the same way, so a kind and "show only what changed" narrow
+//together rather than one replacing the other.
 - (NSColor*) cellColorForItem: (FSItem*) fsItem
 {
 	FileSystemDoc *doc = [self document];
 	NSColor *kindColor = [[doc fileTypeColors] colorForItem: fsItem];
 
-	if ( [doc kindFilter] == nil || [doc itemPassesKindFilter: fsItem] )
+	if ( [doc itemPassesKindFilter: fsItem] && [doc itemPassesChangeFilter: fsItem] )
 		return kindColor;
 
 	//Toward the neutral tile rather than toward grey: that is already the colour
@@ -843,7 +846,8 @@ static NSString* ShareOfScanString( unsigned long long part, unsigned long long 
 	//The filter is a colour, not a layout, so the shaded bitmap is what goes
 	//stale - not the tree. Reloading would relayout for nothing and lose the
 	//selection on the way.
-	if ( [theOption isEqualToString: DIXKindFilterOption] )
+	if ( [theOption isEqualToString: DIXKindFilterOption]
+		 || [theOption isEqualToString: DIXChangeFilterOption] )
 	{
 		[_treeMapView invalidateCanvasCache];
 		[_treeMapView reloadData];

@@ -142,6 +142,7 @@ NSString *CollectFileKindStatisticsCanceledException = @"CollectFileKindStatisti
 
 - (void) _recalculateBasketSize;
 - (void) _pruneReclaimBasket;
+- (void) _resolveChangeFilter;
 - (void) _recountItemsIfNeeded;
 - (void) _countItemsUnder: (FSItem*) item files: (NSUInteger*) files folders: (NSUInteger*) folders;
 - (void) _invalidateItemCounts;
@@ -191,6 +192,7 @@ NSString *FocusedPileChangedNotification = @"FocusedPileChanged";
 NSString *SearchResultsChangedNotification = @"SearchResultsChanged";
 NSString *DIXKindFilterOption = @"DIXKindFilter";
 NSString *DIXViewModeOption = @"DIXViewMode";
+NSString *DIXChangeFilterOption = @"DIXChangeFilter";
 
 @implementation FileSystemDoc
 
@@ -577,6 +579,7 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 
 	//the item just trashed may have been ticked for reclaiming
 	[self _pruneReclaimBasket];
+	[self _resolveChangeFilter];
 	[self _invalidateItemCounts];
 
 	//notify observers of the change
@@ -725,8 +728,10 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 			[_zoomStack replaceObjectAtIndex: ([_zoomStack count]-1) withObject: refreshedItem];
 
 		//a refresh replaces FSItems wholesale, so anything in the basket that
-		//has gone from disk has to drop out before the change is announced
+		//has gone from disk has to drop out before the change is announced -
+		//and the change filter's items have to be found again
 		[self _pruneReclaimBasket];
+		[self _resolveChangeFilter];
 		[self _invalidateItemCounts];
 
 		//notify observers of the change
@@ -1263,6 +1268,123 @@ NSString *DIXViewModeOption = @"DIXViewMode";
 - (NSDate*) previousScanDate
 {
 	return _previousScanDate;
+}
+
+- (FSItem*) itemAtPath: (NSString*) path
+{
+	NSString *rootPath = [_rootItem path];
+
+	if ( _rootItem == nil || [path length] == 0 || ![path hasPrefix: rootPath] )
+		return nil;
+
+	if ( [path isEqualToString: rootPath] )
+		return _rootItem;
+
+	//The remainder, split into names. A scan root of "/" ends in a slash and
+	//every other one does not, so the prefix is trimmed by length and the
+	//leading separator dropped by the empty-component skip below.
+	NSArray<NSString*> *names = [[path substringFromIndex: [rootPath length]]
+									 pathComponents];
+	FSItem *item = _rootItem;
+
+	for ( NSString *name in names )
+	{
+		if ( [name length] == 0 || [name isEqualToString: @"/"] )
+			continue;
+
+		FSItem *match = nil;
+
+		for ( NSUInteger i = 0; i < [item childCount] && match == nil; i++ )
+		{
+			FSItem *child = [item childAtIndex: i];
+
+			if ( [[child name] isEqualToString: name] )
+				match = child;
+		}
+
+		if ( match == nil )
+			return nil;
+
+		item = match;
+	}
+
+	return item;
+}
+
+#pragma mark --------the change filter-----------------
+
+- (BOOL) showsOnlyChanges
+{
+	return _showsOnlyChanges;
+}
+
+- (void) setShowsOnlyChanges: (BOOL) showsOnlyChanges
+{
+	if ( _showsOnlyChanges == showsOnlyChanges )
+		return;
+
+	_showsOnlyChanges = showsOnlyChanges;
+
+	[self _resolveChangeFilter];
+	[self postViewOptionChangedNotificationForOption: DIXChangeFilterOption];
+}
+
+//Run again whenever the tree changes, because a refresh replaces FSItems
+//wholesale and trashing one removes it: the paths in the change list outlive
+//both, and the resolved items do not. Re-resolving rather than dropping the
+//filter is what lets it survive the trashing that reviewing a change leads to.
+- (void) _resolveChangeFilter
+{
+	if ( !_showsOnlyChanges )
+	{
+		_changedItems = nil;
+		_changeAncestors = nil;
+		return;
+	}
+
+	NSMutableSet<FSItem*> *changed = [NSMutableSet set];
+	NSMutableSet<FSItem*> *ancestors = [NSMutableSet set];
+
+	for ( DIXScanChange *change in _changesSinceLastScan )
+	{
+		FSItem *item = [self itemAtPath: [change path]];
+
+		//Something that shrank to nothing has no item left to point at. It is
+		//still worth saying in the list, and there is nothing to light up.
+		if ( item == nil )
+			continue;
+
+		[changed addObject: item];
+
+		for ( FSItem *walk = [item parent]; walk != nil; walk = [walk parent] )
+			[ancestors addObject: walk];
+	}
+
+	_changedItems = changed;
+	_changeAncestors = ancestors;
+}
+
+- (BOOL) itemPassesChangeFilter: (FSItem*) item
+{
+	if ( !_showsOnlyChanges || item == nil )
+		return YES;
+
+	//Free and other space are not part of any change, and dimming them would
+	//quietly change what the map's total stands for - the same reasoning as the
+	//kind filter's.
+	if ( [item isSpecialItem] )
+		return YES;
+
+	//a folder on the way down to something that changed
+	if ( [_changeAncestors containsObject: item] )
+		return YES;
+
+	//or the thing itself, or anything inside it
+	for ( FSItem *walk = item; walk != nil; walk = [walk parent] )
+		if ( [_changedItems containsObject: walk] )
+			return YES;
+
+	return NO;
 }
 
 - (DIXViewMode) viewMode

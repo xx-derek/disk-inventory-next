@@ -156,3 +156,14 @@
 "Last scan of %@: %@, %@" = "Last scan of %@: %@, %@";
 "Scan" = "Scan";
 "since %@" = "since %@";
+"what grew" = "what grew";
+"showing what grew" = "showing what grew";
+"Since %@" = "Since %@";
+"What Changed" = "What Changed";
+"%@ → %@ in %@" = "%@ → %@ in %@";
+"%@ → %@" = "%@ → %@";
+"Review %@" = "Review %@";
+"Show Only These on the Map" = "Show Only These on the Map";
+"Show Everything on the Map" = "Show Everything on the Map";
+"Nothing has changed by more than a megabyte." = "Nothing has changed by more than a megabyte.";
+"This folder has not been scanned before, so there is nothing to compare against." = "This folder has not been scanned before, so there is nothing to compare against.";

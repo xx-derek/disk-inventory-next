@@ -95,6 +95,13 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 	NSDate *_previousScanDate;
 	NSArray *_changesSinceLastScan;
 
+	//"Show only these on the map". The two sets are the change list resolved to
+	//items once, when the filter is switched on, so the per-cell test is pointer
+	//comparisons up the parent chain rather than building a path per cell.
+	BOOL _showsOnlyChanges;
+	NSSet<FSItem*> *_changedItems;
+	NSSet<FSItem*> *_changeAncestors;
+
 	//What the summary strip reports. The counts are derived from the tree and
 	//cached, rather than read from FSItem's g_fileCount/g_folderCount: those are
 	//process wide and reset by whichever document scanned last, so a window left
@@ -236,6 +243,24 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 - (unsigned long long) previousScanSize;
 - (NSDate*) previousScanDate;
 
+//The item a change refers to, or nil when it has been deleted since - which a
+//shrinkage of the whole of something is exactly what it means. Descends by path
+//component from the root rather than walking the tree, so it costs the depth of
+//the path and not the size of the scan.
+- (FSItem*) itemAtPath: (NSString*) path;
+
+#pragma mark --------the change filter-----------------
+
+//"Show only these on the map": everything that is not part of what changed since
+//the last scan dims back, the same way the kind filter dims what it excludes and
+//for the same reason - removing cells would relayout the map and a cell's area
+//would stop being its size. Setting it posts a "ViewOptionChangedNotification"
+//naming DIXChangeFilterOption.
+- (BOOL) showsOnlyChanges;
+- (void) setShowsOnlyChanges: (BOOL) showsOnlyChanges;
+
+- (BOOL) itemPassesChangeFilter: (FSItem*) item;
+
 - (DIXViewMode) viewMode;
 - (void) setViewMode: (DIXViewMode) mode;
 
@@ -267,3 +292,4 @@ extern NSString *SearchResultsChangedNotification;
 //defaults key, which is why these are spelled like keys but are not registered.
 extern NSString *DIXKindFilterOption;
 extern NSString *DIXViewModeOption;
+extern NSString *DIXChangeFilterOption;

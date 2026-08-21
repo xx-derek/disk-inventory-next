@@ -29,6 +29,21 @@ static const CGFloat kButtonHeight      = 26.0;
 #define kIconButtonWidth kButtonHeight
 static const CGFloat kRuleHeight        = 36.0;
 
+//The "what grew" half of the caption. Borderless and drawn as text, because it
+//is a link inside a sentence rather than a control beside one - a bezel here
+//would make the caption look like a toolbar.
+@interface DIXStripLinkButton : NSButton
+@end
+
+@implementation DIXStripLinkButton
+
+- (void) resetCursorRects
+{
+	[self addCursorRect: [self bounds] cursor: [NSCursor pointingHandCursor]];
+}
+
+@end
+
 @interface DIXSummaryStripView()
 {
 	NSTextField *_totalField;
@@ -37,6 +52,7 @@ static const CGFloat kRuleHeight        = 36.0;
 	NSView      *_deltaRule;
 	NSTextField *_deltaField;
 	NSTextField *_deltaCaptionField;
+	NSButton    *_changesLink;
 
 	NSButton *_rescanButton;
 	NSButton *_zoomInButton;
@@ -96,6 +112,13 @@ static const CGFloat kRuleHeight        = 36.0;
 	[_deltaCaptionField setFont: [NSFont systemFontOfSize: 11.0]];
 	[_deltaCaptionField setTextColor: [DIXTheme secondaryText]];
 
+	_changesLink = [[DIXStripLinkButton alloc] initWithFrame: NSZeroRect];
+	[_changesLink setBordered: NO];
+	[_changesLink setButtonType: NSButtonTypeMomentaryChange];
+	[_changesLink setTitle: @""];
+	[_changesLink setHidden: YES];
+	[_changesLink setTranslatesAutoresizingMaskIntoConstraints: YES];
+
 	_rescanButton = [DIXControls secondaryButtonWithTitle:
 		NSLocalizedString( @"Rescan", @"summary strip button" ) target: nil action: NULL];
 
@@ -115,7 +138,8 @@ static const CGFloat kRuleHeight        = 36.0;
 										  label: NSLocalizedString( @"Zoom Out", @"" )];
 
 	for ( NSView *view in @[ _totalField, _subtitleField, _deltaRule, _deltaField,
-							 _deltaCaptionField, _rescanButton, _zoomInButton, _zoomOutButton ] )
+							 _deltaCaptionField, _changesLink,
+							 _rescanButton, _zoomInButton, _zoomOutButton ] )
 		[self addSubview: view];
 
 	[self setTotal: @"" subtitle: @""];
@@ -192,13 +216,20 @@ static const CGFloat kRuleHeight        = 36.0;
 	{
 		[_deltaField sizeToFit];
 		[_deltaCaptionField sizeToFit];
+		[_changesLink sizeToFit];
+
+		const BOOL hasLink = ![_changesLink isHidden];
+		const CGFloat linkWidth = hasLink ? NSWidth( [_changesLink frame] ) : 0.0;
 
 		const CGFloat deltaHeight = NSHeight( [_deltaField frame] );
 		const CGFloat captionHeight = NSHeight( [_deltaCaptionField frame] );
 		const CGFloat deltaColumnHeight = deltaHeight + 2.0 + captionHeight;
 		const CGFloat deltaTop = midY + deltaColumnHeight / 2.0;
-		const CGFloat deltaWidth = MAX( NSWidth( [_deltaField frame] ),
-										NSWidth( [_deltaCaptionField frame] ) );
+
+		//The caption line is the caption and the link together, so the column is
+		//as wide as whichever of the two lines is longer.
+		const CGFloat captionLineWidth = NSWidth( [_deltaCaptionField frame] ) + linkWidth;
+		const CGFloat deltaWidth = MAX( NSWidth( [_deltaField frame] ), captionLineWidth );
 
 		const CGFloat deltaX = right - deltaWidth;
 
@@ -207,6 +238,19 @@ static const CGFloat kRuleHeight        = 36.0;
 
 		[_deltaCaptionField setFrame: NSMakeRect( deltaX, deltaTop - deltaColumnHeight,
 												  NSWidth( [_deltaCaptionField frame] ), captionHeight )];
+
+		//Centred on the caption's own text rather than given the same origin:
+		//a borderless button's frame carries a little more height than the line
+		//it draws, and matching the origins put the link a point low.
+		if ( hasLink )
+		{
+			const CGFloat linkHeight = NSHeight( [_changesLink frame] );
+
+			[_changesLink setFrame: NSMakeRect( NSMaxX( [_deltaCaptionField frame] ),
+												deltaTop - deltaColumnHeight
+													+ ( captionHeight - linkHeight ) / 2.0,
+												linkWidth, linkHeight )];
+		}
 
 		const CGFloat ruleX = deltaX - kBlockGap - [DIXTheme ruleThickness];
 
@@ -297,6 +341,10 @@ static const CGFloat kRuleHeight        = 36.0;
 	[_deltaField setHidden: !_hasDelta];
 	[_deltaCaptionField setHidden: !_hasDelta];
 
+	//the link belongs to the caption, so it goes with it
+	if ( !_hasDelta )
+		[_changesLink setHidden: YES];
+
 	if ( _hasDelta )
 	{
 		//growth is the accent, shrinkage is the positive colour - the point of
@@ -310,6 +358,47 @@ static const CGFloat kRuleHeight        = 36.0;
 
 		[_deltaCaptionField setStringValue: caption != nil ? caption : @""];
 	}
+
+	[self layoutContents];
+	[self setNeedsDisplay: YES];
+}
+
+- (void) setChangesLinkTitle: (NSString*) title
+					   target: (id) target
+					   action: (SEL) action
+{
+	if ( [title length] == 0 || !_hasDelta )
+	{
+		[_changesLink setHidden: YES];
+		[self layoutContents];
+		return;
+	}
+
+	//Two runs in one string: the separator stays in the caption's tone and only
+	//the words are the accent, which is how the design colours it. Both are the
+	//button's title, so the whole phrase is the click target - a four-point
+	//interpunct is not something to ask anyone to hit.
+	NSMutableAttributedString *label = [[NSMutableAttributedString alloc] init];
+
+	[label appendAttributedString:
+		[[NSAttributedString alloc] initWithString: @" · "
+										attributes: @{ NSFontAttributeName: [NSFont systemFontOfSize: 11.0],
+													   NSForegroundColorAttributeName: [DIXTheme secondaryText] }]];
+
+	[label appendAttributedString:
+		[[NSAttributedString alloc] initWithString: title
+										attributes: @{ NSFontAttributeName: [NSFont systemFontOfSize: 11.0
+																					weight: NSFontWeightSemibold],
+													   NSForegroundColorAttributeName: [DIXTheme accent] }]];
+
+	[_changesLink setAttributedTitle: label];
+
+	//What VoiceOver reads, without the punctuation that joins it to the caption
+	[_changesLink setAccessibilityTitle: title];
+
+	[_changesLink setTarget: target];
+	[_changesLink setAction: action];
+	[_changesLink setHidden: NO];
 
 	[self layoutContents];
 	[self setNeedsDisplay: YES];
