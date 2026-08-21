@@ -167,3 +167,13 @@
 "Show Everything on the Map" = "Show Everything on the Map";
 "Nothing has changed by more than a megabyte." = "Nothing has changed by more than a megabyte.";
 "This folder has not been scanned before, so there is nothing to compare against." = "This folder has not been scanned before, so there is nothing to compare against.";
+"Scanning" = "Scanning";
+"found so far" = "found so far";
+"files" = "files";
+"folders" = "folders";
+"rate" = "rate";
+"skipped" = "skipped";
+"%@/s" = "%@/s";
+"Biggest so far" = "Biggest so far";
+"About %@ left" = "About %@ left";
+"Show Partial Results" = "Show Partial Results";

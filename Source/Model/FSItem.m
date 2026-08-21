@@ -17,11 +17,131 @@
 #import "FSItem.h"
 #import "NSURL-Extensions.h"
 #import <os/lock.h>
+#import <stdatomic.h>
 
 //for debugging and logging purposes
 _Atomic unsigned g_fileCount;
 _Atomic unsigned g_folderCount;
 static unsigned g_packageCheckCount = 0;
+
+#pragma mark --------what a running scan has found-----------------
+
+//Relaxed, deliberately. These are read by one thread that only ever displays
+//them, so nothing is ordered against them and the default sequential
+//consistency would put a barrier on the hot path of every file in the scan.
+static _Atomic unsigned long long g_bytesFound;
+static _Atomic unsigned g_skippedCount;
+
+//Written before the first queue starts and only read after that, so it needs no
+//synchronising of its own - the same rule as FileSystemDoc's option snapshots.
+static BOOL g_scanUsesPhysicalSize = NO;
+
+NSString * const FSItemBiggestNameKey = @"name";
+NSString * const FSItemBiggestSizeKey = @"size";
+NSString * const FSItemBiggestKindKey = @"kind";
+
+//Three entries, biggest first. The lock is taken only by a file that is bigger
+//than the smallest one held, and the threshold that decides that is an atomic
+//read - so on a real volume almost every file gets one comparison and no lock
+//at all after the first moments.
+#define kBiggestCount 3
+
+static os_unfair_lock g_biggestLock = OS_UNFAIR_LOCK_INIT;
+static NSString *g_biggestNames[kBiggestCount];
+static NSString *g_biggestKinds[kBiggestCount];
+static unsigned long long g_biggestSizes[kBiggestCount];
+static _Atomic unsigned long long g_biggestThreshold;
+
+void FSItemResetScanProgress( BOOL usePhysicalFileSize )
+{
+	g_scanUsesPhysicalSize = usePhysicalFileSize;
+
+	atomic_store_explicit( &g_bytesFound, 0, memory_order_relaxed );
+	atomic_store_explicit( &g_skippedCount, 0, memory_order_relaxed );
+	atomic_store_explicit( &g_biggestThreshold, 0, memory_order_relaxed );
+
+	os_unfair_lock_lock( &g_biggestLock );
+
+	for ( unsigned i = 0; i < kBiggestCount; i++ )
+	{
+		g_biggestNames[i] = nil;
+		g_biggestKinds[i] = nil;
+		g_biggestSizes[i] = 0;
+	}
+
+	os_unfair_lock_unlock( &g_biggestLock );
+}
+
+FSItemScanTotals FSItemScanTotalsSoFar( void )
+{
+	FSItemScanTotals totals;
+
+	totals.files   = g_fileCount;
+	totals.folders = g_folderCount;
+	totals.skipped = atomic_load_explicit( &g_skippedCount, memory_order_relaxed );
+	totals.bytes   = atomic_load_explicit( &g_bytesFound, memory_order_relaxed );
+
+	return totals;
+}
+
+NSArray<NSDictionary*>* FSItemBiggestFilesSoFar( void )
+{
+	NSMutableArray<NSDictionary*> *biggest = [NSMutableArray array];
+
+	os_unfair_lock_lock( &g_biggestLock );
+
+	for ( unsigned i = 0; i < kBiggestCount; i++ )
+	{
+		if ( g_biggestNames[i] == nil )
+			break;
+
+		NSMutableDictionary *entry = [NSMutableDictionary dictionary];
+
+		[entry setObject: g_biggestNames[i] forKey: FSItemBiggestNameKey];
+		[entry setObject: @(g_biggestSizes[i]) forKey: FSItemBiggestSizeKey];
+
+		if ( g_biggestKinds[i] != nil )
+			[entry setObject: g_biggestKinds[i] forKey: FSItemBiggestKindKey];
+
+		[biggest addObject: entry];
+	}
+
+	os_unfair_lock_unlock( &g_biggestLock );
+
+	return biggest;
+}
+
+//An insertion sort over three entries, which is the whole of it.
+static void RememberIfBiggest( NSString *name, NSString *kind, unsigned long long size )
+{
+	if ( size <= atomic_load_explicit( &g_biggestThreshold, memory_order_relaxed ) )
+		return;
+
+	os_unfair_lock_lock( &g_biggestLock );
+
+	//re-tested under the lock: another queue may have raised the bar since
+	if ( size > g_biggestSizes[kBiggestCount - 1] )
+	{
+		unsigned slot = kBiggestCount - 1;
+
+		while ( slot > 0 && g_biggestSizes[slot - 1] < size )
+		{
+			g_biggestSizes[slot] = g_biggestSizes[slot - 1];
+			g_biggestNames[slot] = g_biggestNames[slot - 1];
+			g_biggestKinds[slot] = g_biggestKinds[slot - 1];
+			slot--;
+		}
+
+		g_biggestSizes[slot] = size;
+		g_biggestNames[slot] = name;
+		g_biggestKinds[slot] = kind;
+
+		atomic_store_explicit( &g_biggestThreshold,
+							   g_biggestSizes[kBiggestCount - 1], memory_order_relaxed );
+	}
+
+	os_unfair_lock_unlock( &g_biggestLock );
+}
 
 //global cache for kind names, keyed by UTI
 NSMutableDictionary *g_kindNameDictionary = nil;
@@ -1125,8 +1245,19 @@ static NSArray<NSURLResourceKey>* ScanResourceKeys( void )
     if ( isFolder )
 		g_folderCount++;
     else
+    {
         g_fileCount++;
-	
+
+        //The running total and the biggest-so-far list, both for the scanning
+        //screen. Only files: a folder's size is the sum of what is under it and
+        //is not known until the walk leaves it.
+        const unsigned long long counted = g_scanUsesPhysicalSize ? _physicalSize : _logicalSize;
+
+        atomic_fetch_add_explicit( &g_bytesFound, counted, memory_order_relaxed );
+
+        RememberIfBiggest( _name, _kindName, counted );
+    }
+
     return self;
 }
 
@@ -1224,7 +1355,12 @@ static BOOL ShouldWalkSubtreeSeparately( NSURL *childUrl, NSURL *rootUrl )
 										   errorHandler: ^(NSURL *url, NSError *error)
 		{
 			LOG(@"error listing '%@': %@", [url path], error);
-			return (BOOL) ![url isEqualToURL: [self fileURL]];
+
+			if ( [url isEqualToURL: [self fileURL]] )
+				return (BOOL) NO;
+
+			atomic_fetch_add_explicit( &g_skippedCount, 1, memory_order_relaxed );
+			return (BOOL) YES;
 		}];
 
 	NSUInteger concurrency = kDefaultConcurrentSubtreeWalks;
@@ -1363,8 +1499,15 @@ static BOOL ShouldWalkSubtreeSeparately( NSURL *childUrl, NSURL *rootUrl )
                                           // stop if there is a problem with the directory itself
                                           if ( [url isEqualToURL: [self fileURL]])
                                               return NO;
-                                          else
-                                              return YES;
+
+                                          //Counted, not just logged: the scanning
+                                          //screen says how many, and a scan of a
+                                          //volume that quietly skipped a thousand
+                                          //protected folders is a scan whose total
+                                          //means something different.
+                                          atomic_fetch_add_explicit( &g_skippedCount, 1,
+                                                                     memory_order_relaxed );
+                                          return YES;
                                       }
                                       ];
     NSUInteger lastEnumLevel = 1;

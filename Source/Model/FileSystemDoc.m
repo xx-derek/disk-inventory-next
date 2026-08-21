@@ -26,6 +26,8 @@
 #import "NSFileManager-Extensions.h"
 #import "DIXRecentScans.h"
 #import "DIXScanHistory.h"
+#import "DIXScanningController.h"
+#import "DIXScanPickerController.h"
 #import "FSItemIndex.h"
 
 NSString *CollectFileKindStatisticsCanceledException = @"CollectFileKindStatisticsCanceledException";
@@ -265,9 +267,19 @@ NSString *DIXChangeFilterOption = @"DIXChangeFilter";
     @try
     {
         g_fileCount = g_folderCount = 0;
-        
-		_progressController = [[LoadingPanelController alloc] init];
-		
+
+		//The name of what is being counted, which the screen carries in its
+		//title bar. A volume root's last component is empty, so it falls back to
+		//the path - the same rule DIXRecentScan uses for the sidebar.
+		NSString *scanName = [folder lastPathComponent];
+
+		_progressController = [[DIXScanningController alloc] initWithTitle:
+			[scanName length] > 0 ? scanName : folder];
+
+		//Where the volume picker was, if that is what started this, so the two
+		//screens read as one window carrying on rather than two appearing.
+		[_progressController takeFrameFrom: [[DIXScanPickerController sharedController] pickerWindow]];
+
 		uint64_t startTime = getTime();
 		
         _rootItem = [[FSItem alloc] initWithPath: folder];
@@ -292,12 +304,31 @@ NSString *DIXChangeFilterOption = @"DIXChangeFilter";
 			[rootItem loadChildren];
 		} estimatingFrom: [rootItem fileURL]];
 
-		//what this path really holds, for the next scan of it to divide by
-		[[self class] _rememberItemCount: g_fileCount + g_folderCount forURL: [rootItem fileURL]];
+		//"Show partial results" asks for the tree the walk got as far as, so the
+		//cancellation that produced it is not an error here. Everything else a
+		//scan writes down is skipped below: a partial total recorded against
+		//this path is the figure the *next* scan would measure its delta from.
+		const BOOL partial = _scanKeepPartialResults;
+		const BOOL stoppedEarly = ( scanException != nil )
+			&& [[scanException name] isEqualToString: FSItemLoadingCanceledException];
 
-		if ( scanException != nil )
+		if ( scanException != nil && !( partial && stoppedEarly ) )
 			[scanException raise];
-        
+
+		if ( !partial )
+		{
+			//what this path really holds, for the next scan of it to divide by
+			[[self class] _rememberItemCount: g_fileCount + g_folderCount
+									  forURL: [rootItem fileURL]];
+		}
+		else
+		{
+			//The walk computes a folder's size as it leaves it, and it left none
+			//of them - the exception unwound past every -recalculateSize:. So
+			//the sizes are summed here instead, over the tree as far as it got.
+			[rootItem recalculateSize: _scanUsePhysicalFileSize updateParent: NO];
+		}
+
  		uint64_t doneLoadingTime = getTime();
 		LOG (@"loading time:  %.2f seconds", subtractTime(doneLoadingTime, startTime));
 		
@@ -319,24 +350,30 @@ NSString *DIXChangeFilterOption = @"DIXChangeFilter";
 		//when the tree is complete, not when the walk was started
 		_scanCompletedAt = [NSDate date];
 
-		//Read before the record below overwrites it: what this same folder came
-		//to last time is the whole of the summary strip's "+2.81 GB since 8 Aug".
-		DIXRecentScan *previous = [[DIXRecentScans sharedList] scanForURL: [rootItem fileURL]];
+		//None of the history below is written for a partial tree, and nothing is
+		//compared against it either: both sides of "what changed" have to be a
+		//whole count of the same folder or the answer is a fiction.
+		if ( !partial )
+		{
+			//Read before the record below overwrites it: what this same folder came
+			//to last time is the whole of the summary strip's "+2.81 GB since 8 Aug".
+			DIXRecentScan *previous = [[DIXRecentScans sharedList] scanForURL: [rootItem fileURL]];
 
-		_previousScanSize = [previous size];
-		_previousScanDate = [previous scannedAt];
+			_previousScanSize = [previous size];
+			_previousScanDate = [previous scannedAt];
 
-		//What changed, worked out against the last snapshot before this scan
-		//overwrites it. Held on the document because the window is not built yet.
-		_changesSinceLastScan = [[DIXScanHistory sharedHistory] changesForItem: rootItem];
+			//What changed, worked out against the last snapshot before this scan
+			//overwrites it. Held on the document because the window is not built yet.
+			_changesSinceLastScan = [[DIXScanHistory sharedHistory] changesForItem: rootItem];
 
-		[[DIXScanHistory sharedHistory] recordSnapshotForItem: rootItem];
+			[[DIXScanHistory sharedHistory] recordSnapshotForItem: rootItem];
 
-		//What the sidebar offers as somewhere you have already been. Recorded
-		//here rather than when the document opened, because only now is there a
-		//total to show beside it.
-		[[DIXRecentScans sharedList] recordScanOfURL: [rootItem fileURL]
-												size: [[rootItem size] unsignedLongLongValue]];
+			//What the sidebar offers as somewhere you have already been. Recorded
+			//here rather than when the document opened, because only now is there a
+			//total to show beside it.
+			[[DIXRecentScans sharedList] recordScanOfURL: [rootItem fileURL]
+													size: [[rootItem size] unsignedLongLongValue]];
+		}
 		[self _invalidateItemCounts];
 		
 		//the modal session must be ended in the same NS_DURING section (if no exception occured)
@@ -639,8 +676,11 @@ NSString *DIXChangeFilterOption = @"DIXChangeFilter";
 		unsigned progressPanelLimit = ![[item fileURL] isLocalVolume] ? 200 : 500;
 		if ( [item deepFileCountIncludingPackages: YES] > progressPanelLimit )
 		{
-			//NSWindow *window = [[[self windowControllers] objectAtIndex: 0] window];
-			_progressController = [[LoadingPanelController alloc] init];
+			_progressController = [[DIXScanningController alloc] initWithTitle: [item name]];
+
+			//A refresh replaces a subtree that is already complete; stopping it
+			//half way and keeping what it got would be a downgrade, not a result.
+			[_progressController setAllowsPartialResults: NO];
 		}
 		
 		refreshedItem = [[FSItem alloc] initWithPath: [item path]];
@@ -1539,15 +1579,70 @@ static NSString * const ScannedItemCountsKey = @"ScannedItemCounts";
 	_scanItemsDone = 0;
 	[_scanLock unlock];
 
+	_scanKeepPartialResults = NO;
+
 	//read once, here, so the scan queue never touches the document's options
 	_scanIgnoreCreatorCode   = [self ignoreCreatorCode];
 	_scanLookIntoPackages    = [self showPackageContents];
 	_scanUsePhysicalFileSize = [self showPhysicalFileSize];
 
+	//and the walk's own running totals, which the scanning screen reads
+	FSItemResetScanProgress( _scanUsePhysicalFileSize );
+
+	_scanStartedAt = getTime();
+	_scanRateItems = 0;
+	_scanRateAt = _scanStartedAt;
+	_scanRate = 0.0;
+
 	//Clamped rather than trusted: this is a number out of user defaults, and a
 	//hand-edited or stale one must not turn into an unbounded number of queues.
 	const NSInteger wanted = [[NSUserDefaults standardUserDefaults] integerForKey: ScanConcurrency];
 	_scanConcurrency = (NSUInteger) MIN( MAX( wanted, ScanConcurrencyMinimum ), ScanConcurrencyMaximum );
+}
+
+//Read between pump ticks, on the main thread. The counters underneath are the
+//walk's own atomics; only the rate is worked out here, because only here is
+//there a clock that is not on the hot path of every directory.
+- (DIXScanProgress) scanProgress
+{
+	const FSItemScanTotals totals = FSItemScanTotalsSoFar();
+
+	DIXScanProgress progress;
+
+	progress.bytes   = totals.bytes;
+	progress.files   = totals.files;
+	progress.folders = totals.folders;
+	progress.skipped = totals.skipped;
+
+	const NSUInteger done = (NSUInteger) totals.files + (NSUInteger) totals.folders;
+
+	progress.fraction = ( _scanEstimatedTotal > 0 )
+		? (double) done / (double) _scanEstimatedTotal : -1.0;
+
+	//A quarter of a second between samples: shorter and the figure is noise,
+	//longer and it lags behind a scan that has just reached a slow volume.
+	const uint64_t now = getTime();
+	const double elapsed = subtractTime( now, _scanRateAt );
+
+	if ( elapsed >= 0.25 && done >= _scanRateItems )
+	{
+		const double instant = (double) ( done - _scanRateItems ) / elapsed;
+
+		//An exponential moving average, weighted to the past: the walk's rate
+		//swings by an order of magnitude between a folder of big files and a
+		//folder of small ones, and the screen is reporting a trend.
+		_scanRate = ( _scanRate > 0.0 ) ? ( _scanRate * 0.7 + instant * 0.3 ) : instant;
+
+		_scanRateItems = done;
+		_scanRateAt = now;
+	}
+
+	progress.itemsPerSecond = _scanRate;
+
+	progress.secondsRemaining = ( _scanEstimatedTotal > done && _scanRate > 1.0 )
+		? (double) ( _scanEstimatedTotal - done ) / _scanRate : -1.0;
+
+	return progress;
 }
 
 - (void) _setScanCurrentPath: (NSString*) path
@@ -1622,7 +1717,7 @@ static NSString * const ScannedItemCountsKey = @"ScannedItemCounts";
 	[self _beginScan];
 
 	_scanEstimatedTotal = ( rootURL != nil ) ? [[self class] _estimatedItemCountForURL: rootURL] : 0;
-	[_progressController setProgressFraction: ( _scanEstimatedTotal > 0 ) ? 0.0 : -1.0];
+	[_progressController setProgress: [self scanProgress]];
 
 	__block NSException *caught = nil;
 	__block BOOL finished = NO;
@@ -1644,41 +1739,43 @@ static NSString * const ScannedItemCountsKey = @"ScannedItemCounts";
 		}
 	});
 
-	//How often the path label is refreshed, as against how often the main thread
+	//How often the screen is refreshed, as against how often the main thread
 	//wakes. Waking often is what makes Cancel feel immediate; redrawing the
-	//label that often is just work, and measurably slowed the scan when the two
-	//were the same number.
-	const NSTimeInterval messageInterval = 0.1;
-	uint64_t lastMessageTime = 0;
+	//screen that often is just work, and measurably slowed the scan when the two
+	//were the same number. Four times a second is what the handoff asks for and
+	//is about as fast as a figure can change and still be read.
+	const NSTimeInterval refreshInterval = 0.25;
+	uint64_t lastRefreshTime = 0;
 
 	while ( !finished )
 	{
 		@autoreleasepool
 		{
 			uint64_t now = getTime();
-			if ( lastMessageTime == 0 || subtractTime( now, lastMessageTime ) >= messageInterval )
+			if ( lastRefreshTime == 0 || subtractTime( now, lastRefreshTime ) >= refreshInterval )
 			{
 				NSString *path = [self _takeScanCurrentPath];
 				if ( path != nil )
-					[_progressController setMessageText: path];
+					[_progressController setCurrentPath: path];
 
-				[_scanLock lock];
-				const NSUInteger done = _scanItemsDone;
-				[_scanLock unlock];
+				[_progressController setProgress: [self scanProgress]];
+				[_progressController setBiggestFiles: FSItemBiggestFilesSoFar()];
 
-				[_progressController setProgressFraction:
-					( _scanEstimatedTotal > 0 ) ? (double) done / (double) _scanEstimatedTotal : -1.0];
-
-				lastMessageTime = now;
+				lastRefreshTime = now;
 			}
 
 			if ( ![_progressController runModalSessionForInterval: 0.05] )
 			{
 				//the session ended under us; stop the walk rather than waiting
-				//out a scan whose panel has gone
+				//out a scan whose screen has gone
 				[self _cancelScan];
 				break;
 			}
+
+			//"Show partial results" stops the walk the same way Cancel does; what
+			//separates them is what the caller does with the tree afterwards.
+			if ( [_progressController partialResultsPressed] )
+				_scanKeepPartialResults = YES;
 
 			if ( [_progressController cancelPressed] )
 				[self _cancelScan];
@@ -1733,8 +1830,14 @@ static NSString * const ScannedItemCountsKey = @"ScannedItemCounts";
 		while ( parentItem != nil && ![parentItem isPackage] )
 			parentItem = [parentItem parent];
 
+		//The whole path, not the one relative to the scan root: the screen
+		//truncates it at the head, so what survives is the end - the folder the
+		//walk is actually in - and a leading ellipsis says the rest is there.
+		//A relative path truncated the same way loses its first component and
+		//gains nothing, since the window title already says what is being
+		//scanned.
 		if ( parentItem == nil )
-			[self _setScanCurrentPath: [item displayPath]];
+			[self _setScanCurrentPath: [item path]];
 	}
 
 	//g_fileCount and g_folderCount are atomic, and incremented as each FSItem is

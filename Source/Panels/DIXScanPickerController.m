@@ -543,6 +543,11 @@ static const CGFloat kFooterButtonH   =  30.0;
 	return [_window isVisible];
 }
 
+- (NSWindow*) pickerWindow
+{
+	return _window;
+}
+
 - (void) onListsChanged: (NSNotification*) notification
 {
 	if ( [_window isVisible] )

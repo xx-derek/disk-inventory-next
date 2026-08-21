@@ -20,6 +20,37 @@
 extern _Atomic unsigned g_fileCount;
 extern _Atomic unsigned g_folderCount;
 
+//What a running scan has found so far, which is what the scanning screen is made
+//of. Written by the walk on whichever queue got the subtree, so every field
+//behind these is atomic or under a lock, and a reader gets a snapshot that may
+//be a few items stale - which is all a progress screen needs.
+typedef struct
+{
+	unsigned files;
+	unsigned folders;
+	unsigned skipped;               //directories the enumerator could not list
+	unsigned long long bytes;       //of files only; a folder's size is its contents
+} FSItemScanTotals;
+
+//Called before a scan starts, on the main thread, with no walk running. The flag
+//is the scan's own ShowPhysicalFileSize snapshot, taken once here rather than
+//asked of the delegate per file: it decides which of the two sizes the running
+//total and the biggest-so-far list are counted in, and a screen that disagreed
+//with the window it turns into would be worse than either answer.
+void FSItemResetScanProgress( BOOL usePhysicalFileSize );
+
+FSItemScanTotals FSItemScanTotalsSoFar( void );
+
+//The three biggest *files* found so far, biggest first. Folders are not in it:
+//a folder's size is known only once its subtree is complete, which for the one
+//being walked is never - keeping it live would mean touching every ancestor for
+//every file, on every queue.
+NSArray<NSDictionary*>* FSItemBiggestFilesSoFar( void );
+
+extern NSString * const FSItemBiggestNameKey;   //NSString
+extern NSString * const FSItemBiggestSizeKey;   //NSNumber, physical and logical
+extern NSString * const FSItemBiggestKindKey;   //NSString, nil inside a package
+
 @interface NSString (ComparisonAdditions)
 - (NSComparisonResult) compareAsFilesystemName: (NSString*) other;
 @end

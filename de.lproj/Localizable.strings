@@ -162,3 +162,13 @@
 "Show Everything on the Map" = "Alles in der Karte zeigen";
 "Nothing has changed by more than a megabyte." = "Nichts hat sich um mehr als ein Megabyte geändert.";
 "This folder has not been scanned before, so there is nothing to compare against." = "Dieser Ordner wurde noch nie gescannt, es gibt also nichts zum Vergleichen.";
+"Scanning" = "Scannen";
+"found so far" = "bisher gefunden";
+"files" = "Dateien";
+"folders" = "Ordner";
+"rate" = "Tempo";
+"skipped" = "übersprungen";
+"%@/s" = "%@/s";
+"Biggest so far" = "Bisher am größten";
+"About %@ left" = "Noch etwa %@";
+"Show Partial Results" = "Teilergebnis anzeigen";

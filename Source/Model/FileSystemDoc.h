@@ -19,8 +19,12 @@
 #import "DIXScanHistory.h"
 #import "FSItem.h"
 #import "Preferences.h"
-#import "LoadingPanelController.h"
 #import "FileTypeColors.h"
+
+//Forward-declared rather than imported: the scanning screen is drawn from a
+//DIXScanProgress, which is declared below, so importing its header here would
+//be a cycle.
+@class DIXScanningController;
 
 //holds information about the count and size of the files of one kind (e.g. MP3 files)
 @interface FileKindStatistic : NSObject
@@ -112,7 +116,12 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 	NSDate *_scanCompletedAt;
 
 	//these variables are used during the initial directory scan
-	LoadingPanelController *_progressController;
+	DIXScanningController *_progressController;
+
+	//Set when the scan was stopped by "Show partial results" rather than by
+	//Cancel: the walk stops the same way for both, and this is what decides
+	//whether the tree it leaves behind is kept or thrown away.
+	BOOL _scanKeepPartialResults;
 
 	//Scan state. The walk runs on a background queue while the main thread
 	//keeps the progress panel alive, so anything both touch is guarded by
@@ -127,6 +136,14 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 	BOOL _scanLookIntoPackages;
 	BOOL _scanUsePhysicalFileSize;
 	NSUInteger _scanConcurrency;
+
+	//The rate the scanning screen reports, worked out on the main thread between
+	//pump ticks and smoothed - an instantaneous figure over a 0.1s window jumps
+	//between hundreds and tens of thousands and is unreadable.
+	uint64_t _scanStartedAt;
+	uint64_t _scanRateAt;
+	NSUInteger _scanRateItems;
+	double _scanRate;
 }
 
 - (BOOL) showPhysicalFileSize;
@@ -195,6 +212,28 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 - (FileTypeColors*) fileTypeColors;
 
 - (void) refreshFileKindStatistics;
+
+#pragma mark --------what a running scan is doing-----------------
+
+//Everything the scanning screen draws, in one reading. Main thread only, and
+//only meaningful while a scan is running.
+typedef struct
+{
+	unsigned long long bytes;
+	unsigned files;
+	unsigned folders;
+	unsigned skipped;
+
+	//0...1, or negative when there is no total to divide by - see the note on
+	//estimating scan progress. The screen leaves the bar and the percentage
+	//blank rather than inventing a number.
+	double fraction;
+
+	double itemsPerSecond;
+	double secondsRemaining;        //negative when unknown
+} DIXScanProgress;
+
+- (DIXScanProgress) scanProgress;
 
 #pragma mark --------what the summary strip reports-----------------
 

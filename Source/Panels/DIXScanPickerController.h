@@ -27,6 +27,10 @@
 - (void) showPicker;
 - (BOOL) pickerIsVisible;
 
+//Where the picker is on screen, so the scanning screen can appear in its place
+//rather than centred somewhere else. nil when it has never been shown.
+- (NSWindow*) pickerWindow;
+
 - (IBAction) scanSelection: (id) sender;
 - (IBAction) chooseFolder: (id) sender;
 

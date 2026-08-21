@@ -93,7 +93,8 @@ Source/App/                    main.m, the prefix header, MainWindow(Controller)
                                MyDocumentController, AppController, ToolbarWindowController
 Source/Model/                  FSItem(+Utilities), FSItemIndex, FileSystemDoc, FileTypeColors
 Source/Controllers/            one controller per pane, plus the selection-list trio
-Source/Panels/                 Info, Drives and Loading panels, and the volume transformers
+Source/Panels/                 the volume picker, the scanning screen, the change window,
+                               the file info list and the donation panel
 Source/Preferences/            Preferences, PrefsPanelController, PrefsPageBase/Record,
                                PrefsPageLayout, the two pages
 Source/Views/                  DIXTableView, DIXOutlineView, ImageAndTextCell, GenericArrayController
@@ -280,23 +281,66 @@ A directory walk has no total to divide by, so the panel gets one of two things:
   folder inside one — asked about `/usr/share` it reports the boot volume's 458,726 against
   the 20,180 actually there. Hence the `isVolume` test.
 
-With neither, the bar stays indeterminate and the percentage is blank rather than showing
-a number that would be made up. The percentage is held at 99% until the scan really ends,
-because the total is an estimate and a full bar over a still-running scan reads as a hang.
+With neither, the bar stays **empty** and the percentage blank rather than showing a number
+that would be made up. The percentage is held at 99% until the scan really ends, because
+the total is an estimate and a full bar over a still-running scan reads as a hang.
 
 Counting is done in `-fsItemEnteringFolder:` by reading `g_fileCount + g_folderCount`,
 which the walk increments on that same thread — so no synchronising is needed to read them,
 only to publish the total. Folder granularity is plenty: a 20,000-item scan passes through
 there about 900 times.
 
-**Do not start the progress indicator's indeterminate animation unless you mean it.** Once
-that animation is running inside a modal session, `-setIndeterminate:NO` does not reliably
-stop it drawing: `-isIndeterminate` answers `NO` while the barber pole carries on over the
-top of the value, so the bar and the percentage disagree — the label read 91% while the bar
-showed a sliver at the far right. The panel therefore starts the indicator stopped, and
-`-setProgressFraction:` animates it only in the no-estimate case.
+There is **no `NSProgressIndicator` any more**, and that is deliberate. The bar is a
+`DIXShareBar`, which draws a fill in a track and nothing else. The indicator it replaced
+would not stop its indeterminate animation once started inside a modal session —
+`-isIndeterminate` answered `NO` while the barber pole carried on over the top of the
+value, so the bar read a sliver while the label read 91%. Reintroducing one brings that
+back; a fraction that is sometimes unknown is a bar that is sometimes empty.
 
 Sizes are `unsigned long long` / `UInt64` throughout. Do not narrow them.
+
+### The scanning screen
+
+`DIXScanningController` replaced the modal `LoadingPanel` nib on 2026-08-21. It is still a
+**modal session**, and for the same reason as before: the walk owns the queue, the main
+thread has nothing to do but pump, and a modal session is what keeps the buttons answering
+while it waits. What changed is that it is a 560pt window built in code, drawn to the
+design, and `-takeFrameFrom:` puts it where the volume picker was so the two read as one
+window carrying on.
+
+The figures it shows are the walk's own, added for it:
+
+- `FSItemScanTotalsSoFar()` — files, folders, skipped and bytes. The counters are
+  `_Atomic` with **relaxed** ordering: nothing is ordered against them, they are read only
+  to be displayed, and sequential consistency would put a barrier on the hot path of every
+  file in the scan.
+- `FSItemBiggestFilesSoFar()` — three entries behind an `os_unfair_lock`, but a file only
+  takes the lock if it beats an **atomic threshold** read first, so almost every file gets
+  one comparison and no lock.
+- **Files only, not folders.** A folder's size is the sum of what is under it and is known
+  only when the walk leaves it; keeping it live would mean touching every ancestor for
+  every file, on every queue. The design's mock shows a folder in this list; the app cannot
+  honour that without paying for it on the hot path.
+- `FSItemResetScanProgress( usePhysicalFileSize )` takes the size mode **once**, the same
+  way `-_beginScan` snapshots the other three options, so the walk never asks the delegate
+  per file and the screen cannot disagree with the window it turns into.
+- The rate is worked out on the main thread in `-scanProgress`, sampled no faster than
+  every 0.25s and smoothed 70/30, because the instantaneous figure swings by an order of
+  magnitude between a folder of big files and a folder of small ones.
+
+**The screen refreshes at 4 Hz, and the wake interval is still 50 ms.** Those are two
+different numbers on purpose — see the note above about what happened when they were one.
+
+**"Show partial results" stops the walk; it does not run on behind the window.** The walk
+uses exceptions as control flow and the tree is mutated by up to eight queues, so leaving
+it running while views read the tree would be a race in every direction. It sets
+`_scanKeepPartialResults` and then cancels exactly as Cancel does; what differs is what
+`-readFromFile:ofType:` does with what is left — it keeps the tree, sums the sizes itself
+(the exception unwound past every `-recalculateSize:`), and **writes no history at all**:
+not `ScannedItemCounts`, not the `DIXRecentScans` total, not a `DIXScanHistory` snapshot.
+A partial total recorded against a path is the figure the *next* scan measures its delta
+from. A refresh calls `-setAllowsPartialResults: NO`, since replacing a complete subtree
+with an incomplete one is a downgrade rather than a result.
 
 ### Aggregation and lookup
 
@@ -443,11 +487,12 @@ Background and localized strings: `documentation/macOS privacy protected folders
 Every interface lives in compiled `.nib` bundles under the `.lproj` directories. They are
 not text and cannot be edited or diffed with normal tools — open them in Interface Builder.
 Localizations: `de`, `en`, `es`, `fr` (`English.lproj` is a legacy leftover holding only
-Help index files). Three nibs remain per language — `MainMenu`, `TreeMap`, `LoadingPanel`.
-The three preference-page nibs were deleted on 2026-08-15 when those pages moved into code,
-`InfoPanel` on 2026-08-20 when the inspector replaced the floating Info window, and
-`VolumesPanel` on 2026-08-21 when the volume picker replaced the Drives panel. A UI change means updating the `.nib` in each of the four languages plus
-`Localizable.strings`.
+Help index files). Two nibs remain per language — `MainMenu` and `TreeMap`. The three
+preference-page nibs were deleted on 2026-08-15 when those pages moved into code,
+`InfoPanel` on 2026-08-20 when the inspector replaced the floating Info window,
+`VolumesPanel` on 2026-08-21 when the volume picker replaced the Drives panel, and
+`LoadingPanel` the same day when the scanning screen replaced it. A UI change means
+updating the `.nib` in each of the four languages plus `Localizable.strings`.
 
 To change nib text without Interface Builder, round-trip through `ibtool`:
 
