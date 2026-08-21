@@ -275,17 +275,17 @@ static const CGFloat kBarIndent    = 18.0;
 	[_sectionLabel setTranslatesAutoresizingMaskIntoConstraints: YES];
 	[self addSubview: _sectionLabel];
 
-	//Only meaningful once something is filtered, so it says "Clear" rather than
-	//"Filter": the filter is applied by clicking a row, and a button offering to
-	//do what a click already does would be a second way to say the same thing.
+	//A menu of kinds, and the way back to all of them. Clicking a row filters
+	//too, and this is the discoverable half of that: the design draws it in the
+	//header whether or not anything is filtered, and it is what replaces the
+	//old "Show all files of kind:" pop-up.
 	_filterButton = [NSButton buttonWithTitle:
-		NSLocalizedString( @"Clear", @"sidebar, stop filtering the map to one kind" )
+		NSLocalizedString( @"Filter", @"sidebar, narrow the map to one file kind" )
 									   target: self
-									   action: @selector(clearFilter:)];
+									   action: @selector(showFilterMenu:)];
 	[_filterButton setBordered: NO];
 	[_filterButton setFont: [NSFont systemFontOfSize: 11.0 weight: NSFontWeightSemibold]];
 	[_filterButton setContentTintColor: [DIXTheme accent]];
-	[_filterButton setHidden: YES];
 	[_filterButton setTranslatesAutoresizingMaskIntoConstraints: YES];
 	[self addSubview: _filterButton];
 
@@ -328,7 +328,9 @@ static const CGFloat kBarIndent    = 18.0;
 		[[[_document kindStatistics] allValues] sortedArrayUsingSelector: @selector(compareSizeDescendingly:)];
 
 	[_rowsView setDocument: _document statistics: statistics];
-	[_filterButton setHidden: ( [_document kindFilter] == nil )];
+
+	//Nothing to filter by until something has been scanned.
+	[_filterButton setHidden: ( [statistics count] == 0 )];
 
 	[self layoutContents];
 	[self setNeedsDisplay: YES];
@@ -337,6 +339,81 @@ static const CGFloat kBarIndent    = 18.0;
 - (void) clearFilter: (id) sender
 {
 	[_document setKindFilter: nil];
+}
+
+//A 10x10 square of the kind's own colour, the same chip the rows and the file
+//list draw. Menu items take an image; this is the only way to put the legend's
+//colour beside the legend's name here.
+static NSImage* SwatchForColor( NSColor *color )
+{
+	const CGFloat size = 10.0;
+
+	NSImage *swatch = [NSImage imageWithSize: NSMakeSize( size, size )
+									 flipped: NO
+							  drawingHandler: ^BOOL ( NSRect rect )
+	{
+		[( color ?: [NSColor grayColor] ) set];
+		NSRectFill( rect );
+
+		return YES;
+	}];
+
+	//Off, or AppKit would render it as a template in the menu's own tint and
+	//throw away the one thing it is for.
+	[swatch setTemplate: NO];
+
+	return swatch;
+}
+
+- (void) showFilterMenu: (id) sender
+{
+	NSArray<FileKindStatistic*> *statistics =
+		[[[_document kindStatistics] allValues] sortedArrayUsingSelector: @selector(compareSizeDescendingly:)];
+
+	NSString *current = [_document kindFilter];
+
+	NSMenu *menu = [[NSMenu alloc] init];
+
+	NSMenuItem *all = [menu addItemWithTitle:
+		NSLocalizedString( @"All Kinds", @"sidebar filter menu" )
+									  action: @selector(clearFilter:)
+							   keyEquivalent: @""];
+	[all setTarget: self];
+	[all setState: ( current == nil ) ? NSControlStateValueOn : NSControlStateValueOff];
+
+	[menu addItem: [NSMenuItem separatorItem]];
+
+	//Every kind, largest first - the same ranking as the rows below, so the two
+	//lists cannot disagree about what is biggest.
+	for ( FileKindStatistic *statistic in statistics )
+	{
+		NSString *kind = [statistic kindName];
+
+		NSMenuItem *item = [menu addItemWithTitle: kind
+										   action: @selector(filterToKindFromMenu:)
+									keyEquivalent: @""];
+
+		[item setTarget: self];
+		[item setRepresentedObject: kind];
+		[item setImage: SwatchForColor( [[_document fileTypeColors] colorForKind: kind] )];
+		[item setState: [kind isEqualToString: current] ? NSControlStateValueOn
+														: NSControlStateValueOff];
+	}
+
+	//Under the affordance rather than at the pointer, so it reads as belonging
+	//to the header row it came from.
+	[menu popUpMenuPositioningItem: nil
+						atLocation: NSMakePoint( 0.0, 0.0 )
+							inView: _filterButton];
+}
+
+- (void) filterToKindFromMenu: (NSMenuItem*) sender
+{
+	NSString *kind = [sender representedObject];
+
+	//Choosing the one already chosen clears it, which is what clicking the row
+	//twice does - so the two routes to the filter behave the same way.
+	[_document setKindFilter: [kind isEqualToString: [_document kindFilter]] ? nil : kind];
 }
 
 #pragma mark --------layout-----------------
