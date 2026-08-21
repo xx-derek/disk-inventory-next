@@ -242,23 +242,14 @@ NSString *DIXChangeFilterOption = @"DIXChangeFilter";
 - (void) makeWindowControllers
 {
     // Override method to instantiate controllers for multiple document windows.
-    MainWindowController *controller = [[MainWindowController alloc] initWithWindowNibName: [self windowNibName]];
+    MainWindowController *controller = [[MainWindowController alloc] init];
     [self addWindowController:controller];
 }
 
 
-- (NSString *)windowNibName
-{
-    // Override returning the nib file name of the document
-    // If you need to use a subclass of NSWindowController or if your document supports multiple NSWindowControllers, you should remove this method and override -makeWindowControllers instead.
-    return @"TreeMap";
-}
-
-- (void)windowControllerDidLoadNib:(NSWindowController *) aController
-{
-    [super windowControllerDidLoadNib:aController];
-    // Add any code here that needs to be executed once the windowController has loaded the document's window.
-}
+//-windowNibName is deliberately not overridden. There is no nib: the window is
+//built in -[MainWindowController loadWindow], which is what retired the four
+//localized TreeMap.nibs on 2026-08-21.
 
 - (BOOL) readFromFile: (NSString *) folder ofType: (NSString *) docType
 {

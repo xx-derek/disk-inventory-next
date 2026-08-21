@@ -36,6 +36,10 @@
 #import "DIXChangesController.h"
 #import "DIXPrivacyBannerView.h"
 #import "DonationPanelController.h"
+#import "MainWindow.h"
+#import "DIXOutlineView.h"
+#import "FilesOutlineViewController.h"
+#import "TreeMapViewController.h"
 
 
 //Used the first time a pane is opened, when nothing has been remembered for it.
@@ -126,17 +130,228 @@
 	[NSApp registerServicesMenuSendTypes: sendTypes returnTypes: returnTypes];
 }
 
-- (id) initWithWindowNibName:(NSString *)windowNibName
+- (id) init
 {
-	self = [super initWithWindowNibName: windowNibName];
-	
+	self = [super initWithWindow: nil];
+
 	if ( self != nil )
 	{
 		//register volume transformers needed by various controls
 		[NSValueTransformer setValueTransformer:[FileSizeTransformer transformer] forName: @"fileSizeTransformer"];
 	}
-	
+
 	return self;
+}
+
+#pragma mark -----------------the window-----------------------
+
+//Built here rather than loaded from TreeMap.nib, which was retired on
+//2026-08-21. The nib held four localized copies of a window whose visible parts
+//are all built in code anyway - the sidebar, the inspector, both bands, the
+//title bar accessories - and whose remaining contents were the outline, the
+//map, and two panes that the sidebar and the inspector had already replaced.
+//Editing any of it meant editing four binary bundles that cannot be diffed.
+//
+//Called by hand, from -window below, and not by AppKit. -initWithWindow: marks
+//the nib as already loaded, so NSWindowController never sends -loadWindow to a
+//controller made that way - the same trap PrefsPanelController documents. The
+//name is kept because the contract still holds: it builds a window and hands it
+//over with -setWindow:.
+- (void) loadWindow
+{
+	MainWindow *window = [[MainWindow alloc] initWithContentRect: NSMakeRect( 0.0, 0.0, 1100.0, 700.0 )
+													   styleMask: NSWindowStyleMaskTitled
+																  | NSWindowStyleMaskClosable
+																  | NSWindowStyleMaskMiniaturizable
+																  | NSWindowStyleMaskResizable
+														 backing: NSBackingStoreBuffered
+														   defer: NO];
+
+	//The same autosave name the nib carried, so an existing user's window comes
+	//back where they left it.
+	[window setFrameAutosaveName: @"MainWindow"];
+	[window setReleasedWhenClosed: NO];
+	[window setMinSize: NSMakeSize( 640.0, 400.0 )];
+
+	NSView *content = [window contentView];
+
+	_splitter = [[NSSplitView alloc] initWithFrame: [content bounds]];
+	[_splitter setVertical: YES];
+	[_splitter setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
+	[content addSubview: _splitter];
+
+	NSMenu *contextMenu = [self buildFileContextMenu];
+
+	// ---- the file list -----------------------------------------------------
+	_filesOutlineView = [[DIXOutlineView alloc] initWithFrame: NSMakeRect( 0.0, 0.0, 320.0, 400.0 )];
+
+	//The two the design asks for; FilesOutlineViewController adds "dixShare"
+	//and restyles all three - see -applyDesignToOutlineView.
+	NSTableColumn *nameColumn = [[NSTableColumn alloc] initWithIdentifier: @"displayName"];
+
+	[nameColumn setWidth: 172.0];
+	[nameColumn setMinWidth: 16.0];
+	[nameColumn setMaxWidth: 1000.0];
+	[nameColumn setEditable: NO];
+	[[nameColumn headerCell] setStringValue: NSLocalizedString( @"Name", @"file list column" )];
+
+	NSTableColumn *sizeColumn = [[NSTableColumn alloc] initWithIdentifier: @"size"];
+
+	[sizeColumn setWidth: 74.0];
+	[sizeColumn setMinWidth: 74.0];
+	[sizeColumn setMaxWidth: 74.0];
+	[sizeColumn setEditable: NO];
+	[[sizeColumn headerCell] setStringValue: NSLocalizedString( @"Size", @"file list column" )];
+
+	[_filesOutlineView addTableColumn: nameColumn];
+	[_filesOutlineView addTableColumn: sizeColumn];
+	[_filesOutlineView setOutlineTableColumn: nameColumn];
+
+	[_filesOutlineView setHeaderView: [[NSTableHeaderView alloc] initWithFrame: NSZeroRect]];
+	[_filesOutlineView setIndentationPerLevel: 16.0];
+	[_filesOutlineView setAutoresizesOutlineColumn: YES];
+	[_filesOutlineView setAllowsMultipleSelection: NO];
+	[_filesOutlineView setColumnAutoresizingStyle: NSTableViewFirstColumnOnlyAutoresizingStyle];
+	[_filesOutlineView setAllowsExpansionToolTips: YES];
+	[_filesOutlineView setMenu: contextMenu];
+
+	NSScrollView *listScrollView = [[NSScrollView alloc] initWithFrame: NSMakeRect( 0.0, 0.0, 320.0, 400.0 )];
+
+	[listScrollView setDocumentView: _filesOutlineView];
+	[listScrollView setHasVerticalScroller: YES];
+	[listScrollView setBorderType: NSNoBorder];
+	[listScrollView setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
+	[DIXControls useOverlayScrollersIn: listScrollView];
+
+	// ---- the map -----------------------------------------------------------
+	_treeMapView = [[TreeMapView alloc] initWithFrame: NSMakeRect( 0.0, 0.0, 700.0, 400.0 )];
+
+	[_treeMapView setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
+	[_treeMapView setMenu: contextMenu];
+
+	[_splitter addSubview: listScrollView];
+	[_splitter addSubview: _treeMapView];
+
+	[window setInitialFirstResponder: _treeMapView];
+
+	//Before the data sources below. Setting one reloads the view at once, and
+	//the reload asks the view's window for its delegate to find the document -
+	//which is this controller.
+	[self setWindow: window];
+
+	//Explicitly, because +documentForView: goes through it and the nib used to
+	//wire it to File's Owner. Leaving it to -setWindow: is not safe, and the
+	//failure is silent and spectacular: the assert in +documentForView: that
+	//catches a nil delegate is an NSAssert, which is compiled out in release, so
+	//the lookup returned nil, the document had no root, and the "other space"
+	//item was built with no parent. That makes it its own -root - -isRoot is
+	//just "no parent" - and -fileURL asks its root for a URL, so it asked
+	//itself, until the stack ran out.
+	[window setDelegate: self];
+
+	// ---- the two per-view controllers --------------------------------------
+	//
+	//Both were nib objects, and both find their document through the view's own
+	//window controller, so wiring them is setting the view and announcing it.
+	//-awakeFromNib is what registers their notification observers; the nib used
+	//to send it, so it is sent by hand here.
+	_filesOutlineController = [[FilesOutlineViewController alloc] init];
+	[_filesOutlineController setValue: _filesOutlineView forKey: @"_outlineView"];
+	[_filesOutlineController setValue: contextMenu forKey: @"_contextMenu"];
+
+	[_filesOutlineView setDataSource: (id) _filesOutlineController];
+	[_filesOutlineView setDelegate: (id) _filesOutlineController];
+
+	_treeMapController = [[TreeMapViewController alloc] init];
+	[_treeMapController setValue: _treeMapView forKey: @"_treeMapView"];
+
+	[_treeMapView setDataSource: (id) _treeMapController];
+	[_treeMapView setDelegate: (id) _treeMapController];
+
+	[_filesOutlineController awakeFromNib];
+	[_treeMapController awakeFromNib];
+
+	//The nib used to send this after its objects were connected, and it is what
+	//builds the sidebar and the inspector around the two views above.
+	[self awakeFromNib];
+}
+
+//Where the window gets built, and the timing is the whole point.
+//
+//Lazily from -window is wrong, and crashes. AppKit asks a controller for its
+//window from inside -[NSDocument addWindowController:] -> -setDocument: ->
+//-setDocumentEdited:, which is *before* the document has been attached - so the
+//per-view controllers wired themselves to a document with no tree, and building
+//the synthetic "other space" item against it walked a parent chain that was not
+//there yet and recursed until the stack ran out.
+//
+//The nib was loaded on -showWindow:, by which time the document was set, so
+//everything that reads it ran after that point. Building here keeps that order:
+//super has assigned the document by the time this runs.
+- (void) setDocument: (id) document
+{
+	[super setDocument: document];
+
+	if ( document == nil || _windowBuilt )
+		return;
+
+	//before -loadWindow, which builds panes that ask for the window
+	_windowBuilt = YES;
+
+	[self loadWindow];
+	[self windowDidLoad];
+
+	//By hand, because AppKit already tried. -setDocument: syncs the title as
+	//part of attaching, and at that moment - one line above - there was no
+	//window to put it on, so the window came up untitled.
+	[self synchronizeWindowTitleWithDocumentName];
+}
+
+//"Open · Open With ▸ · Reveal in Finder · Refresh · Move To Trash · Zoom In ·
+//Zoom Out", shared by the list and the map. Every action is this controller's,
+//and every one of them is already validated by -validateMenuItem:.
+- (NSMenu*) buildFileContextMenu
+{
+	NSMenu *menu = [[NSMenu alloc] initWithTitle: @"FileContextMenu"];
+
+	[[menu addItemWithTitle: NSLocalizedString( @"Open", @"file context menu" )
+					 action: @selector(openFile:) keyEquivalent: @""] setTarget: self];
+
+	NSMenuItem *openWith = [menu addItemWithTitle:
+		NSLocalizedString( @"Open With", @"file context menu" ) action: NULL keyEquivalent: @""];
+
+	//Filled in by -menuNeedsUpdate:, which is why this controller is its
+	//delegate rather than its target.
+	_openWithSubMenu = [[NSMenu alloc] initWithTitle: @"Open With"];
+	[_openWithSubMenu setDelegate: (id) self];
+	[openWith setSubmenu: _openWithSubMenu];
+
+	[menu addItem: [NSMenuItem separatorItem]];
+
+	[[menu addItemWithTitle: NSLocalizedString( @"Reveal in Finder", @"file context menu" )
+					 action: @selector(showInFinder:) keyEquivalent: @""] setTarget: self];
+
+	NSMenuItem *refresh = [menu addItemWithTitle:
+		NSLocalizedString( @"Refresh", @"file context menu" )
+									   action: @selector(refresh:) keyEquivalent: @""];
+	[refresh setTarget: self];
+	[refresh setToolTip: NSLocalizedString( @"Synchronizes folder or file with Finder.",
+											@"file context menu" )];
+
+	[menu addItem: [NSMenuItem separatorItem]];
+
+	[[menu addItemWithTitle: NSLocalizedString( @"Move To Trash", @"file context menu" )
+					 action: @selector(moveToTrash:) keyEquivalent: @""] setTarget: self];
+
+	[menu addItem: [NSMenuItem separatorItem]];
+
+	[[menu addItemWithTitle: NSLocalizedString( @"Zoom In", @"file context menu" )
+					 action: @selector(zoomIn:) keyEquivalent: @""] setTarget: self];
+
+	[[menu addItemWithTitle: NSLocalizedString( @"Zoom Out", @"file context menu" )
+					 action: @selector(zoomOut:) keyEquivalent: @""] setTarget: self];
+
+	return menu;
 }
 
 + (FileSystemDoc*) documentForView: (NSView*) view
@@ -273,22 +488,13 @@
 {
 	NSView *contentView = [[self window] contentView];
 
+	//The sidebar's own container. It was the kind-statistics drawer's content
+	//view in the nib, and is a plain view now: everything in it - SOURCES, the
+	//rule, FILE KINDS - is built below.
 	if ( _kindStatisticsPane == nil )
-	{
-		NSLog( @"side panes could not be built: the nib did not supply their views" );
-		return;
-	}
+		_kindStatisticsPane = [[NSView alloc] initWithFrame: [_splitter frame]];
 
-	//The selection list is retired: the inspector's sibling list answers "what
-	//else is like this" and the toolbar's search field answers "where is it".
-	//The nib still builds the pane and its controllers - taking those out is a
-	//structural edit to four TreeMap.nibs, which belongs with the rest of the nib
-	//work - so it is unparented here rather than left somewhere it might show.
-	[_selectionListPane removeFromSuperview];
-
-	//Take over exactly the space the outline/treemap splitter occupied, not the
-	//whole content view: the treemap's name and size labels live below it, and
-	//filling the content view would cover them.
+	//Take over exactly the space the outline/treemap splitter occupied.
 	const NSRect paneFrame = [_splitter frame];
 	const NSAutoresizingMaskOptions paneMask = [_splitter autoresizingMask];
 
@@ -2248,7 +2454,7 @@ static const CGFloat kMinimumCentreWidth = 320.0;
 
 - (BOOL) splitView: (NSSplitView*) splitView canCollapseSubview: (NSView*) subview
 {
-	return subview == _sidebarPane || subview == _selectionListPane;
+	return subview == _sidebarPane;
 }
 
 //A closed side pane's divider sits on the window's own resize edge, where it is

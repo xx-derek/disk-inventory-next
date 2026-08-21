@@ -92,12 +92,12 @@ The directories mirror the Xcode groups one-for-one — a file's group **is** it
 Source/App/                    main.m, the prefix header, MainWindow(Controller),
                                MyDocumentController, AppController, ToolbarWindowController
 Source/Model/                  FSItem(+Utilities), FSItemIndex, FileSystemDoc, FileTypeColors
-Source/Controllers/            one controller per pane, plus the selection-list trio
+Source/Controllers/            one controller per pane (the file list and the map)
 Source/Panels/                 the volume picker, the scanning screen, the change window,
                                the file info list and the donation panel
 Source/Preferences/            Preferences, PrefsPanelController, PrefsPageBase/Record,
                                PrefsPageLayout, the two pages
-Source/Views/                  DIXTableView, DIXOutlineView, ImageAndTextCell, GenericArrayController
+Source/Views/                  DIXTableView, DIXOutlineView, ImageAndTextCell
 Source/Extensions/             NSAlert-, NSURL- and NSFileManager-Extensions
 Source/Helpers/                Timing, FileSizeFormatter, FileSizeTransformer, AppsForItem
 Source/TreeMapView/            the treemap widget — see its own section below
@@ -179,7 +179,7 @@ not talk to each other — they read from the document and resynchronize via
 - `ViewOptionChangedNotification` — a display toggle changed; option name under `ChangedViewOption`
 
 Observers live in `TreeMapViewController.m`, `FilesOutlineViewController.m`, and
-`FileKindsTableController.m`. **When adding a mutation that affects displayed data, post
+`DIXKindsView.m`. **When adding a mutation that affects displayed data, post
 the matching notification from the document** — otherwise views silently go stale. The
 header comments mark which document methods already post which notification.
 
@@ -491,8 +491,8 @@ Two things about the window (`DIXChangesController`, opened from the strip's *wh
 
 `MainWindowController` owns the split view (outline + treemap) and nearly every `IBAction`
 (zoom, refresh, trash, reveal in Finder, pane toggles). The per-view controllers
-(`TreeMapViewController`, `FilesOutlineViewController`, `FileKindsTableController`,
-`SelectionListTableController`) each manage one pane. `MyDocumentController` is an
+(`TreeMapViewController`, `FilesOutlineViewController`) each manage one view, and are
+instantiated by `-loadWindow` rather than by a nib. `MyDocumentController` is an
 `NSDocumentController` subclass handling app-level concerns (preferences panel, donation
 panel, zoom-stack menu).
 
@@ -594,11 +594,32 @@ be final, and one that came back on the next redraw would be a nag.
 Every interface lives in compiled `.nib` bundles under the `.lproj` directories. They are
 not text and cannot be edited or diffed with normal tools — open them in Interface Builder.
 Localizations: `de`, `en`, `es`, `fr` (`English.lproj` is a legacy leftover holding only
-Help index files). Two nibs remain per language — `MainMenu` and `TreeMap`. The three
+Help index files). **One nib remains per language — `MainMenu`.** The three
 preference-page nibs were deleted on 2026-08-15 when those pages moved into code,
 `InfoPanel` on 2026-08-20 when the inspector replaced the floating Info window,
 `VolumesPanel` on 2026-08-21 when the volume picker replaced the Drives panel, and
-`LoadingPanel` the same day when the scanning screen replaced it. A UI change means
+`LoadingPanel` the same day when the scanning screen replaced it. The four
+`TreeMap.nib`s — the document window — went on 2026-08-22; `-[MainWindowController
+loadWindow]` builds it, and deleting them also retired `SelectionListController`,
+`SelectionListTableController`, `FileKindsPopupController`, `FileKindsTableController` and
+`GenericArrayController`, which nothing but the nib and each other referenced.
+
+Three traps, each of which cost a debugging session, and none of which the compiler can see:
+
+- **`-initWithWindow:` marks the nib as already loaded**, so `NSWindowController` never
+  sends `-loadWindow` to a controller made that way. `PrefsPanelController` documents the
+  same thing.
+- **The window must be built after the document is attached, not lazily from `-window`.**
+  AppKit asks for the window from inside `-[NSDocument addWindowController:]` →
+  `-setDocument:` → `-setDocumentEdited:`, which is before the document is there; the nib
+  was loaded on `-showWindow:`, well after. Building it in an overridden `-setDocument:`,
+  once super has assigned the document, restores that order.
+- **Set the window's delegate explicitly.** `+documentForView:` finds the document through
+  it, and the `NSAssert` guarding that is **compiled out in release** — so the lookup
+  quietly returned nil, the document had no root, and the synthetic *other space* item was
+  built with no parent. `-isRoot` is just "no parent", so the item became its own root, and
+  `-fileURL` asks its root for a URL: it asked itself until the stack ran out. Release
+  crashed where Debug would have asserted. A UI change means
 updating the `.nib` in each of the four languages plus `Localizable.strings`.
 
 To change nib text without Interface Builder, round-trip through `ibtool`:
@@ -623,7 +644,7 @@ This recompiles `keyedobjects.nib` with the current Xcode toolchain, and the arc
 > find . -name "keyedobjects-*.nib" -not -path "./build/*"
 > ```
 >
-> Only `en.lproj` and `fr.lproj/TreeMap.nib` ever had one, and both are now gone. The
+> Only `en.lproj` and `fr.lproj/TreeMap.nib` ever had one; both went with those nibs. The
 > symptom is nasty: `de` and `es` pick up the edit while `en` and `fr` silently do not, so
 > the app behaves differently per language. Worse, an edit can appear to work for the wrong
 > reason — removing the `OASplitView` class made the stale nib fall back to `NSSplitView`
@@ -878,7 +899,8 @@ a list carries a permanent scroll bar and loses 17pt of width to it, which no pa
 design has. Two separate causes, and both have to be dealt with:
 
 - **`autohidesScrollers` defaults to `NO`**, and the file list's scroll view comes from
-  `TreeMap.nib`, where nothing sets it. With legacy scrollers that keeps one drawn even
+  `-loadWindow`, which sets it explicitly for that reason. With legacy scrollers an
+  unset one stays drawn even
   when the content fits — measured, 17 points of a 200-point scroll view.
 - **The system preference's default is "Automatic", which means legacy scrollers whenever a
   mouse is connected** — laid out beside the content rather than over it. An explicit

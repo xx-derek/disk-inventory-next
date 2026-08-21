@@ -17,17 +17,13 @@
 
 @interface MainWindowController : ToolbarWindowController <NSSplitViewDelegate>
 {
-    //Connected straight from the nib. These were the two drawers' content views
-    //until the drawers were removed; they are now installed as collapsible
-    //split-view panes at window load.
-    IBOutlet NSView *_kindStatisticsPane;
+    //The sidebar's pane. It was the kind-statistics drawer's content view in the
+    //nib; it is built in -buildSidePanes now, and the selection list that sat
+    //beside it went with the nib - the inspector's siblings list replaced it.
+    NSView *_kindStatisticsPane;
 	CGFloat _kindStatisticsWidth;   //remembered across a collapse, so reopening restores it
 	NSTimer *_kindStatisticsAnimationTimer;
 	BOOL _animatingKindStatistics;  //lifts the minimum-width constraint while sliding
-    //Retired. Still an outlet because four TreeMap.nibs connect it, and a
-    //connection to an outlet that no longer exists raises at nib load; the
-    //pane is unparented in -buildSidePanes instead.
-    IBOutlet NSView *_selectionListPane;
 
     NSSplitView *_kindStatisticsSplitView;
 
@@ -112,10 +108,20 @@
     //- see -splitView:shouldAdjustSizeOfSubview:.
     BOOL _paneWidthsSettled;
 
-	IBOutlet NSSplitView *_splitter;
-	IBOutlet NSOutlineView *_filesOutlineView;
-	IBOutlet TreeMapView *_treeMapView;
-	IBOutlet NSMenu *_openWithSubMenu;
+	//Built in -loadWindow, not loaded from a nib - see the note there.
+	NSSplitView *_splitter;
+	NSOutlineView *_filesOutlineView;
+	TreeMapView *_treeMapView;
+	NSMenu *_openWithSubMenu;
+
+	//The two per-view controllers the nib used to instantiate. Held because
+	//nothing else does: the views' data source and delegate are unretained.
+	id _filesOutlineController;
+	id _treeMapController;
+
+	//set before -loadWindow runs, so the re-entry from -buildSidePanes asking
+	//for the window does not start building a second one
+	BOOL _windowBuilt;
 }
 
 + (FileSystemDoc*) documentForView: (NSView*) view;
