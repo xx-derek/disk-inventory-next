@@ -426,6 +426,32 @@ exceed its parent, so a folder under the floor is never descended into. That, pl
 scan. The walk is iterative — `/` is deep enough in places that the stack is the wrong
 place to find that out.
 
+**The cap is asymmetric unless you make it symmetric, and that difference invents
+additions.** The snapshot keeps the 5,000 *largest* entries; the next scan walks everything
+down to the flat megabyte floor. So every file between the two lines is absent from
+"before" and present in "now", and a plain `is - was` calls each one brand new. Real
+figures from this machine: the `/Volumes/External Disk` snapshot was trimmed at **3.79 MB**,
+and the change window filled with identical `+4.0 MB` rows under a `+8 kB` headline. Three
+of five stored snapshots were at the cap, so this was every non-trivial scan.
+
+`recordSnapshotForItem:` therefore writes the trim line under `floor`, and
+`-changesForItem:` ignores anything absent from the snapshot that is *at or below* it — at
+the line, not under it, because the cap cuts through a run of equal-sized files and keeps
+an arbitrary part of it. Only for a snapshot that was actually trimmed: an untrimmed one
+holds everything down to the floor, so absence from it really is evidence. Snapshots
+written before the key existed are handled by `-floorOfSnapshot:items:`, which takes a
+count of exactly `kMaximumEntries` as proof of a trim and reads the line off the smallest
+entry. The direction of the residual error is deliberate — a genuinely new file below the
+line goes unreported, which is a change missed rather than one made up.
+
+Verified end to end against 5,300 files straddling the cap: the old build showed one real
+row and 300 invented ones, the new build shows the one, and the headline, the row and the
+Review button all read the same figure.
+
+**Known and not fixed: `-updateSummaryStrip` returns early when `now == before`**, so a
+scan whose total is unchanged offers no *what grew* link even when items really did change.
+A cache that replaces files like for like is exactly that case.
+
 A folder and the one thing inside it that explains its change **collapse to one row**
 (deeper wins at ≥90% of the same-signed delta), which is what names `IMG_4821.MOV` rather
 than `Movies`, while still naming `DerivedData` rather than the thousand files under it.

@@ -32,6 +32,11 @@ static NSString * const kDateKey  = @"scannedAt";
 static NSString * const kTotalKey = @"total";
 static NSString * const kItemsKey = @"items";
 
+//Where the cap above fell: the size of the smallest entry kept. Written only
+//when trimming actually happened, and the whole point of it is that a snapshot
+//says nothing about anything smaller - see -changesForItem:.
+static NSString * const kFloorKey = @"floor";
+
 //================ DIXScanChange ======================================================
 
 @implementation DIXScanChange
@@ -247,6 +252,8 @@ static NSString * const kItemsKey = @"items";
 
 	//Trimmed to the largest, which is what a comparison is going to be about
 	//anyway. Sorting a few thousand keys is nothing beside the walk above.
+	unsigned long long floor = kSnapshotFloor;
+
 	if ( [sizes count] > kMaximumEntries )
 	{
 		NSArray<NSString*> *ordered = [sizes keysSortedByValueUsingComparator:
@@ -258,18 +265,54 @@ static NSString * const kItemsKey = @"items";
 			[trimmed setObject: [sizes objectForKey: [ordered objectAtIndex: i]]
 						forKey: [ordered objectAtIndex: i]];
 
+		//The smallest thing that survived, which is the line below which this
+		//snapshot knows nothing. Recorded because the next scan has to compare
+		//like with like: it walks the whole tree down to kSnapshotFloor, and
+		//without this every file between the two figures looks brand new.
+		floor = [[sizes objectForKey: [ordered objectAtIndex: kMaximumEntries - 1]]
+					unsignedLongLongValue];
+
 		sizes = trimmed;
 	}
 
 	NSDictionary *snapshot = @{ kPathKey:  path,
 								kDateKey:  [NSDate date],
 								kTotalKey: @([[rootItem size] unsignedLongLongValue]),
+								kFloorKey: @(floor),
 								kItemsKey: sizes };
 
 	[snapshot writeToURL: url atomically: YES];
 }
 
 #pragma mark --------comparing two-----------------
+
+//The size below which a snapshot knows nothing. Normally the flat floor; for
+//one the cap trimmed, the smallest entry that survived it.
+- (unsigned long long) floorOfSnapshot: (NSDictionary*) snapshot
+								 items: (NSDictionary<NSString*, NSNumber*>*) items
+{
+	NSNumber *recorded = [snapshot objectForKey: kFloorKey];
+
+	if ( [recorded isKindOfClass: [NSNumber class]] )
+		return MAX( kSnapshotFloor, [recorded unsignedLongLongValue] );
+
+	//Written before the trim line was recorded. A snapshot holding exactly the
+	//maximum is one that was trimmed, and where it fell is its smallest entry.
+	if ( [items count] < kMaximumEntries )
+		return kSnapshotFloor;
+
+	unsigned long long smallest = 0;
+
+	for ( NSNumber *size in [items allValues] )
+	{
+		const unsigned long long value = [size unsignedLongLongValue];
+
+		if ( smallest == 0 || value < smallest )
+			smallest = value;
+	}
+
+	return MAX( kSnapshotFloor, smallest );
+}
 
 - (NSArray<DIXScanChange*>*) changesForItem: (FSItem*) rootItem
 {
@@ -284,6 +327,8 @@ static NSString * const kItemsKey = @"items";
 	NSMutableSet<NSString*> *paths = [NSMutableSet setWithArray: [before allKeys]];
 	[paths addObjectsFromArray: [now allKeys]];
 
+	const unsigned long long floor = [self floorOfSnapshot: snapshot items: before];
+
 	NSMutableArray<DIXScanChange*> *changes = [NSMutableArray array];
 
 	for ( NSString *path in paths )
@@ -293,6 +338,25 @@ static NSString * const kItemsKey = @"items";
 		const long long delta = is - was;
 
 		if ( (unsigned long long) llabs( delta ) < kSnapshotFloor )
+			continue;
+
+		//Absence from a trimmed snapshot is not evidence of absence from the
+		//disk. Everything below the trim line was dropped when it was written,
+		//so a file that size may well have been sitting there all along - and
+		//calling it new invents an addition per file. Measured against a
+		///Volumes/External Disk snapshot trimmed at 3.79 MB, that filled the
+		//window with identical "+4.0 MB" rows under a +8 kB total.
+		//
+		//At the line itself, not below it: the cap cuts through a run of files
+		//of the same size and keeps an arbitrary part of it, so a file exactly
+		//that big is the ambiguous case rather than the safe one.
+		//
+		//Only for a snapshot that was actually trimmed - an untrimmed one holds
+		//everything down to kSnapshotFloor, and absence from it really is
+		//evidence. The conservative direction either way: a genuinely new file
+		//under the line goes unreported, which is a change missed rather than
+		//one made up.
+		if ( was == 0 && floor > kSnapshotFloor && (unsigned long long) is <= floor )
 			continue;
 
 		[changes addObject: [[DIXScanChange alloc] initWithPath: path delta: delta]];
