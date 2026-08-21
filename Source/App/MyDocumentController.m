@@ -274,7 +274,9 @@ static NSMenuItem* FindMenuItemWithAction( NSMenu *menu, SEL action )
 
 - (void) applicationDidFinishLaunching:(NSNotification *)notification
 {
-	[[DonationPanelController sharedController] showPanelIfWanted];
+	//The support panel used to go up here, before the application had done
+	//anything at all. It is now shown after a session in which space was
+	//actually reclaimed - see -[MainWindowController reclaimBasket:].
 	
 //	DIXFinderCMInstaller *installer = [DIXFinderCMInstaller installer];
 //	if ( ![installer isInstalled] )

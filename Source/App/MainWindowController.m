@@ -35,6 +35,7 @@
 #import "DIXControls.h"
 #import "DIXChangesController.h"
 #import "DIXPrivacyBannerView.h"
+#import "DonationPanelController.h"
 
 
 //Used the first time a pane is opened, when nothing has been remembered for it.
@@ -2527,7 +2528,8 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 		return;
 
 	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
-	NSString *total = [sizeFormatter stringForObjectValue: @([doc basketSize])];
+	const unsigned long long freed = [doc basketSize];
+	NSString *total = [sizeFormatter stringForObjectValue: @(freed)];
 
 	NSAlert *alert = [[NSAlert alloc] init];
 
@@ -2555,6 +2557,10 @@ constrainMaxCoordinate: (CGFloat) proposedMax
 	[_statusBarView flashMessage:
 		[NSString stringWithFormat: NSLocalizedString( @"Freed %@", @"status bar, after reclaiming" ),
 									total]];
+
+	//And the one moment there is anything to be thanked for. Freed is read from
+	//the basket before it is emptied, above.
+	[[DonationPanelController sharedController] showPanelAfterReclaiming: freed];
 }
 
 - (IBAction) moveToTrash:(id)sender

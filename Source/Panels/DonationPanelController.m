@@ -14,6 +14,9 @@
 
 #import "DonationPanelController.h"
 #import "Preferences.h"
+#import "FileSizeFormatter.h"
+#import "DIXTheme.h"
+#import "DIXControls.h"
 #import <CoreImage/CoreImage.h>
 
 //One constant. The QR code is generated from it at runtime rather than shipped
@@ -49,13 +52,27 @@ static const CGFloat kPanelWidth  = 460.0;
 	return kDonationAddress;
 }
 
-- (void) showPanelIfWanted
+- (void) showPanelAfterReclaiming: (unsigned long long) bytes
 {
 	if ( [[NSUserDefaults standardUserDefaults] boolForKey: DontShowDonationMessage] )
 		return;
 
+	//Once per run of the application, however many times space is freed. The
+	//"don't ask again" box is what stops it for good; this is what stops it
+	//becoming a toll on every deletion.
+	if ( _shownThisSession )
+		return;
+
+	_shownThisSession = YES;
+
 	if ( _panel == nil )
 		[self buildPanel];
+
+	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
+
+	[_headlineField setStringValue: [NSString stringWithFormat:
+		NSLocalizedString( @"You just freed %@.", @"donation panel headline" ),
+		[sizeFormatter stringForObjectValue: @(bytes)]]];
 
 	[_panel center];
 	[_panel makeKeyAndOrderFront: nil];
@@ -113,10 +130,22 @@ static const CGFloat kPanelWidth  = 460.0;
 	const CGFloat contentWidth = kPanelWidth - kMargin * 2.0;
 	const CGFloat textWidth    = contentWidth - kQRSize - kMargin;
 
-	// ---- supporting this fork ------------------------------------------
-	NSTextField *heading = [NSTextField labelWithString:
-		NSLocalizedString( @"Support Disk Inventory Next", @"donation panel heading" )];
-	[heading setFont: [NSFont boldSystemFontOfSize: [NSFont systemFontSize] + 2.0]];
+	//The kicker, which is the panel's whole disclosure in one line: it is free,
+	//it is GPL-3, and nothing here signs anyone up to anything.
+	NSTextField *kicker = [DIXControls sectionLabelWithTitle:
+		NSLocalizedString( @"Free · GPL-3 · no accounts, no upsell", @"donation panel kicker" )];
+	[kicker setTextColor: [DIXTheme accent]];
+
+	//Filled in when the panel is shown, because what it says is the figure that
+	//brought it up.
+	_headlineField = [NSTextField labelWithString: @""];
+	[_headlineField setFont: [NSFont systemFontOfSize: 24.0 weight: NSFontWeightBold]];
+	[_headlineField setTextColor: [DIXTheme ink]];
+
+	NSTextField *heading = [self labelWithString:
+		NSLocalizedString( @"Two different people can be thanked for it. Pick either — or both.",
+						   @"donation panel subheading" )];
+	[heading setPreferredMaxLayoutWidth: contentWidth];
 
 	NSTextField *blurb = [self labelWithString:
 		NSLocalizedString( @"Disk Inventory Next is free software, developed in spare time. "
@@ -206,14 +235,14 @@ static const CGFloat kPanelWidth  = 460.0;
 	[footer setOrientation: NSUserInterfaceLayoutOrientationHorizontal];
 	[footer setSpacing: kMargin];
 
-	//The window title already says this, so the panel does not repeat it.
-	(void) heading;
-
 	NSStackView *content = [NSStackView stackViewWithViews:
-		@[ topRow, _addressField, _copyButton, separator, authorRow, footer ]];
+		@[ kicker, _headlineField, heading,
+		   topRow, _addressField, _copyButton, separator, authorRow, footer ]];
 	[content setOrientation: NSUserInterfaceLayoutOrientationVertical];
 	[content setAlignment: NSLayoutAttributeLeading];
 	[content setSpacing: 14.0];
+	[content setCustomSpacing: 6.0 afterView: kicker];
+	[content setCustomSpacing: 6.0 afterView: _headlineField];
 	[content setEdgeInsets: NSEdgeInsetsMake( kMargin, kMargin, kMargin, kMargin )];
 
 	[qrView setTranslatesAutoresizingMaskIntoConstraints: NO];

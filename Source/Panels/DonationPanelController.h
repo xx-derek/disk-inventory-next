@@ -30,8 +30,12 @@
 @interface DonationPanelController : NSObject
 {
 	NSPanel *_panel;
+	NSTextField *_headlineField;
 	NSTextField *_addressField;
 	NSButton *_copyButton;
+
+	//once per run, however many times space is freed
+	BOOL _shownThisSession;
 }
 
 + (DonationPanelController*) sharedController;
@@ -40,7 +44,12 @@
 + (NSString*) donationAddress;
 
 //shows the panel unless the user has asked not to see it again
-- (void) showPanelIfWanted;
+//Shown once, after a session in which space was actually reclaimed - not at
+//launch. Asking for support the moment the application opens asks before it has
+//done anything; asking after it has just freed something asks about that.
+//
+//"bytes" is what was freed, which the panel says out loud.
+- (void) showPanelAfterReclaiming: (unsigned long long) bytes;
 
 - (IBAction) copyAddress: (id) sender;
 - (IBAction) visitOriginalAuthorSite: (id) sender;
