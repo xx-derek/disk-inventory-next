@@ -76,6 +76,7 @@ static const CGFloat TMVMinimumOutlinedCellSize =  6.0;
 - (void) drawSelectionOutline;
 - (void) drawHatchInRect: (NSRect) rect color: (NSColor*) color;
 - (TMVItem*) findTMVItemByPathToDataItem: (NSArray*) path;
+- (TMVItem*) remainderCoveringDataItem: (id) dataItem in: (TMVItem*) parent;
 - (void) setTouchedRenderer: (TMVItem*) renderer;
 - (void) selectRendererFromEvent: (NSEvent*) event notificationName: (NSString*) notificationName;
 - (NSImage*) contentSnapshot;
@@ -1270,16 +1271,50 @@ static const CGFloat TMVCellHintFontSize  = 10.0;
 			}
 		}
 
-		//The layout stops descending into cells too small to draw, so an item
-		//deep in the tree may have no cell of its own. Its nearest drawn
-		//ancestor is the cell that actually covers it on screen.
+		//Merged is not the same as undrawn, and answering both with the parent
+		//is what made selecting a small file look like selecting a huge one.
+		//A child packed into its parent's remainder has no cell of its own, but
+		//the remainder *is* a cell and is exactly the one covering it - where
+		//the parent's rect is that remainder plus every sibling drawn beside
+		//it. With one child holding almost all of a folder's bytes those two
+		//rects differ by a sliver, so a 99.9 MB file beside a 15 GB one
+		//selected a frame indistinguishable from the 15 GB file's own.
+		if ( match == nil )
+			match = [self remainderCoveringDataItem: dataItem in: renderer];
+
+		//Nothing covers it any more finely: the layout stopped descending here
+		//because the cell is too small to subdivide at all. The nearest drawn
+		//ancestor is what the item is inside of on screen.
 		if ( match == nil )
 			break;
+
+		//A remainder stands for the whole of what was merged into it, so there
+		//is nothing inside it to descend into - it is a leaf whatever the rest
+		//of the path says.
+		if ( [match isRemainder] )
+			return match;
 
 		renderer = match;
 	}
 
 	return renderer;
+}
+
+//The remainder among "parent"'s drawn children that "dataItem" was merged into,
+//or nil if it was not merged. Identity rather than -isEqual:, to match the
+//child search above: two data items that compare equal are still two cells.
+- (TMVItem*) remainderCoveringDataItem: (id) dataItem in: (TMVItem*) parent
+{
+	for ( TMVItem *child in [parent childEnumerator] )
+	{
+		if ( ![child isRemainder] )
+			continue;
+
+		if ( [[child mergedItems] indexOfObjectIdenticalTo: dataItem] != NSNotFound )
+			return child;
+	}
+
+	return nil;
 }
 
 #pragma mark --------selection-----------------

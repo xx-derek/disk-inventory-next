@@ -617,6 +617,17 @@ Two invariants worth knowing before changing anything here:
 - **`calcLayout:` stops descending into cells below `TMVMinimumCellSize`.** A deep item can
   have no cell of its own, so `findTMVItemByPathToDataItem:` returns the nearest drawn
   ancestor rather than nil.
+- **Merged is not the same as undrawn, and the lookup answers them differently.** An item
+  packed into its parent's remainder is covered by that remainder, so the lookup searches
+  `-mergedItems` before falling back to the ancestor. Answering both with the parent is
+  what made a 100 MB file beside a 15 GB one select a frame 100.7% of the 15 GB file's own
+  — the parent's rect is the remainder plus every sibling drawn beside it, which differs
+  by a sliver when one child holds nearly all the bytes. It reads 0.7% now.
+- **Syncing that selection back is a question about the *cell*, not the item.** A remainder
+  has no item of its own and answers with the folder its contents came out of, so comparing
+  items cannot tell a click on the block (leave the frame there) from the outline picking
+  that whole folder (move it). `TreeMapViewController` remembers the cell a click came
+  from; both readings are the same `FSItem`.
 - **A remainder's count is `-[TMVItem mergedItemCount]`, never `mergedItems.count`.** One
   merged entry can be a folder packed in whole, and it stands for every file under it. The
   data source answers per item through `-treeMapView:itemCountByItem:`

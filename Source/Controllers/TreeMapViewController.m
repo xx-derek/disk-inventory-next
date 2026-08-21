@@ -674,6 +674,12 @@ static NSString* ShareOfScanString( unsigned long long part, unsigned long long 
 
     FileSystemDoc *doc = [self document];
 
+    //Recorded before the document is told, because telling it comes straight
+    //back here through KVO. Unconditionally, even when the document's item does
+    //not change: clicking a folder's cell and then a remainder inside it names
+    //the same item both times, and it is the second cell the frame is on.
+    _selectionSourceCell = [view selectedCellId];
+
     //if we are notified about the selection change after we've set the selection by ourself
     //(e.g. in 'onDocumentSelectionChanged') we don't want to post any notification
     if ( [doc selectedItem] != item
@@ -912,13 +918,23 @@ static NSString* ShareOfScanString( unsigned long long part, unsigned long long 
 	TreeMapView *view = (TreeMapView*) _treeMapView;
 	FSItem *item = [[self document] selectedItem];
 
-	//-enclosingItemByCellId:, not -selectedItem. A remainder has no item of its
-	//own, so -selectedItem answers nil, this guard never fired, and clicking one
-	//moved the selection straight off it and onto the parent folder's cell -
-	//outlining a whole folder when a small hatched block had been clicked. The
-	//remainder already stands for that item; it counts as selected.
-	if ( item == (FSItem*) [view enclosingItemByCellId: [view selectedCellId]] )
+	//Two questions that look like one. "Does the map already show this item?"
+	//is answered by the cell, not by the item: a remainder has no item of its
+	//own and answers with the folder its contents were merged out of, so
+	//comparing items alone cannot tell a click on a small hatched block (which
+	//must leave the frame there) from the outline selecting that whole folder
+	//(which must move it onto the folder's cell). Both name the same FSItem.
+	//
+	//So the frame stays put only when this selection is the one that cell's own
+	//click caused. Without the cell test, clicking a remainder moved the frame
+	//off it and outlined the entire folder; with the item test dropped, picking
+	//the folder in the outline afterwards would leave the frame on the block.
+	if ( _selectionSourceCell != nil
+		 && _selectionSourceCell == [view selectedCellId]
+		 && item == (FSItem*) [view enclosingItemByCellId: [view selectedCellId]] )
 		return;
+
+	_selectionSourceCell = nil;
 
 	if ( item == nil )
 		[view selectItemByCellId: nil];
