@@ -13,6 +13,7 @@
 @class DIXKindsView;
 @class DIXSegmentedControl;
 @class DIXChangesController;
+@class DIXPrivacyBannerView;
 
 @interface MainWindowController : ToolbarWindowController <NSSplitViewDelegate>
 {
@@ -89,6 +90,10 @@
     //"Since 8 Aug", built on the first ask and kept: it is one window per
     //document, and rebuilding it would lose where the user had scrolled to.
     DIXChangesController *_changesController;
+
+    //"3 folders were skipped", across the top of the centre column. Nil until
+    //there is something to say, and dropped for good once dismissed.
+    DIXPrivacyBannerView *_privacyBannerView;
 
     //The right-hand pane, replacing the floating Info window.
     DIXInspectorView *_inspectorView;

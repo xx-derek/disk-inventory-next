@@ -34,6 +34,7 @@
 #import "DIXTheme.h"
 #import "DIXControls.h"
 #import "DIXChangesController.h"
+#import "DIXPrivacyBannerView.h"
 
 
 //Used the first time a pane is opened, when nothing has been remembered for it.
@@ -45,6 +46,8 @@
 @interface MainWindowController() <DIXChangesDelegate>
 - (void) setKindStatisticsVisible: (BOOL) visible animated: (BOOL) animated;
 - (IBAction) showWhatChanged: (id) sender;
+- (void) updatePrivacyBanner;
+- (CGFloat) privacyBannerHeight;
 - (void) installTrailingAccessory;
 - (void) layoutTrailingAccessory;
 - (NSSearchField*) buildSearchField;
@@ -1723,11 +1726,23 @@ static NSBox *FilledBox( NSColor *color )
 
 	const CGFloat stripHeight  = [DIXSummaryStripView preferredHeight];
 	const CGFloat statusHeight = [DIXStatusBarView preferredHeight];
+	const CGFloat bannerHeight = [self privacyBannerHeight];
 
 	//The split view takes the whole column when the bands are inside it, and
 	//stops short of them when they are not. Its margins are fixed and its height
 	//sizable, so this is the one place that has to know the difference.
 	NSRect squeezed = [_centreColumn bounds];
+
+	//The banner is above everything in the column, including the summary strip:
+	//it is about the total, and has to be read before it.
+	squeezed.size.height -= bannerHeight;
+
+	if ( bannerHeight > 0.0 )
+	{
+		[_privacyBannerView setFrame: NSMakeRect( 0.0,
+												  NSMaxY( [_centreColumn bounds] ) - bannerHeight,
+												  NSWidth( [_centreColumn bounds] ), bannerHeight )];
+	}
 
 	if ( !mapShowing )
 	{
@@ -1739,7 +1754,11 @@ static NSBox *FilledBox( NSColor *color )
 
 	const NSRect hostBounds = [host bounds];
 
-	[_summaryStripView setFrame: NSMakeRect( 0.0, NSMaxY( hostBounds ) - stripHeight,
+	//In List mode the strip is in the column itself, where the banner is too, so
+	//it starts under it rather than at the top.
+	const CGFloat hostTop = NSMaxY( hostBounds ) - ( host == _centreColumn ? bannerHeight : 0.0 );
+
+	[_summaryStripView setFrame: NSMakeRect( 0.0, hostTop - stripHeight,
 											 NSWidth( hostBounds ), stripHeight )];
 
 	[_statusBarView setFrame: NSMakeRect( 0.0, 0.0, NSWidth( hostBounds ), statusHeight )];
@@ -1840,6 +1859,11 @@ static NSBox *FilledBox( NSColor *color )
 
 	[self updateSummaryDelta];
 
+	//What the total above is missing, said next to it. Placed after, because
+	//the banner's height is what the rest of the column is laid out around.
+	[self updatePrivacyBanner];
+	[self placeSummaryStrip];
+
 	//the same conditions -validateMenuItem: applies to the zoom menu items
 	FSItem *selectedItem = [doc selectedItem];
 	[_summaryStripView setZoomInEnabled: selectedItem != nil && [selectedItem isFolder]
@@ -1901,6 +1925,78 @@ static NSBox *FilledBox( NSColor *color )
 				: nil
 									target: self
 									action: @selector(showWhatChanged:)];
+}
+
+#pragma mark --------what the scan could not read-----------------
+
+- (CGFloat) privacyBannerHeight
+{
+	if ( _privacyBannerView == nil || [_privacyBannerView isHidden] )
+		return 0.0;
+
+	return [_privacyBannerView preferredHeightForWidth: NSWidth( [_centreColumn bounds] )];
+}
+
+//Built the first time there is something to say and never again: dismissing it
+//is meant to be final for this window, and a banner that came back on the next
+//redraw would be a nag rather than a notice.
+- (void) updatePrivacyBanner
+{
+	FileSystemDoc *doc = [self document];
+
+	const BOOL wanted = [[NSUserDefaults standardUserDefaults] boolForKey: ShowSkippedFoldersBanner]
+						&& [[doc skippedFolders] count] > 0;
+
+	if ( !wanted )
+	{
+		[_privacyBannerView setHidden: YES];
+		return;
+	}
+
+	if ( _privacyBannerView == nil )
+	{
+		_privacyBannerView = [[DIXPrivacyBannerView alloc] initWithFrame: NSZeroRect];
+
+		[_privacyBannerView setTarget: self
+					   settingsAction: @selector(openPrivacySettings:)
+						   scanAction: @selector(scanSkippedFoldersAnyway:)
+						dismissAction: @selector(dismissPrivacyBanner:)];
+
+		[_centreColumn addSubview: _privacyBannerView];
+	}
+
+	FileSizeFormatter *sizeFormatter = [[FileSizeFormatter alloc] init];
+
+	[_privacyBannerView setHidden: NO];
+	[_privacyBannerView setSkippedFolders: [doc skippedFolders]
+							   totalShown: [sizeFormatter stringForObjectValue: [[doc rootItem] size]]];
+}
+
+- (IBAction) openPrivacySettings: (id) sender
+{
+	[[NSWorkspace sharedWorkspace] openURL: [NSURL URLWithString:
+		@"x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"]];
+}
+
+//Asks macOS again rather than assuming: if the permission has since been given,
+//the folders become readable and a rescan will count them. If it has not, the
+//consent dialog is what appears, and nothing is rescanned for nothing.
+- (IBAction) scanSkippedFoldersAnyway: (id) sender
+{
+	if ( ![[self document] requestAccessToSkippedFolders] )
+	{
+		[self updatePrivacyBanner];
+		[self placeSummaryStrip];
+		return;
+	}
+
+	[self refreshAll: sender];
+}
+
+- (IBAction) dismissPrivacyBanner: (id) sender
+{
+	[_privacyBannerView setHidden: YES];
+	[self placeSummaryStrip];
 }
 
 #pragma mark --------what changed since the last scan-----------------

@@ -177,3 +177,11 @@
 "Biggest so far" = "Biggest so far";
 "About %@ left" = "About %@ left";
 "Show Partial Results" = "Show Partial Results";
+"1 folder was skipped" = "1 folder was skipped";
+"%lu folders were skipped" = "%lu folders were skipped";
+"and" = "and";
+"macOS protects %@. They are not counted in the %@ below." = "macOS protects %@. They are not counted in the %@ below.";
+"not counted" = "not counted";
+"Open Privacy Settings" = "Open Privacy Settings";
+"Scan Them Anyway" = "Scan Them Anyway";
+"Dismiss" = "Dismiss";

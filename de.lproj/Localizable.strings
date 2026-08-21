@@ -172,3 +172,11 @@
 "Biggest so far" = "Bisher am größten";
 "About %@ left" = "Noch etwa %@";
 "Show Partial Results" = "Teilergebnis anzeigen";
+"1 folder was skipped" = "1 Ordner wurde übersprungen";
+"%lu folders were skipped" = "%lu Ordner wurden übersprungen";
+"and" = "und";
+"macOS protects %@. They are not counted in the %@ below." = "macOS schützt %@. Sie sind in den %@ unten nicht enthalten.";
+"not counted" = "nicht gezählt";
+"Open Privacy Settings" = "Datenschutz-Einstellungen öffnen";
+"Scan Them Anyway" = "Trotzdem scannen";
+"Dismiss" = "Ausblenden";

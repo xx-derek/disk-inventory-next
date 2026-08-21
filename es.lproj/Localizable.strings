@@ -172,3 +172,11 @@
 "Biggest so far" = "Lo más grande hasta ahora";
 "About %@ left" = "Quedan unos %@";
 "Show Partial Results" = "Mostrar resultados parciales";
+"1 folder was skipped" = "Se ha omitido 1 carpeta";
+"%lu folders were skipped" = "Se han omitido %lu carpetas";
+"and" = "y";
+"macOS protects %@. They are not counted in the %@ below." = "macOS protege %@. No se incluyen en los %@ de abajo.";
+"not counted" = "no contada";
+"Open Privacy Settings" = "Abrir ajustes de privacidad";
+"Scan Them Anyway" = "Analizarlas igualmente";
+"Dismiss" = "Descartar";

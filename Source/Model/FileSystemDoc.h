@@ -123,6 +123,9 @@ typedef NS_ENUM( NSInteger, DIXViewMode )
 	//whether the tree it leaves behind is kept or thrown away.
 	BOOL _scanKeepPartialResults;
 
+	//What the scan was asked for and could not read - see -skippedFolders.
+	NSArray<NSURL*> *_skippedFolders;
+
 	//Scan state. The walk runs on a background queue while the main thread
 	//keeps the progress panel alive, so anything both touch is guarded by
 	//_scanLock — except the three option snapshots, which are written before
@@ -234,6 +237,15 @@ typedef struct
 } DIXScanProgress;
 
 - (DIXScanProgress) scanProgress;
+
+//The privacy-protected folders inside this scan that could not be read, so the
+//total below them is missing whatever they hold. Empty when everything asked
+//for was readable, which is the ordinary case once access has been granted.
+- (NSArray<NSURL*>*) skippedFolders;
+
+//Asks macOS for access to them again, which is what puts the consent dialog up.
+//Answers whether every one of them is readable afterwards.
+- (BOOL) requestAccessToSkippedFolders;
 
 #pragma mark --------what the summary strip reports-----------------
 

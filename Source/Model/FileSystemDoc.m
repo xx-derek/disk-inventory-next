@@ -145,6 +145,7 @@ NSString *CollectFileKindStatisticsCanceledException = @"CollectFileKindStatisti
 - (void) _recalculateBasketSize;
 - (void) _pruneReclaimBasket;
 - (void) _resolveChangeFilter;
+- (NSArray<NSURL*>*) _unreadableProtectedFoldersUnder: (NSURL*) rootURL;
 - (void) _recountItemsIfNeeded;
 - (void) _countItemsUnder: (FSItem*) item files: (NSUInteger*) files folders: (NSUInteger*) folders;
 - (void) _invalidateItemCounts;
@@ -352,6 +353,10 @@ NSString *DIXChangeFilterOption = @"DIXChangeFilter";
 		//"scanned 2 minutes ago" in the summary strip is measured from here -
 		//when the tree is complete, not when the walk was started
 		_scanCompletedAt = [NSDate date];
+
+		//What the total below is missing, worked out now that the walk has been
+		//through everything it could reach.
+		_skippedFolders = [self _unreadableProtectedFoldersUnder: [rootItem fileURL]];
 
 		//None of the history below is written for a partial tree, and nothing is
 		//compared against it either: both sides of "what changed" have to be a
@@ -1606,6 +1611,54 @@ static NSString * const ScannedItemCountsKey = @"ScannedItemCounts";
 //Read between pump ticks, on the main thread. The counters underneath are the
 //walk's own atomics; only the rate is worked out here, because only here is
 //there a clock that is not on the hot path of every directory.
+#pragma mark --------what could not be read-----------------
+
+- (NSArray<NSURL*>*) skippedFolders
+{
+	return _skippedFolders ?: @[];
+}
+
+//Asked *after* the walk, not before it. The list of protected folders is what
+//macOS protects; whether they were actually skipped is a different question,
+//and the answer is whether they can be listed - a folder the user has already
+//granted access to is protected and readable both.
+- (NSArray<NSURL*>*) _unreadableProtectedFoldersUnder: (NSURL*) rootURL
+{
+	NSFileManager *fileManager = [NSFileManager defaultManager];
+	NSMutableArray<NSURL*> *unreadable = [NSMutableArray array];
+
+	for ( NSURL *folder in [fileManager privacyProtectedFoldersInURL: rootURL] )
+	{
+		NSError *error = nil;
+
+		NSArray *contents = [fileManager contentsOfDirectoryAtURL: folder
+									   includingPropertiesForKeys: nil
+														  options: 0
+															error: &error];
+
+		if ( contents == nil )
+			[unreadable addObject: folder];
+	}
+
+	return unreadable;
+}
+
+- (BOOL) requestAccessToSkippedFolders
+{
+	NSArray<NSURL*> *asked = [self skippedFolders];
+
+	if ( [asked count] == 0 )
+		return YES;
+
+	//Touching them is what puts the system's consent dialog up; there is no API
+	//that asks for the permission directly.
+	[[NSFileManager defaultManager] triggerConsentDialogForPrivacyProtectedFolders: asked];
+
+	_skippedFolders = [self _unreadableProtectedFoldersUnder: [_rootItem fileURL]];
+
+	return [_skippedFolders count] == 0;
+}
+
 - (DIXScanProgress) scanProgress
 {
 	const FSItemScanTotals totals = FSItemScanTotalsSoFar();
