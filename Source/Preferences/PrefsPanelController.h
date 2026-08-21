@@ -54,9 +54,6 @@
 
 - (IBAction) showPreferencesPanel: (id) sender;
 
-//asks first, then resets
-- (IBAction) restoreDefaults: (id) sender;
-
 - (PrefsPageBase*) currentPage;
 - (void) setCurrentPageRecord: (PrefsPageRecord*) pageRecord;
 

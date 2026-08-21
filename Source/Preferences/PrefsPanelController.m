@@ -148,9 +148,6 @@ static const CGFloat kPagePaddingY  =  20.0;
 - (PrefsPageBase*) _pageForRecord: (PrefsPageRecord*) pageRecord;
 - (NSArray*) _visiblePageRecords;
 - (NSString*) _localizedTitleForRecord: (PrefsPageRecord*) pageRecord;
-- (void) _restoreDefaultsSheetDidEnd: (NSWindow*) sheet
-						  returnCode: (NSInteger) returnCode
-						 contextInfo: (void*) contextInfo;
 
 @end
 
@@ -497,74 +494,6 @@ static const CGFloat kPagePaddingY  =  20.0;
 {
 	[self setCurrentPageRecord:
 		[[self class] pageRecordWithIdentifier: [(DIXSettingsRailRow*) sender identifier]]];
-}
-
-#pragma mark --------restoring defaults-----------------
-
-- (IBAction) restoreDefaults: (id) sender
-{
-	NSAlert *alert = [[NSAlert alloc] init];
-
-	[alert setMessageText: NSLocalizedStringFromTable( @"Reset preferences to their original values?",
-													   PrefsTitlesTable, @"" )];
-	[alert setInformativeText: NSLocalizedStringFromTable( @"Any changes you have made will be lost.",
-														   PrefsTitlesTable, @"" )];
-
-	//first button is the default, which is what the sheet handler tests for
-	[alert addButtonWithTitle: NSLocalizedStringFromTable( @"Reset", PrefsTitlesTable, @"" )];
-	[alert addButtonWithTitle: NSLocalizedStringFromTable( @"Cancel", PrefsTitlesTable, @"" )];
-
-	NSWindow *window = [self window];
-
-	[alert beginSheetModalForWindow: window completionHandler: ^( NSModalResponse returnCode )
-	{
-		[self _restoreDefaultsSheetDidEnd: window returnCode: returnCode contextInfo: NULL];
-	}];
-}
-
-//A non-NULL contextInfo means "wipe the whole defaults domain"; otherwise only
-//the keys the pages actually present are reset.
-- (void) _restoreDefaultsSheetDidEnd: (NSWindow*) sheet
-						  returnCode: (NSInteger) returnCode
-						 contextInfo: (void*) contextInfo
-{
-	//NSInteger, not int: the sheet's response is an NSModalResponse, and reading
-	//only the low 32 bits of it would compare against garbage on 64-bit
-	if (returnCode != NSAlertFirstButtonReturn)
-		return;
-
-	NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
-
-	if (contextInfo != NULL)
-	{
-		// warn & wipe the entire defaults domain
-		NSString *domain = [[NSBundle mainBundle] bundleIdentifier];
-		if ( domain != nil )
-			[prefs removePersistentDomainForName: domain];
-
-		[prefs synchronize];
-	}
-	else
-	{
-		// warn & wipe all prefs shown in all pages
-		//(the preferences shown in each page must be declared properly in Info.plist)
-		for ( PrefsPageRecord *aPageRecord in [[self class] allPageRecords] )
-		{
-			NSArray *preferenceKeys = [[aPageRecord defaultsDictionary] allKeys];
-			preferenceKeys = [preferenceKeys arrayByAddingObjectsFromArray: [aPageRecord defaultsArray]];
-
-			for ( NSString *aKey in preferenceKeys )
-			{
-				//removeObjectForKey: is not key-value observing compliant, so
-				//make sure any bound control still hears about it
-				[prefs willChangeValueForKey: aKey];
-				[prefs removeObjectForKey: aKey];
-				[prefs didChangeValueForKey: aKey];
-			}
-		}
-	}
-
-	[_currentPage valuesHaveChanged];
 }
 
 @end

@@ -46,7 +46,6 @@
 
 /*the "move to trash" command failed (the selected file/folder name will be placed in front of this text)*/
 "\"%@\" cannot be moved to the trash by Disk Inventory Next." = "\"%@\" ne peut pas être déplacé dans la corbeille par Disk Inventory Next.";
-"Maybe you do not have sufficient access privileges." = "Vous n'avez peut-être pas des droits suffisants.";
 "OK" = "OK";
 
 /* deleting items on network volumes*/
@@ -192,3 +191,26 @@
 "Two different people can be thanked for it. Pick either — or both." = "Deux personnes différentes peuvent en être remerciées. Choisissez l’une — ou les deux.";
 "Filter" = "Filtrer";
 "All Kinds" = "Tous les types";
+"Disk Inventory Next" = "Disk Inventory Next";
+"SOURCES" = "SOURCES";
+"FILE KINDS" = "TYPES DE FICHIER";
+"Sidebar" = "Barre latérale";
+"Show or hide the sidebar" = "Afficher ou masquer la barre latérale";
+"Choose Folder…" = "Choisir un dossier…";
+"Cancel" = "Annuler";
+"Close" = "Fermer";
+"OTHER %@" = "AUTRES %@";
+"%lu files · %@" = "%lu fichiers · %@";
+"%lu items selected" = "%lu éléments sélectionnés";
+"Move to Trash" = "Placer dans la corbeille";
+"Move %lu items to the Trash?" = "Placer %lu éléments dans la corbeille ?";
+"This frees %@." = "Cela libère %@.";
+"Freed %@" = "%@ libérés";
+"Support Disk Inventory Next" = "Soutenir Disk Inventory Next";
+"Support the Original Author…" = "Soutenir l’auteur d’origine…";
+"Copy Address" = "Copier l’adresse";
+"Copied" = "Copié";
+"Don't show again" = "Ne plus afficher";
+"QR code for the donation address %@" = "QR code de l’adresse de don %@";
+"Disk Inventory Next is free software, developed in spare time. If you find it useful, you can support it with a donation to this address on any EVM-compatible chain." = "Disk Inventory Next est un logiciel libre, développé sur le temps libre. S’il vous est utile, vous pouvez le soutenir par un don à cette adresse sur toute chaîne compatible EVM.";
+"Disk Inventory Next is a fork of Disk Inventory X by Tjark Derlien, who wrote most of the code it is built on. Donations on his website go to him and not to this fork." = "Disk Inventory Next est un fork de Disk Inventory X, de Tjark Derlien, qui a écrit l’essentiel du code sur lequel il repose. Les dons faits sur son site lui reviennent, et non à ce fork.";
