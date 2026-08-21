@@ -48,6 +48,16 @@
 @property (nonatomic, strong) NSColor *fillColor;
 @property (nonatomic, strong) NSColor *trackColor;  //defaults to [DIXTheme barTrack]
 
+//How long the fill takes to travel to a newly set fraction. Zero - the default,
+//and what every bar in a list wants - sets it at once.
+//
+//For a bar fed by something that samples, set this to one sampling period: the
+//fill is then still moving when the next sample lands, so the motion reads as
+//motion rather than as one step per sample. The scanning screen samples four
+//times a second, which is a readable rate for a figure and a visibly jerky one
+//for a bar.
+@property (nonatomic, assign) NSTimeInterval glideDuration;
+
 @end
 
 #pragma mark --------rules and labels-----------------

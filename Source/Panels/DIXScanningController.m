@@ -62,6 +62,9 @@ static const NSUInteger kBiggestRows  = 3;
 	//see -widestTotalWidth; set once while the window is built, and only ever
 	//grown after that
 	CGFloat _foundSoFarX;
+
+	//when the last sample arrived, which is how long the bar is given to travel
+	NSTimeInterval _lastProgressAt;
 	NSTextField *_percentField;
 	DIXShareBar *_bar;
 	NSTextField *_pathField;
@@ -482,6 +485,19 @@ static const NSUInteger kBiggestRows  = 3;
 
 - (void) setProgress: (DIXScanProgress) progress
 {
+	//Let the bar travel over exactly one sampling period, so it is still moving
+	//when the next sample lands and reads as motion rather than as four steps a
+	//second. Measured rather than declared: the refresh cadence belongs to
+	//FileSystemDoc's loop, and a constant here would be a copy of it that could
+	//quietly stop matching. Bounded, so one late sample cannot leave the bar
+	//crawling through the next second.
+	const NSTimeInterval at = [NSDate timeIntervalSinceReferenceDate];
+
+	if ( _lastProgressAt > 0.0 && at > _lastProgressAt )
+		[_bar setGlideDuration: MIN( MAX( at - _lastProgressAt, 0.05 ), 0.5 )];
+
+	_lastProgressAt = at;
+
 	[self setTotalBytes: progress.bytes];
 
 	if ( progress.fraction < 0.0 )

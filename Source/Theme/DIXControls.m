@@ -83,6 +83,14 @@
 #pragma mark --------share bar-----------------
 
 @implementation DIXShareBar
+{
+	//What is drawn, as against -fraction, which is where it is heading. The two
+	//are the same number unless -glideDuration says otherwise.
+	double _drawnFraction;
+	double _glideFrom;
+	NSTimeInterval _glideStartedAt;
+	NSTimer *_glideTimer;
+}
 
 + (instancetype) barWithFraction: (double) fraction fillColor: (NSColor*) fillColor
 {
@@ -121,7 +129,74 @@
 		return;
 
 	_fraction = fraction;
+
+	if ( _glideDuration <= 0.0 )
+	{
+		[self stopGliding];
+
+		_drawnFraction = fraction;
+		[self setNeedsDisplay: YES];
+
+		return;
+	}
+
+	//From wherever the fill has actually got to, not from the last value set:
+	//a sample landing mid-glide has to carry on from what is on the screen, or
+	//the fill snaps back before setting off again.
+	_glideFrom = _drawnFraction;
+	_glideStartedAt = [NSDate timeIntervalSinceReferenceDate];
+
+	[self startGliding];
+}
+
+//Sixty times a second while there is ground to cover, and nothing at all when
+//there is not - a bar that has arrived costs what it did before.
+//
+//Two things about the timer. It goes in the common modes because the scanning
+//screen runs a modal session, and a timer in the default mode alone would never
+//fire there. And it is block-based holding a weak self rather than
+//target/action, because NSTimer retains its target: a repeating one would keep
+//the bar alive for as long as it was scheduled, which is the trap ZoomInfo
+//already documents.
+- (void) startGliding
+{
+	if ( _glideTimer != nil )
+		return;
+
+	__weak DIXShareBar *weakSelf = self;
+
+	_glideTimer = [NSTimer timerWithTimeInterval: 1.0 / 60.0
+										 repeats: YES
+										   block: ^( NSTimer *timer ) { [weakSelf stepGlide]; }];
+
+	[[NSRunLoop mainRunLoop] addTimer: _glideTimer forMode: NSRunLoopCommonModes];
+}
+
+- (void) stepGlide
+{
+	const NSTimeInterval elapsed = [NSDate timeIntervalSinceReferenceDate] - _glideStartedAt;
+	const double portion = ( _glideDuration > 0.0 )
+		? MIN( elapsed / _glideDuration, 1.0 ) : 1.0;
+
+	_drawnFraction = _glideFrom + ( _fraction - _glideFrom ) * portion;
+
 	[self setNeedsDisplay: YES];
+
+	if ( portion >= 1.0 )
+		[self stopGliding];
+}
+
+- (void) stopGliding
+{
+	[_glideTimer invalidate];
+	_glideTimer = nil;
+}
+
+//The run loop holds the timer, so a weak self does not stop it firing forever
+//after the bar has gone - it stops it doing anything, which is not the same.
+- (void) dealloc
+{
+	[self stopGliding];
 }
 
 - (void) setFillColor: (NSColor*) fillColor
@@ -143,11 +218,11 @@
 	[_trackColor set];
 	NSRectFill( bounds );
 
-	if ( _fraction <= 0.0 || _fillColor == nil )
+	if ( _drawnFraction <= 0.0 || _fillColor == nil )
 		return;
 
 	NSRect fill = bounds;
-	fill.size.width = NSWidth( bounds ) * _fraction;
+	fill.size.width = NSWidth( bounds ) * _drawnFraction;
 
 	//A share that rounds to less than a point still happened, and a bar that
 	//draws nothing reads as zero rather than as "very small".

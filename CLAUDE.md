@@ -331,6 +331,18 @@ The figures it shows are the walk's own, added for it:
 **The screen refreshes at 4 Hz, and the wake interval is still 50 ms.** Those are two
 different numbers on purpose — see the note above about what happened when they were one.
 
+**The bar is smooth without sampling more often, because smoothness is a drawing property
+and not a sampling one.** `DIXShareBar` has a `glideDuration`, zero everywhere else, which
+the scanning screen sets to the interval it measures between samples — so the fill is still
+travelling when the next one lands. Measured by capturing a strip of the bar during a scan:
+the fill used to change on 10 frames of 56 and jump up to 71 px at a time; it now changes
+on 56 of 56, a median of 7 px. Do **not** answer this by raising the refresh rate: the
+figures are text, 4 Hz is about as fast as one can change and still be read, and the note
+above records what more frequent redrawing did to scan time. Five scans of `/System/Library`
+either side of the change came to a median 11.73 s against 11.60 s, so the glide costs
+nothing measurable. Interpolating the *figures* would be different in kind — that would be
+displaying numbers the walk never reported.
+
 **Every figure on it is drawn in tabular digits, and "found so far" is parked past the
 widest total there is.** The display face is proportional, so a number redrawn four times a
 second is a different width each time: measured across a scan of `/System/Library`, the
