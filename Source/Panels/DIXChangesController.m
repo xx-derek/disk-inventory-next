@@ -222,6 +222,10 @@ static const NSUInteger kMaximumRowsShown = 100;
 
 	NSArray<DIXScanChange*> *_changes;
 	FSItem *_largestChangedItem;
+
+	//and by how much it changed, which is what the Review button names - see
+	//-reload
+	long long _largestChangeDelta;
 }
 @end
 
@@ -325,7 +329,9 @@ static const NSUInteger kMaximumRowsShown = 100;
 
 	const unsigned long long now = [[rootItem size] unsignedLongLongValue];
 	const unsigned long long before = [doc previousScanSize];
-	const BOOL growth = ( now >= before );
+	//Strictly greater, so an unmoved total takes the calmer colour rather than
+	//the accent that means something grew.
+	const BOOL growth = ( now > before );
 	const unsigned long long difference = growth ? ( now - before ) : ( before - now );
 
 	NSDate *previousDate = [doc previousScanDate];
@@ -342,8 +348,12 @@ static const NSUInteger kMaximumRowsShown = 100;
 									  [when stringFromDate: previousDate]]
 		: NSLocalizedString( @"What Changed", @"change window title, no previous scan" )];
 
+	//A total that has not moved is neither growth nor shrinkage, and saying
+	//"+0 Bytes" over a list of things that did move reads as a contradiction.
+	NSString *sign = ( now == before ) ? @"±" : ( growth ? @"+" : @"−" );
+
 	NSString *headline = [NSString stringWithFormat: @"%@%@",
-		growth ? @"+" : @"−", [sizeFormatter stringForObjectValue: @(difference)]];
+		sign, [sizeFormatter stringForObjectValue: @(difference)]];
 
 	[_headlineField setAttributedStringValue:
 		[[NSAttributedString alloc] initWithString: headline
@@ -371,10 +381,14 @@ static const NSUInteger kMaximumRowsShown = 100;
 
 	[self rebuildRowsWithFormatter: sizeFormatter];
 
-	//"Review 2.81 GB" names the figure above it, which is what it takes you to.
+	//"Review 4.0 MB" names the change it goes to, which is the biggest row that
+	//still exists - not the headline. Those are not the same figure and reading
+	//as though they were is how "Review 8 kB" came to sit under a list of 4 MB
+	//rows: the headline is the net across the whole scan, the button is one
+	//item.
 	[_reviewButton setTitle: [NSString stringWithFormat:
 		NSLocalizedString( @"Review %@", @"change window, go to the biggest change" ),
-		[sizeFormatter stringForObjectValue: @(difference)]]];
+		[sizeFormatter stringForObjectValue: @(llabs( _largestChangeDelta ))]]];
 
 	[_reviewButton setEnabled: _largestChangedItem != nil];
 
@@ -399,6 +413,7 @@ static const NSUInteger kMaximumRowsShown = 100;
 		[view removeFromSuperview];
 
 	_largestChangedItem = nil;
+	_largestChangeDelta = 0;
 
 	FileSystemDoc *doc = _document;
 	FileTypeColors *colors = [doc fileTypeColors];
@@ -416,7 +431,10 @@ static const NSUInteger kMaximumRowsShown = 100;
 		//The biggest one that is still there - which is not always the first
 		//row, since the biggest change of all can be something that was deleted.
 		if ( _largestChangedItem == nil && item != nil )
+		{
 			_largestChangedItem = item;
+			_largestChangeDelta = [change delta];
+		}
 
 		DIXChangeRow *row = [[DIXChangeRow alloc] initWithFrame:
 			NSMakeRect( 0.0, rowHeight * (CGFloat) i, width, rowHeight )];

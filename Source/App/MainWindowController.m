@@ -1888,16 +1888,21 @@ static NSBox *FilledBox( NSColor *color )
 	const unsigned long long now = [[[doc rootItem] size] unsignedLongLongValue];
 	const unsigned long long before = [doc previousScanSize];
 
-	if ( now == before )
-	{
-		[_summaryStripView setDelta: nil caption: nil isGrowth: YES];
-		return;
-	}
-
 	//"what grew" beside the caption, which is where the design puts the way in
 	//to the change window. Offered only when there is a list behind it: a link
 	//to six rows of nothing is worse than no link.
 	const BOOL hasRows = ( [[doc changesSinceLastScan] count] > 0 );
+
+	//An unmoved total is not the same as nothing having happened - a cache that
+	//replaces files like for like nets to zero, and the rows are the only place
+	//that shows it. The block used to be suppressed on the total alone, which
+	//made the change window unreachable in exactly that case. With no rows
+	//either there really is nothing to say.
+	if ( now == before && !hasRows )
+	{
+		[_summaryStripView setDelta: nil caption: nil isGrowth: YES];
+		return;
+	}
 
 	const BOOL growth = ( now > before );
 	const unsigned long long difference = growth ? ( now - before ) : ( before - now );
@@ -1912,7 +1917,8 @@ static NSBox *FilledBox( NSColor *color )
 														  locale: [NSLocale currentLocale]]];
 
 	[_summaryStripView
-		 setDelta: [NSString stringWithFormat: @"%@%@", growth ? @"+" : @"−",
+		 setDelta: [NSString stringWithFormat: @"%@%@",
+					( now == before ) ? @"±" : ( growth ? @"+" : @"−" ),
 					[sizeFormatter stringForObjectValue: @(difference)]]
 		  caption: [NSString stringWithFormat:
 					NSLocalizedString( @"since %@", @"summary strip, when the last scan was" ),

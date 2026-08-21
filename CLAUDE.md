@@ -460,9 +460,16 @@ Verified end to end against 5,300 files straddling the cap: the old build showed
 row and 300 invented ones, the new build shows the one, and the headline, the row and the
 Review button all read the same figure.
 
-**Known and not fixed: `-updateSummaryStrip` returns early when `now == before`**, so a
-scan whose total is unchanged offers no *what grew* link even when items really did change.
-A cache that replaces files like for like is exactly that case.
+**An unmoved total is not the same as nothing having happened**, and the strip used to
+decide on the total alone — so a cache that replaces files like for like netted to zero,
+the whole delta block was suppressed, and the change window had no way in. The block is
+offered whenever there are rows behind it; the sign is `±` and the colour the calm one,
+since nothing grew.
+
+Two figures in that window describe different things and must not be made to agree.
+The **headline is the net across the scan**; the **Review button is one item** — the
+biggest change that still exists, which is where pressing it goes. It used to name the
+headline, which is how "Review 8 kB" came to sit under a list of 4 MB rows.
 
 A folder and the one thing inside it that explains its change **collapse to one row**
 (deeper wins at ≥90% of the same-signed delta), which is what names `IMG_4821.MOV` rather
