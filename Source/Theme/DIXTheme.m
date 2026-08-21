@@ -292,6 +292,21 @@ static NSColor* NamedColor( NSString *name, NSColor *fallback )
 	};
 }
 
++ (NSDictionary<NSAttributedStringKey, id>*) tickingDisplayAttributesOfSize: (CGFloat) size
+																	  color: (NSColor*) color
+{
+	NSMutableDictionary *attributes =
+		[[self displayAttributesOfSize: size color: color] mutableCopy];
+
+	//Same size and weight as the proportional face it replaces, so a number
+	//does not change how big it looks by holding still.
+	[attributes setObject: [NSFont monospacedDigitSystemFontOfSize: size
+															weight: NSFontWeightBold]
+				   forKey: NSFontAttributeName];
+
+	return attributes;
+}
+
 + (NSDictionary<NSAttributedStringKey, id>*) sectionLabelAttributes
 {
 	return @{

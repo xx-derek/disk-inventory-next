@@ -169,6 +169,15 @@
 + (NSDictionary<NSAttributedStringKey, id>*) displayAttributesOfSize: (CGFloat) size
 															   color: (NSColor*) color;
 
+//The same face with digits of one width, for a number that changes while it is
+//on screen. Proportional digits make a figure a different width every time it
+//is set, which both ripples the digits in place and moves whatever is laid out
+//after them - the scanning screen's total and its "found so far" caption. Every
+//other display number in the application is set once per scan or per selection,
+//so it wants the proportional face this is the exception to.
++ (NSDictionary<NSAttributedStringKey, id>*) tickingDisplayAttributesOfSize: (CGFloat) size
+																	  color: (NSColor*) color;
+
 //and the same for a section label, including the uppercasing convention
 + (NSDictionary<NSAttributedStringKey, id>*) sectionLabelAttributes;
 

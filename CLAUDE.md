@@ -331,6 +331,32 @@ The figures it shows are the walk's own, added for it:
 **The screen refreshes at 4 Hz, and the wake interval is still 50 ms.** Those are two
 different numbers on purpose — see the note above about what happened when they were one.
 
+**Every figure on it is drawn in tabular digits, and "found so far" is parked past the
+widest total there is.** The display face is proportional, so a number redrawn four times a
+second is a different width each time: measured across a scan of `/System/Library`, the
+caption started at 277 px and ended at 327, moving on every frame, and within one digit
+count it moves *both* ways. `+[DIXTheme tickingDisplayAttributesOfSize:color:]` is that
+face with `monospacedDigitSystemFont`, and it is only for numbers that change while on
+screen — everything else in the application is set once per scan or per selection and wants
+the proportional one.
+
+Tabular digits are half of it: they cannot hold a width across 99.4 GB → 105.3 GB. So
+`-widestTotalWidth` fixes the caption past the longest string the total can be, and **both
+of its details are load-bearing** — the first version got each wrong and the caption still
+stepped once per scan:
+
+- **Measure the field, not the string.** `-sizeToFit` adds about 4pt of cell inset, so a
+  bare `-[NSAttributedString size]` reserves too little — which is precisely the jump the
+  first eight-character total made.
+- **Ask the formatter for its widest output; the widest is not the largest.**
+  `FileSizeFormatter` divides by 1000 and prints one decimal above kB, so `999.9 MB` beats
+  `999.9 GB` (M is wider than G) and `999 Bytes` beats both.
+
+Measured over a scan of `/` — which crosses two digit-count boundaries — the caption reads
+398 px on all 30 frames. `-foundSoFarX` still ratchets, as cover for a locale whose
+separator or unit is wider. The four stat columns never had the problem: they are laid out
+as four equal cells, value above label.
+
 **"Show partial results" stops the walk; it does not run on behind the window.** The walk
 uses exceptions as control flow and the tree is mutated by up to eight queues, so leaving
 it running while views read the tree would be a race in every direction. It sets

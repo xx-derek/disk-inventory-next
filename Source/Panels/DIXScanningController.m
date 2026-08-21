@@ -58,6 +58,10 @@ static const NSUInteger kBiggestRows  = 3;
 
 	NSTextField *_totalField;
 	NSTextField *_foundSoFarField;
+
+	//see -widestTotalWidth; set once while the window is built, and only ever
+	//grown after that
+	CGFloat _foundSoFarX;
 	NSTextField *_percentField;
 	DIXShareBar *_bar;
 	NSTextField *_pathField;
@@ -140,6 +144,10 @@ static const NSUInteger kBiggestRows  = 3;
 
 	_totalField = [NSTextField labelWithString: @""];
 	[_totalField setTranslatesAutoresizingMaskIntoConstraints: YES];
+
+	//Before anything is laid out, and through the field itself - see
+	//-widestTotalWidth for why both of those matter.
+	_foundSoFarX = kEdgeInset + [self widestTotalWidth] + kTotalGap;
 
 	_foundSoFarField = [self labelOfSize: 12.0
 								  weight: NSFontWeightRegular
@@ -349,7 +357,7 @@ static const NSUInteger kBiggestRows  = 3;
 	//to the line they share.
 	const CGFloat baseline = y - [[_totalField font] descender];
 
-	[_foundSoFarField setFrame: NSMakeRect( NSMaxX( [_totalField frame] ) + kTotalGap,
+	[_foundSoFarField setFrame: NSMakeRect( [self foundSoFarX],
 											baseline + [[_foundSoFarField font] descender],
 											NSWidth( [_foundSoFarField frame] ),
 											NSHeight( [_foundSoFarField frame] ) )];
@@ -449,7 +457,7 @@ static const NSUInteger kBiggestRows  = 3;
 	[_totalField setAttributedStringValue:
 		[[NSAttributedString alloc] initWithString:
 			[_sizeFormatter stringForObjectValue: @(bytes)]
-										attributes: [DIXTheme displayAttributesOfSize: kTotalSize
+										attributes: [DIXTheme tickingDisplayAttributesOfSize: kTotalSize
 																				color: [DIXTheme ink]]]];
 }
 
@@ -457,7 +465,7 @@ static const NSUInteger kBiggestRows  = 3;
 {
 	[_percentField setAttributedStringValue:
 		[[NSAttributedString alloc] initWithString: text != nil ? text : @""
-										attributes: [DIXTheme displayAttributesOfSize: 13.0
+										attributes: [DIXTheme tickingDisplayAttributesOfSize: 13.0
 																				color: [DIXTheme accent]]]];
 }
 
@@ -468,7 +476,7 @@ static const NSUInteger kBiggestRows  = 3;
 
 	[[_statValues objectAtIndex: index] setAttributedStringValue:
 		[[NSAttributedString alloc] initWithString: text != nil ? text : @""
-										attributes: [DIXTheme displayAttributesOfSize: kStatValueSize
+										attributes: [DIXTheme tickingDisplayAttributesOfSize: kStatValueSize
 																				color: [DIXTheme ink]]]];
 }
 
@@ -541,6 +549,57 @@ static const NSUInteger kBiggestRows  = 3;
 	[self layoutFooterAndHeader];
 }
 
+//The widest the total can ever be drawn, which is where "found so far" goes.
+//
+//Tabular digits hold a total at one width for as long as it has the same number
+//of them; they cannot hold it across 99.4 GB to 105.3 GB, or GB to TB. So the
+//caption is parked past the longest string there is instead, and two things
+//have to be right or it moves anyway.
+//
+//Measure the *field*, not the string. -sizeToFit adds the cell's own insets,
+//about 4pt, so a bare -[NSAttributedString size] comes up short - which is
+//exactly how far the caption jumped the first time a total used all eight of
+//its characters, tabular digits notwithstanding.
+//
+//And ask the formatter for its own widest output rather than writing a template
+//out here. It divides by 1000 and prints one decimal above kB, so the widest is
+//not the largest: "999.9 MB" beats "999.9 GB" because M is a wider letter than
+//G, and "999 Bytes" beats both.
+- (CGFloat) widestTotalWidth
+{
+	static const unsigned long long samples[] = {
+		999ULL,                 //999 Bytes
+		999999ULL,              //999 kB
+		999900000ULL,           //999.9 MB
+		999900000000ULL,        //999.9 GB
+		999900000000000ULL };   //999.9 TB
+
+	CGFloat widest = 0.0;
+
+	for ( size_t i = 0; i < sizeof(samples) / sizeof(samples[0]); i++ )
+	{
+		[self setTotalBytes: samples[i]];
+		[_totalField sizeToFit];
+
+		widest = MAX( widest, NSWidth( [_totalField frame] ) );
+	}
+
+	[_totalField setStringValue: @""];
+	[_totalField sizeToFit];
+
+	return widest;
+}
+
+- (CGFloat) foundSoFarX
+{
+	//Belt and braces. The seed is the widest the formatter can produce, so this
+	//should not fire; if a locale's separator or unit turns out wider, the
+	//caption steps right once and stays rather than shaking.
+	_foundSoFarX = MAX( _foundSoFarX, NSMaxX( [_totalField frame] ) + kTotalGap );
+
+	return _foundSoFarX;
+}
+
 //Only the things whose width changes with their text, which is why this is not
 //the whole of -layoutContents: the rows and the rules do not move for the life
 //of a scan, and laying them out four times a second is work for nothing.
@@ -557,7 +616,7 @@ static const NSUInteger kBiggestRows  = 3;
 	[_totalField setFrame: NSMakeRect( kEdgeInset, NSMinY( totalFrame ),
 									   NSWidth( [_totalField frame] ), NSHeight( totalFrame ) )];
 
-	[_foundSoFarField setFrameOrigin: NSMakePoint( NSMaxX( [_totalField frame] ) + kTotalGap,
+	[_foundSoFarField setFrameOrigin: NSMakePoint( [self foundSoFarX],
 												   NSMinY( [_foundSoFarField frame] ) )];
 
 	[_percentField setFrame: NSMakeRect( kEdgeInset + width - NSWidth( [_percentField frame] ),
