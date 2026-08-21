@@ -19,17 +19,6 @@
 #import "PrefsPageLayout.h"
 #import "Preferences.h"
 
-//the choices offered in the pop-up, from the bounds the preference declares
-static NSArray<NSNumber*>* ScanConcurrencyValues( void )
-{
-	NSMutableArray *values = [NSMutableArray array];
-
-	for ( NSInteger i = ScanConcurrencyMinimum; i <= ScanConcurrencyMaximum; i++ )
-		[values addObject: [NSNumber numberWithInteger: i]];
-
-	return values;
-}
-
 @implementation GeneralPrefPage
 
 //The strings are the English text: they are the keys into Preferences.strings,
@@ -37,59 +26,42 @@ static NSArray<NSNumber*>* ScanConcurrencyValues( void )
 //is no longer a nib per language.
 - (NSView*) buildControlBox
 {
-	PrefsPageLayout *layout = [PrefsPageLayout layout];
+	PrefsPageLayout *layout = [PrefsPageLayout layoutWithWidth: [[self class] contentWidth]];
 
-	[layout beginSectionWithLabel: @"View settings for new windows:"];
+	[layout beginSectionWithLabel: @"New windows"];
 
-	[layout addCheckboxTitled: @"Show Package Contents"
-				  defaultsKey: ShowPackageContents
-						 help: nil];
+	[layout addToggleTitled: @"Show package contents"
+					   help: @"Treat app bundles as folders and descend into them."
+				defaultsKey: ShowPackageContents];
 
-	[layout addCheckboxTitled: @"Ignore Creator Code"
-				  defaultsKey: IgnoreCreatorCode
-						 help: @"If set, e.g. PDF files opened by the Finder with Acrobat or Preview are be regarded to have the same kind."];
+	[layout addToggleTitled: @"Show physical file size"
+					   help: @"The space a file occupies on disk rather than the size of its content."
+				defaultsKey: ShowPhysicalFileSize];
 
-	[layout addCheckboxTitled: @"Show Physical File Size"
-				  defaultsKey: ShowPhysicalFileSize
-						 help: @"The physical size is the space that a file occupies on a drive. Many applications show the logical size, which is the size of a file's content."];
+	[layout addToggleTitled: @"Ignore creator code"
+					   help: @"PDFs opened with Preview and with Acrobat count as one kind."
+				defaultsKey: IgnoreCreatorCode];
 
-	[layout addCheckboxTitled: @"Split window horizontally"
-				  defaultsKey: SplitWindowHorizontally
-						 help: nil];
+	[layout addFootnote: @"These become the starting view options of each new scan; a window can still change its own."];
 
-	[layout beginSectionWithLabel: @"Use small font in:"];
+	[layout beginSectionWithLabel: @"On launch"];
 
-	[layout addCheckboxTitled: @"Files View"
-				  defaultsKey: UseSmallFontInFilesView
-						 help: nil];
+	//SplitWindowHorizontally and the three UseSmallFontIn… keys are deliberately
+	//not here. The new layout has one split and one type scale, so there is
+	//nothing for them to change; they are still read, so an existing user's
+	//value is not thrown away, just no longer offered.
+	[layout addPopUpTitled: @"Open with"
+					  help: @"What the app shows when you start it with no document."
+			   defaultsKey: OpenWith
+					titles: @[ @"Last scanned volume", @"The volume picker", @"Nothing" ]
+					values: @[ @(DIXOpenWithLastVolume), @(DIXOpenWithPicker), @(DIXOpenWithNothing) ]];
 
-	[layout addCheckboxTitled: @"Kind Statistic Drawer"
-				  defaultsKey: UseSmallFontInKindStatistic
-						 help: nil];
+	[layout addToggleTitled: @"Reopen the last scan"
+					   help: @"Restores the saved result instead of rescanning. Rescan is one click away."
+				defaultsKey: ReopenLastScan];
 
-	[layout addCheckboxTitled: @"Selection List"
-				  defaultsKey: UseSmallFontInSelectionList
-						 help: nil];
-
-	//Concurrency is a setting rather than a constant because it is the one part
-	//of the scan whose best value depends on the drive: a fast internal SSD
-	//likes several requests outstanding, a network share or a spinning disk can
-	//be made slower by them. One walks everything in order, as the scan did
-	//before this was settable.
-	[layout beginSectionWithLabel: @"Scanning:"];
-
-	[layout addPopUpWithValues: ScanConcurrencyValues()
-				   defaultsKey: ScanConcurrency
-				 trailingTitle: @"folders at a time"
-						  help: @"How many folders inside the one being scanned are read at the same time. Higher is usually faster on an internal drive; choose 1 to scan everything in order, which can be better over a network."];
-
-	//This one had no label column in the nib and so broke the alignment of
-	//everything above it; it gets a section of its own now.
-	[layout beginSectionWithLabel: @"File kind colors:"];
-
-	[layout addCheckboxTitled: @"Use the same color for each file kind in all windows"
-				  defaultsKey: ShareKindColors
-						 help: nil];
+	[self addRestoreDefaultsSectionTo: layout
+								 help: @"Returns this tab to its factory settings. Hold ⌥ to reset every tab."];
 
 	[self setLayout: layout];
 

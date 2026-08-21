@@ -26,6 +26,8 @@
 		FCCFB30D097FA42B009EA2B6 /* PrefsPanelController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2C4097FA42B009EA2B6 /* PrefsPanelController.m */; };
 		FCCFB30E097FA42B009EA2B6 /* PrefsPageBase.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2C6097FA42B009EA2B6 /* PrefsPageBase.m */; };
 		FCCFB30F097FA42B009EA2B6 /* TreeMapPrefPage.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2C8097FA42B009EA2B6 /* TreeMapPrefPage.m */; };
+		DEC8DE0000000000000055 /* PrivacyPrefPage.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000054 /* PrivacyPrefPage.m */; };
+		DEC8DE0000000000000052 /* ScanningPrefPage.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC8DE0000000000000051 /* ScanningPrefPage.m */; };
 		FCCFB310097FA42B009EA2B6 /* GeneralPrefPage.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2CA097FA42B009EA2B6 /* GeneralPrefPage.m */; };
 		FCCFB312097FA42B009EA2B6 /* Timing.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2CE097FA42B009EA2B6 /* Timing.m */; };
 		FCCFB313097FA42B009EA2B6 /* FileSizeFormatter.m in Sources */ = {isa = PBXBuildFile; fileRef = FCCFB2D1097FA42B009EA2B6 /* FileSizeFormatter.m */; };
@@ -159,6 +161,10 @@
 		FCCFB2C6097FA42B009EA2B6 /* PrefsPageBase.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PrefsPageBase.m; sourceTree = "<group>"; };
 		FCCFB2C7097FA42B009EA2B6 /* TreeMapPrefPage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TreeMapPrefPage.h; sourceTree = "<group>"; };
 		FCCFB2C8097FA42B009EA2B6 /* TreeMapPrefPage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TreeMapPrefPage.m; sourceTree = "<group>"; };
+		DEC8DE0000000000000053 /* PrivacyPrefPage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PrivacyPrefPage.h; sourceTree = "<group>"; };
+		DEC8DE0000000000000054 /* PrivacyPrefPage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PrivacyPrefPage.m; sourceTree = "<group>"; };
+		DEC8DE0000000000000050 /* ScanningPrefPage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ScanningPrefPage.h; sourceTree = "<group>"; };
+		DEC8DE0000000000000051 /* ScanningPrefPage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ScanningPrefPage.m; sourceTree = "<group>"; };
 		FCCFB2C9097FA42B009EA2B6 /* GeneralPrefPage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GeneralPrefPage.h; sourceTree = "<group>"; };
 		FCCFB2CA097FA42B009EA2B6 /* GeneralPrefPage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneralPrefPage.m; sourceTree = "<group>"; };
 		FCCFB2CE097FA42B009EA2B6 /* Timing.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Timing.m; sourceTree = "<group>"; };
@@ -433,6 +439,10 @@
 				FCCFB2CA097FA42B009EA2B6 /* GeneralPrefPage.m */,
 				FCCFB2C7097FA42B009EA2B6 /* TreeMapPrefPage.h */,
 				FCCFB2C8097FA42B009EA2B6 /* TreeMapPrefPage.m */,
+				DEC8DE0000000000000053 /* PrivacyPrefPage.h */,
+				DEC8DE0000000000000054 /* PrivacyPrefPage.m */,
+				DEC8DE0000000000000050 /* ScanningPrefPage.h */,
+				DEC8DE0000000000000051 /* ScanningPrefPage.m */,
 			);
 			path = Preferences;
 			sourceTree = "<group>";
@@ -726,6 +736,8 @@
 				FCCFB30D097FA42B009EA2B6 /* PrefsPanelController.m in Sources */,
 				FCCFB30E097FA42B009EA2B6 /* PrefsPageBase.m in Sources */,
 				FCCFB30F097FA42B009EA2B6 /* TreeMapPrefPage.m in Sources */,
+				DEC8DE0000000000000055 /* PrivacyPrefPage.m in Sources */,
+				DEC8DE0000000000000052 /* ScanningPrefPage.m in Sources */,
 				FCCFB310097FA42B009EA2B6 /* GeneralPrefPage.m in Sources */,
 				FCCFB312097FA42B009EA2B6 /* Timing.m in Sources */,
 				FCCFB313097FA42B009EA2B6 /* FileSizeFormatter.m in Sources */,

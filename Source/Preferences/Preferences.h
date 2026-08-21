@@ -41,6 +41,43 @@ extern NSString *LabelLargeCells;
 //the cushion's depth cue used to do on its own.
 extern NSString *ClassicCushions;
 
+#pragma mark --------what the redesign added-----------------
+
+//What the application shows when it is started with no document.
+typedef NS_ENUM( NSInteger, DIXOpenWithChoice )
+{
+	DIXOpenWithLastVolume = 0,
+	DIXOpenWithPicker     = 1,
+	DIXOpenWithNothing    = 2,
+};
+
+extern NSString *OpenWith;
+
+//Reopen the last scan rather than rescanning it. Only meaningful when OpenWith
+//is DIXOpenWithLastVolume.
+extern NSString *ReopenLastScan;
+
+//How long a scan snapshot is kept, in days. 0 keeps none - which also turns the
+//change view and the summary strip's delta off, since both are answers this
+//would have no data for - and -1 keeps them forever.
+extern NSString *ScanHistoryRetentionDays;
+
+extern const NSInteger DIXHistoryOff;
+extern const NSInteger DIXHistoryForever;
+
+//Where the snapshots live. A bookmark rather than a path, so the folder can be
+//renamed or moved and still be found - but not a *security-scoped* one, which
+//is what the handoff suggests: this application is not sandboxed, and asking
+//for security scope without the entitlement fails to make a bookmark at all.
+//An absent or unresolvable value means the default place in Application Support.
+extern NSString *ScanHistoryLocationBookmark;
+
+//Offer "Show partial results" on the scanning screen.
+extern NSString *ShowPartialResults;
+
+//Show a banner on a scan that could not read everything it was asked to.
+extern NSString *ShowSkippedFoldersBanner;
+
 @interface NSUserDefaults(VersionDepedantValues)
 
 - (bool) boolForVersionDependantKey: (NSString*) key;

@@ -133,18 +133,26 @@ No data will be read.</string>
 			<dict>
 				<key>AnimatedZooming</key>
 				<true/>
+				<key>ClassicCushions</key>
+				<false/>
 				<key>DontShowDonationMessage</key>
+				<false/>
+				<key>DontShowPrivacyWarningMessage</key>
 				<false/>
 				<key>EnableLogging</key>
 				<false/>
 				<key>IgnoreCreatorCode</key>
 				<false/>
-				<key>ClassicCushions</key>
-				<false/>
 				<key>LabelLargeCells</key>
+				<true/>
+				<key>OpenWith</key>
+				<integer>0</integer>
+				<key>ReopenLastScan</key>
 				<true/>
 				<key>ScanConcurrency</key>
 				<integer>2</integer>
+				<key>ScanHistoryRetentionDays</key>
+				<integer>180</integer>
 				<key>ShareKindColors</key>
 				<true/>
 				<key>ShowFreeSpace</key>
@@ -153,7 +161,11 @@ No data will be read.</string>
 				<false/>
 				<key>ShowPackageContents</key>
 				<false/>
+				<key>ShowPartialResults</key>
+				<true/>
 				<key>ShowPhysicalFileSize</key>
+				<true/>
+				<key>ShowSkippedFoldersBanner</key>
 				<true/>
 				<key>SplitWindowHorizontally</key>
 				<false/>
@@ -173,14 +185,11 @@ No data will be read.</string>
 				<string>Basic</string>
 				<key>defaultsArray</key>
 				<array>
-					<string>SplitWindowHorizontally</string>
 					<string>ShowPackageContents</string>
-					<string>IgnoreCreatorCode</string>
 					<string>ShowPhysicalFileSize</string>
-					<string>UseSmallFontInFilesView</string>
-					<string>UseSmallFontInKindStatisticView</string>
-					<string>UseSmallFontInSelectionList</string>
-					<string>ShareKindColors</string>
+					<string>IgnoreCreatorCode</string>
+					<string>OpenWith</string>
+					<string>ReopenLastScan</string>
 				</array>
 				<key>identifier</key>
 				<string>GeneralPrefPage</string>
@@ -190,6 +199,43 @@ No data will be read.</string>
 				<string>gearshape</string>
 				<key>title</key>
 				<string>General</string>
+			</dict>
+			<key>PrivacyPrefPage</key>
+			<dict>
+				<key>category</key>
+				<string>Basic</string>
+				<key>defaultsArray</key>
+				<array>
+					<string>DontShowPrivacyWarningMessage</string>
+					<string>ShowSkippedFoldersBanner</string>
+				</array>
+				<key>identifier</key>
+				<string>PrivacyPrefPage</string>
+				<key>ordering</key>
+				<integer>30</integer>
+				<key>symbol</key>
+				<string>hand.raised</string>
+				<key>title</key>
+				<string>Privacy</string>
+			</dict>
+			<key>ScanningPrefPage</key>
+			<dict>
+				<key>category</key>
+				<string>Basic</string>
+				<key>defaultsArray</key>
+				<array>
+					<string>ScanHistoryRetentionDays</string>
+					<string>ShowPartialResults</string>
+					<string>ScanConcurrency</string>
+				</array>
+				<key>identifier</key>
+				<string>ScanningPrefPage</string>
+				<key>ordering</key>
+				<integer>20</integer>
+				<key>symbol</key>
+				<string>clock.arrow.circlepath</string>
+				<key>title</key>
+				<string>Scanning</string>
 			</dict>
 			<key>TreeMapPrefPage</key>
 			<dict>
@@ -202,6 +248,7 @@ No data will be read.</string>
 					<string>ShowOtherSpace</string>
 					<string>LabelLargeCells</string>
 					<string>ClassicCushions</string>
+					<string>ShareKindColors</string>
 				</array>
 				<key>identifier</key>
 				<string>TreeMapPrefPage</string>

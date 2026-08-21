@@ -19,9 +19,125 @@
 #import "PrefsPageBase.h"
 #import "PrefsPageRecord.h"
 #import "Preferences.h"
+#import "DIXTheme.h"
 
 //the strings table page titles are localized in
 static NSString * const PrefsTitlesTable = @"Preferences";
+
+//The design's own numbers for this window.
+static const CGFloat kWindowWidth   = 560.0;
+static const CGFloat kRailWidth     = 168.0;
+static const CGFloat kRailInset     =  10.0;
+static const CGFloat kRailTopInset  =  12.0;
+static const CGFloat kRailRowHeight =  28.0;
+static const CGFloat kPagePaddingX  =  22.0;
+static const CGFloat kPagePaddingY  =  20.0;
+
+//================ the rail ===========================================================
+
+//The rail's own fill, drawn rather than left to the window: the design gives it
+//the sidebar tone against the pane's surface, and the two must not be the same.
+@interface DIXSettingsRailView : NSView
+@end
+
+@implementation DIXSettingsRailView
+
+- (void) drawRect: (NSRect) dirtyRect
+{
+	[[DIXTheme sidebar] set];
+	NSRectFill( NSIntersectionRect( dirtyRect, [self bounds] ) );
+}
+
+@end
+
+//One tab. Not an NSButton: the design's row is a 7pt rounded fill behind 13pt
+//medium text with no bezel of any kind, and every button bezel AppKit offers
+//draws something.
+@interface DIXSettingsRailRow : NSControl
+{
+	NSString *_title;
+	NSString *_rowIdentifier;
+	BOOL _selected;
+}
+- (void) setTitle: (NSString*) title;
+- (void) setIdentifier: (NSString*) identifier;
+- (NSString*) identifier;
+- (void) setSelected: (BOOL) selected;
+@end
+
+@implementation DIXSettingsRailRow
+
+- (void) setTitle: (NSString*) title
+{
+	_title = [title copy];
+
+	//Three separate things, and each was needed. -setAccessibilityElement: makes
+	//it an element at all - an NSControl with no cell is not one by default, so
+	//the rail was missing from the tree entirely. The setters rather than
+	//overrides, because AppKit reads a control's attributes through them. And
+	//-setAccessibilityTitle:, not -setAccessibilityLabel:: the label is a
+	//description, the title is the name, and only the title is what a screen
+	//reader announces for a control.
+	[self setAccessibilityElement: YES];
+	[self setAccessibilityTitle: title];
+	[self setAccessibilityRole: NSAccessibilityRadioButtonRole];
+
+	[self setNeedsDisplay: YES];
+}
+
+- (void) setIdentifier: (NSString*) identifier   { _rowIdentifier = [identifier copy]; }
+- (NSString*) identifier                          { return _rowIdentifier; }
+
+- (void) setSelected: (BOOL) selected
+{
+	if ( _selected == selected )
+		return;
+
+	_selected = selected;
+	[self setAccessibilityValue: @(selected)];
+	[self setNeedsDisplay: YES];
+}
+
+- (void) mouseDown: (NSEvent*) event
+{
+	[self sendAction: [self action] to: [self target]];
+}
+
+//What VoiceOver and every other assistive client send. A custom NSControl gets
+//no press behaviour for free - AppKit's own comes from the cell this has none
+//of - so without this the rail could be read and not used.
+- (BOOL) accessibilityPerformPress
+{
+	[self sendAction: [self action] to: [self target]];
+
+	return YES;
+}
+
+- (void) drawRect: (NSRect) dirtyRect
+{
+	const NSRect bounds = [self bounds];
+
+	if ( _selected )
+	{
+		[[DIXTheme selectedRowFill] set];
+		[[NSBezierPath bezierPathWithRoundedRect: bounds
+										 xRadius: [DIXTheme rowCornerRadius]
+										 yRadius: [DIXTheme rowCornerRadius]] fill];
+	}
+
+	NSDictionary *attributes = @{
+		NSFontAttributeName: [NSFont systemFontOfSize: 13.0
+											   weight: _selected ? NSFontWeightMedium : NSFontWeightRegular],
+		NSForegroundColorAttributeName: [DIXTheme ink] };
+
+	const NSSize size = [_title sizeWithAttributes: attributes];
+
+	[_title drawAtPoint: NSMakePoint( NSMinX( bounds ) + 10.0,
+									  NSMidY( bounds ) - size.height / 2.0 )
+		 withAttributes: attributes];
+}
+
+@end
 
 @interface PrefsPanelController(Private)
 
@@ -171,21 +287,21 @@ static NSString * const PrefsTitlesTable = @"Preferences";
 	[window setTitle: [[self class] _settingsWindowTitle]];
 	[window setShowsToolbarButton: NO];
 	[window setReleasedWhenClosed: NO];
-	[window setFrameAutosaveName: @"PreferencesWindow"];
+	[window setTitlebarAppearsTransparent: YES];
+	[window setBackgroundColor: [DIXTheme surface]];
+
+	//Deliberately not autosaved. The window's height follows the tab, so a
+	//remembered frame would open the next tab at the last one's height and then
+	//jump - and there is nothing else about the position worth keeping, since
+	//it centres on the screen anyway.
 
 	NSArray *visibleRecords = [self _visiblePageRecords];
 
-	//a single page needs no toolbar to switch between
+	//The design's rail rather than a toolbar: four tabs with a heading each,
+	//which is how current macOS settings windows are laid out. A toolbar on
+	//macOS 26 would also draw every item in a glass capsule.
 	if ( [visibleRecords count] > 1 )
-	{
-		NSToolbar *toolbar = [[NSToolbar alloc] initWithIdentifier: @"PreferencesToolbar"];
-
-		[toolbar setDelegate: self];
-		[toolbar setAllowsUserCustomization: NO];
-		[toolbar setDisplayMode: NSToolbarDisplayModeIconAndLabel];
-
-		[window setToolbar: toolbar];
-	}
+		[self _buildRailForRecords: visibleRecords];
 
 	[self setWindow: window];
 
@@ -270,19 +386,28 @@ static NSString * const PrefsTitlesTable = @"Preferences";
 			 display: YES
 			 animate: [window isVisible]];
 
+	//Centred the first time, and held by its title bar after that. The frame is
+	//not autosaved - the height follows the tab, so a remembered one would open
+	//the next tab at the last one's height and then jump.
+	if ( ![window isVisible] )
+		[window center];
+
 	[window setContentView: content];
 
-	//hand the page its keyboard focus, and close the tab order back to the top
+	//Close the tab order back to the top, but do not *take* focus. Focusing the
+	//first control draws a focus ring on it the moment the window opens, which
+	//the design has nowhere - and a settings pane is read before it is typed
+	//into. Tab still walks the page from the top.
 	NSView *firstResponder = [page initialFirstResponder];
 	if ( firstResponder != nil )
-	{
-		[window setInitialFirstResponder: firstResponder];
-		[window makeFirstResponder: firstResponder];
-
 		[[page lastKeyView] setNextKeyView: firstResponder];
-	}
 
-	[[window toolbar] setSelectedItemIdentifier: [pageRecord identifier]];
+	for ( DIXSettingsRailRow *row in _railRows )
+		[row setSelected: [[row identifier] isEqualToString: [pageRecord identifier]]];
+
+	//The design titles the window with the tab rather than with the word
+	//"Settings", which is what current macOS settings windows do.
+	[window setTitle: [self _localizedTitleForRecord: pageRecord]];
 
 	[[NSUserDefaults standardUserDefaults] setObject: [pageRecord identifier]
 											  forKey: @"PreferencesSelection"];
@@ -302,48 +427,76 @@ static NSString * const PrefsTitlesTable = @"Preferences";
 	return NSLocalizedStringFromTable( key, PrefsTitlesTable, @"settings window title" );
 }
 
-//Puts the page above a footer holding "Restore Defaults". The action existed
-//but nothing in the window invoked it, so the only way to reach it was to know
-//it was there.
+//The rail is built once and kept; only its selection changes as tabs are
+//switched. Rows are drawn rather than bezelled - a 7pt rounded fill behind
+//13pt medium text, which is not a shape any NSButton bezel offers.
+- (void) _buildRailForRecords: (NSArray*) records
+{
+	_railView = [[DIXSettingsRailView alloc] initWithFrame:
+		NSMakeRect( 0.0, 0.0, kRailWidth, 0.0 )];
+
+	_railRows = [NSMutableArray array];
+
+	for ( PrefsPageRecord *record in records )
+	{
+		DIXSettingsRailRow *row = [[DIXSettingsRailRow alloc] initWithFrame: NSZeroRect];
+
+		[row setTitle: [self _localizedTitleForRecord: record]];
+		[row setIdentifier: [record identifier]];
+		[row setTarget: self];
+		[row setAction: @selector(_selectPageFromRail:)];
+
+		[_railView addSubview: row];
+		[_railRows addObject: row];
+	}
+}
+
+- (void) _layoutRailToHeight: (CGFloat) height
+{
+	[_railView setFrame: NSMakeRect( 0.0, 0.0, kRailWidth, height )];
+
+	CGFloat y = height - kRailTopInset;
+
+	for ( DIXSettingsRailRow *row in _railRows )
+	{
+		y -= kRailRowHeight;
+		[row setFrame: NSMakeRect( kRailInset, y, kRailWidth - kRailInset * 2.0, kRailRowHeight )];
+	}
+}
+
+//The rail beside the page, both full height, with the page inset by the pane's
+//own padding. The window's height is whatever the taller of the two comes to.
 - (NSView*) _contentViewWrappingPage: (NSView*) pageView
 {
-	NSButton *restore = [NSButton buttonWithTitle: NSLocalizedStringFromTable( @"Restore Defaults",
-																			   PrefsTitlesTable, @"" )
-										   target: self
-										   action: @selector(restoreDefaults:)];
-	[restore sizeToFit];
+	const CGFloat railHeight = kRailTopInset
+							   + kRailRowHeight * (CGFloat) [_railRows count]
+							   + kRailTopInset;
 
-	NSBox *separator = [[NSBox alloc] initWithFrame: NSZeroRect];
-	[separator setBoxType: NSBoxSeparator];
-
-	const CGFloat inset = 20.0;
-	const CGFloat footerHeight = NSHeight( [restore frame] ) + inset;
-
-	[pageView setFrameOrigin: NSMakePoint( 0.0, footerHeight )];
-
-	const CGFloat width = MAX( NSWidth( [pageView frame] ),
-							   NSWidth( [restore frame] ) + inset * 2.0 );
+	const CGFloat pageHeight = NSHeight( [pageView frame] ) + kPagePaddingY * 2.0;
+	const CGFloat height = MAX( railHeight, pageHeight );
 
 	NSView *content = [[NSView alloc] initWithFrame:
-		NSMakeRect( 0.0, 0.0, width, NSHeight( [pageView frame] ) + footerHeight )];
+		NSMakeRect( 0.0, 0.0, kWindowWidth, height )];
 
-	[restore setFrameOrigin: NSMakePoint( inset, ( footerHeight - NSHeight( [restore frame] ) ) / 2.0 )];
-	[separator setFrame: NSMakeRect( 0.0, footerHeight, width, 1.0 )];
+	if ( _railView != nil )
+	{
+		[self _layoutRailToHeight: height];
+		[content addSubview: _railView];
+	}
 
-	[pageView setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
-	[separator setAutoresizingMask: NSViewWidthSizable | NSViewMaxYMargin];
-	[restore setAutoresizingMask: NSViewMaxXMargin | NSViewMaxYMargin];
+	const CGFloat pageX = ( _railView != nil ? kRailWidth : 0.0 ) + kPagePaddingX;
+
+	[pageView setFrameOrigin: NSMakePoint( pageX, height - kPagePaddingY - NSHeight( [pageView frame] ) )];
 
 	[content addSubview: pageView];
-	[content addSubview: separator];
-	[content addSubview: restore];
 
 	return content;
 }
 
-- (IBAction) _selectPageFromToolbar: (id) sender
+- (IBAction) _selectPageFromRail: (id) sender
 {
-	[self setCurrentPageRecord: [[self class] pageRecordWithIdentifier: [sender itemIdentifier]]];
+	[self setCurrentPageRecord:
+		[[self class] pageRecordWithIdentifier: [(DIXSettingsRailRow*) sender identifier]]];
 }
 
 #pragma mark --------restoring defaults-----------------
@@ -412,48 +565,6 @@ static NSString * const PrefsTitlesTable = @"Preferences";
 	}
 
 	[_currentPage valuesHaveChanged];
-}
-
-#pragma mark --------NSToolbarDelegate-----------------
-
-- (NSArray<NSToolbarItemIdentifier>*) toolbarAllowedItemIdentifiers: (NSToolbar*) toolbar
-{
-	return [[self _visiblePageRecords] valueForKey: @"identifier"];
-}
-
-- (NSArray<NSToolbarItemIdentifier>*) toolbarDefaultItemIdentifiers: (NSToolbar*) toolbar
-{
-	return [self toolbarAllowedItemIdentifiers: toolbar];
-}
-
-- (NSArray<NSToolbarItemIdentifier>*) toolbarSelectableItemIdentifiers: (NSToolbar*) toolbar
-{
-	return [self toolbarAllowedItemIdentifiers: toolbar];
-}
-
-- (NSToolbarItem*) toolbar: (NSToolbar*) toolbar
-	 itemForItemIdentifier: (NSToolbarItemIdentifier) identifier
- willBeInsertedIntoToolbar: (BOOL) willBeInserted
-{
-	PrefsPageRecord *record = [[self class] pageRecordWithIdentifier: identifier];
-	if ( record == nil )
-		return nil;
-
-	NSToolbarItem *item = [[NSToolbarItem alloc] initWithItemIdentifier: identifier];
-
-	NSString *title = [self _localizedTitleForRecord: record];
-
-	[item setLabel: title];
-	[item setPaletteLabel: title];
-
-	if ( [record symbolName] != nil )
-		[item setImage: [NSImage imageForSymbolName: [record symbolName]
-						   accessibilityDescription: [record title]]];
-
-	[item setTarget: self];
-	[item setAction: @selector(_selectPageFromToolbar:)];
-
-	return item;
 }
 
 @end

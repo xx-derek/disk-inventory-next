@@ -22,33 +22,45 @@
 
 - (NSView*) buildControlBox
 {
-	PrefsPageLayout *layout = [PrefsPageLayout layout];
+	PrefsPageLayout *layout = [PrefsPageLayout layoutWithWidth: [[self class] contentWidth]];
 
-	//The nib left this one with an empty label column, which is what made the
-	//two pages look like they belonged to different applications.
-	[layout beginSectionWithLabel: @"Zooming:"];
+	[layout beginSectionWithLabel: @"Zooming"];
 
-	[layout addCheckboxTitled: @"Animated Zooming"
-				  defaultsKey: AnimatedZooming
-						 help: @"Turn this off if the animation is too slow on your machine or if you don't like it."];
+	[layout addToggleTitled: @"Animated zooming"
+					   help: @"Turn off if the animation is slow on your machine."
+				defaultsKey: AnimatedZooming];
 
-	[layout beginSectionWithLabel: @"View settings for new windows:"];
+	[layout beginSectionWithLabel: @"Cells"];
 
-	[layout addCheckboxTitled: @"Show Free Space"
-				  defaultsKey: ShowFreeSpace
-						 help: @"This shows free space like a file in the treemap. It helps to see the size relations between the opened folder and the free space on the drive."];
+	[layout addToggleTitled: @"Show free space"
+					   help: @"Draw free space as a cell so you can compare it with the folder."
+				defaultsKey: ShowFreeSpace];
 
-	[layout addCheckboxTitled: @"Show Other Space"
-				  defaultsKey: ShowOtherSpace
-						 help: @"This shows space used by not shown files and folders like a file in the treemap. It helps to see how the opened folder compares in size to the rest of the files on the same drive. This option is only available if not a whole drive is shown."];
+	[layout addToggleTitled: @"Show other space"
+					   help: @"Space used by files outside the scanned folder, on the same drive."
+				defaultsKey: ShowOtherSpace];
 
-	[layout addCheckboxTitled: @"Label Large Cells"
-				  defaultsKey: LabelLargeCells
-						 help: @"Write the name and size into cells big enough to hold them."];
+	[layout addToggleTitled: @"Label large cells"
+					   help: @"Write the name and size into cells big enough to hold them."
+				defaultsKey: LabelLargeCells];
 
-	[layout addCheckboxTitled: @"Classic Cushion Shading"
-				  defaultsKey: ClassicCushions
-						 help: @"Draw cells as nested pillows, the way Disk Inventory X always has. Turned off, each cell is flat with a bevelled edge, which stays readable when the map is dense - a pillow stretched across a large cell reads as a glow rather than as a shape."];
+	//Not in the design, and kept anyway: it is the switch between the shading
+	//this application has always drawn and the one the redesign asks for, and
+	//removing it would take the original away rather than offer the new one.
+	[layout addToggleTitled: @"Classic cushion shading"
+					   help: @"Draw cells as nested pillows, the way Disk Inventory X always has. Turned off, each cell is flat with a bevelled edge."
+				defaultsKey: ClassicCushions];
+
+	[layout addFootnote: @"Free space and other space are drawn neutral on purpose — they are not file kinds."];
+
+	[layout beginSectionWithLabel: @"Colors"];
+
+	[layout addToggleTitled: @"Same colors in every window"
+					   help: @"A file kind keeps its color across scans and windows."
+				defaultsKey: ShareKindColors];
+
+	[self addRestoreDefaultsSectionTo: layout
+								 help: @"Returns this tab to its factory settings. Open windows keep their current view options."];
 
 	[self setLayout: layout];
 

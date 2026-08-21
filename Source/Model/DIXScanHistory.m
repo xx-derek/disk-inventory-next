@@ -14,6 +14,7 @@
 
 #import "DIXScanHistory.h"
 #import "FSItem.h"
+#import "Preferences.h"
 
 //Nothing smaller than this is recorded or reported. A megabyte is under a
 //thousandth of a modern volume, and a list of everything that moved by a
@@ -65,6 +66,11 @@ static NSString * const kItemsKey = @"items";
 
 //================ DIXScanHistory ======================================================
 
+@interface DIXScanHistory()
+- (NSURL*) snapshotDirectory;
+- (NSArray<NSURL*>*) snapshotFiles;
+@end
+
 @implementation DIXScanHistory
 
 + (DIXScanHistory*) sharedHistory
@@ -79,7 +85,7 @@ static NSString * const kItemsKey = @"items";
 
 #pragma mark --------where the snapshots live-----------------
 
-- (NSURL*) snapshotDirectory
+- (NSURL*) defaultStorageDirectory
 {
 	NSURL *support = [[[NSFileManager defaultManager]
 		URLsForDirectory: NSApplicationSupportDirectory inDomains: NSUserDomainMask] firstObject];
@@ -87,14 +93,55 @@ static NSString * const kItemsKey = @"items";
 	if ( support == nil )
 		return nil;
 
-	NSURL *directory = [[support URLByAppendingPathComponent: @"Disk Inventory Next"]
-									 URLByAppendingPathComponent: @"Scans"];
+	return [[support URLByAppendingPathComponent: @"Disk Inventory Next"]
+					 URLByAppendingPathComponent: @"Scans"];
+}
+
+//A bookmark rather than a path, so the folder can be renamed or moved and still
+//be found. Not a *security-scoped* one, which is what the handoff suggests: the
+//application is not sandboxed - its entitlements are empty - and asking for
+//security scope without the entitlement fails to make a bookmark at all.
+- (NSURL*) storageDirectory
+{
+	NSURL *directory = nil;
+	NSData *bookmark = [[NSUserDefaults standardUserDefaults]
+							dataForKey: ScanHistoryLocationBookmark];
+
+	if ( [bookmark length] > 0 )
+	{
+		BOOL stale = NO;
+
+		directory = [NSURL URLByResolvingBookmarkData: bookmark
+											  options: 0
+										relativeToURL: nil
+								  bookmarkDataIsStale: &stale
+												error: NULL];
+
+		//A folder on a volume that is not mounted, or one that has been deleted.
+		//Falling back is better than failing, and the bookmark is kept so that
+		//plugging the drive back in puts things where they were.
+		if ( directory != nil && ![directory checkResourceIsReachableAndReturnError: NULL] )
+			directory = nil;
+	}
+
+	if ( directory == nil )
+		directory = [self defaultStorageDirectory];
+
+	if ( directory == nil )
+		return nil;
 
 	[[NSFileManager defaultManager] createDirectoryAtURL: directory
 							 withIntermediateDirectories: YES
 											  attributes: nil
 												   error: NULL];
 	return directory;
+}
+
+//Kept under its old name because everything below reads it, and it is the one
+//question the rest of this file asks.
+- (NSURL*) snapshotDirectory
+{
+	return [self storageDirectory];
 }
 
 //One file per scanned folder, named for its path rather than by it: a path
@@ -185,6 +232,11 @@ static NSString * const kItemsKey = @"items";
 
 - (void) recordSnapshotForItem: (FSItem*) rootItem
 {
+	//"Off" means keep none, so there is nothing to write and nothing left to
+	//compare against next time - which is what turns the change window off.
+	if ( ![self isRecording] )
+		return;
+
 	NSString *path = [rootItem path];
 	NSURL *url = [self snapshotURLForPath: path];
 
@@ -304,19 +356,189 @@ static NSString * const kItemsKey = @"items";
 
 - (void) deleteAllSnapshots
 {
+	for ( NSURL *file in [self snapshotFiles] )
+		[[NSFileManager defaultManager] removeItemAtURL: file error: NULL];
+}
+
+#pragma mark --------what the settings screen asks-----------------
+
+//Only this application's own files, matched by the name it writes them under -
+//a folder someone points at may be a folder they keep other things in, and
+//"Delete history now" must not take those with it.
+- (NSArray<NSURL*>*) snapshotFiles
+{
 	NSURL *directory = [self snapshotDirectory];
 
 	if ( directory == nil )
-		return;
+		return @[];
 
-	NSArray<NSURL*> *files = [[NSFileManager defaultManager]
+	NSArray<NSURL*> *contents = [[NSFileManager defaultManager]
 		contentsOfDirectoryAtURL: directory
-	  includingPropertiesForKeys: nil
+	  includingPropertiesForKeys: @[ NSURLFileSizeKey ]
 						 options: NSDirectoryEnumerationSkipsHiddenFiles
 						   error: NULL];
 
-	for ( NSURL *file in files )
-		[[NSFileManager defaultManager] removeItemAtURL: file error: NULL];
+	NSMutableArray<NSURL*> *files = [NSMutableArray array];
+
+	for ( NSURL *file in contents )
+	{
+		if ( ![[file pathExtension] isEqualToString: @"plist"] )
+			continue;
+
+		//The name is a 16-digit hash and nothing else; anything shaped
+		//differently was not written here.
+		NSString *stem = [[file lastPathComponent] stringByDeletingPathExtension];
+
+		if ( [stem length] != 16 )
+			continue;
+
+		[files addObject: file];
+	}
+
+	return files;
+}
+
+- (NSUInteger) snapshotCount
+{
+	return [[self snapshotFiles] count];
+}
+
+- (unsigned long long) storedByteCount
+{
+	unsigned long long total = 0;
+
+	for ( NSURL *file in [self snapshotFiles] )
+	{
+		NSNumber *size = nil;
+
+		if ( [file getResourceValue: &size forKey: NSURLFileSizeKey error: NULL] )
+			total += [size unsignedLongLongValue];
+	}
+
+	return total;
+}
+
+- (BOOL) moveStorageToDirectory: (NSURL*) url error: (NSError**) error
+{
+	NSURL *from = [self snapshotDirectory];
+
+	if ( url == nil || from == nil || [[url path] isEqualToString: [from path]] )
+		return YES;
+
+	NSFileManager *fileManager = [NSFileManager defaultManager];
+
+	if ( ![fileManager createDirectoryAtURL: url
+				withIntermediateDirectories: YES
+								 attributes: nil
+									  error: error] )
+		return NO;
+
+	//Copy everything first, and only then remove: a move that failed half way
+	//would leave someone's history split across two folders, which is worse
+	//than either place.
+	NSMutableArray<NSURL*> *copied = [NSMutableArray array];
+
+	for ( NSURL *file in [self snapshotFiles] )
+	{
+		NSURL *destination = [url URLByAppendingPathComponent: [file lastPathComponent]];
+
+		[fileManager removeItemAtURL: destination error: NULL];
+
+		if ( ![fileManager copyItemAtURL: file toURL: destination error: error] )
+		{
+			//back out of what was copied, so the new folder is as it was found
+			for ( NSURL *undo in copied )
+				[fileManager removeItemAtURL: undo error: NULL];
+
+			return NO;
+		}
+
+		[copied addObject: destination];
+	}
+
+	NSData *bookmark = [url bookmarkDataWithOptions: 0
+					 includingResourceValuesForKeys: nil
+									  relativeToURL: nil
+											  error: error];
+
+	if ( bookmark == nil )
+	{
+		for ( NSURL *undo in copied )
+			[fileManager removeItemAtURL: undo error: NULL];
+
+		return NO;
+	}
+
+	[[NSUserDefaults standardUserDefaults] setObject: bookmark
+											  forKey: ScanHistoryLocationBookmark];
+
+	//the originals last, once the new copies are the ones being read
+	for ( NSURL *file in [fileManager contentsOfDirectoryAtURL: from
+									includingPropertiesForKeys: nil
+													   options: NSDirectoryEnumerationSkipsHiddenFiles
+														 error: NULL] )
+	{
+		if ( [[file pathExtension] isEqualToString: @"plist"] )
+			[fileManager removeItemAtURL: file error: NULL];
+	}
+
+	return YES;
+}
+
+- (BOOL) resetStorageLocationWithError: (NSError**) error
+{
+	NSURL *fallback = [self defaultStorageDirectory];
+
+	if ( fallback == nil )
+		return NO;
+
+	if ( ![self moveStorageToDirectory: fallback error: error] )
+		return NO;
+
+	//An empty value means the default place, which is what makes a reset of the
+	//preferences do the right thing rather than pointing at nothing.
+	[[NSUserDefaults standardUserDefaults] removeObjectForKey: ScanHistoryLocationBookmark];
+
+	return YES;
+}
+
+#pragma mark --------how long it is kept-----------------
+
+- (BOOL) isRecording
+{
+	return [[NSUserDefaults standardUserDefaults]
+				integerForKey: ScanHistoryRetentionDays] != DIXHistoryOff;
+}
+
+- (void) pruneToRetentionWindow
+{
+	const NSInteger days = [[NSUserDefaults standardUserDefaults]
+								integerForKey: ScanHistoryRetentionDays];
+
+	if ( days == DIXHistoryForever )
+		return;
+
+	if ( days == DIXHistoryOff )
+	{
+		[self deleteAllSnapshots];
+		return;
+	}
+
+	NSDate *cutoff = [NSDate dateWithTimeIntervalSinceNow: -(double) days * 24.0 * 60.0 * 60.0];
+
+	for ( NSURL *file in [self snapshotFiles] )
+	{
+		NSDictionary *snapshot = [NSDictionary dictionaryWithContentsOfURL: file];
+		id when = [snapshot objectForKey: kDateKey];
+
+		//A file that cannot say when it was written cannot be aged, and is more
+		//likely something we did not write than something stale.
+		if ( ![when isKindOfClass: [NSDate class]] )
+			continue;
+
+		if ( [when compare: cutoff] == NSOrderedAscending )
+			[[NSFileManager defaultManager] removeItemAtURL: file error: NULL];
+	}
 }
 
 @end

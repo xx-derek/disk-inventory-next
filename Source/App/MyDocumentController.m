@@ -19,6 +19,8 @@
 NSString *DIXRecentDocumentsChangedNotification = @"DIXRecentDocumentsChanged";
 #import "DonationPanelController.h"
 #import "DIXScanPickerController.h"
+#import "DIXScanHistory.h"
+#import "DIXRecentScans.h"
 #import "Preferences.h"
 #import "PrefsPanelController.h"
 #import "FileSystemDoc.h"
@@ -200,9 +202,57 @@ static NSMenuItem* FindMenuItemWithAction( NSMenu *menu, SEL action )
     
 	[self _renameSettingsMenuItem];
 
-	//Shown before -applicationDidFinishLaunching:, so it is up before the first
-	//document can be loaded from a drag or a Recent Item - which would otherwise
-	//open a window behind it.
+	//Dropping what the retention window no longer covers, before anything can
+	//read it. Cheap: it stats a handful of small files.
+	[[DIXScanHistory sharedHistory] pruneToRetentionWindow];
+
+	//Shown before -applicationDidFinishLaunching:, so whatever this decides is
+	//up before the first document can be loaded from a drag or a Recent Item -
+	//which would otherwise open a window behind it.
+	[self _openWhateverTheSettingsAskFor];
+}
+
+//"Open with" on the General tab. Nothing here happens when the application was
+//started by opening a folder: AppKit has already asked for that document, and
+//putting the picker up as well would cover the window it is about to make.
+- (void) _openWhateverTheSettingsAskFor
+{
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+
+	switch ( (DIXOpenWithChoice) [defaults integerForKey: OpenWith] )
+	{
+		case DIXOpenWithNothing:
+			return;
+
+		case DIXOpenWithLastVolume:
+		{
+			DIXRecentScan *last = [[[DIXRecentScans sharedList] scans] firstObject];
+
+			//"Reopen the last scan" is what decides between going straight back
+			//to it and offering the picker with it selected. There is nothing
+			//saved to restore yet - a scan is not written to disk - so what this
+			//really means today is "scan it again without asking".
+			if ( last != nil && [defaults boolForKey: ReopenLastScan] )
+			{
+				[self openDocumentWithContentsOfURL: [last url]
+											display: YES
+								  completionHandler: ^( NSDocument *document, BOOL alreadyOpen, NSError *error )
+				{
+					//the picker rather than nothing at all, if it has gone
+					if ( document == nil )
+						[[DIXScanPickerController sharedController] showPicker];
+				}];
+
+				return;
+			}
+
+			break;
+		}
+
+		case DIXOpenWithPicker:
+			break;
+	}
+
 	[[DIXScanPickerController sharedController] showPicker];
 }
 

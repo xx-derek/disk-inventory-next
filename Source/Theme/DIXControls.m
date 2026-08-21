@@ -760,3 +760,86 @@ static NSScrollerStyle DIXWantedScrollerStyle( void )
 }
 
 @end
+
+#pragma mark --------the settings switch-----------------
+
+//38 x 22 with a 2pt inset knob, which is the design's shape and close enough to
+//NSSwitch's that the two would not be told apart if they sat side by side.
+static const CGFloat kSwitchKnobInset = 2.0;
+
+@implementation DIXSwitch
+
+- (instancetype) initWithFrame: (NSRect) frameRect
+{
+	self = [super initWithFrame: frameRect];
+
+	if ( self != nil )
+	{
+		[self setButtonType: NSButtonTypeToggle];
+		[self setBordered: NO];
+		[self setTitle: @""];
+		[self setAlternateTitle: @""];
+		[self setImagePosition: NSNoImage];
+
+		//No focus ring: the design has none anywhere, and the settings window is
+		//the one place a stray one would land on every other row.
+		[self setFocusRingType: NSFocusRingTypeNone];
+	}
+
+	return self;
+}
+
+- (void) drawRect: (NSRect) dirtyRect
+{
+	const NSRect bounds = [self bounds];
+	const BOOL on = ( [self state] == NSControlStateValueOn );
+	const CGFloat radius = NSHeight( bounds ) / 2.0;
+
+	NSBezierPath *track = [NSBezierPath bezierPathWithRoundedRect: NSInsetRect( bounds, 0.25, 0.25 )
+														 xRadius: radius
+														 yRadius: radius];
+
+	[( on ? [DIXTheme accent] : [DIXTheme barTrack] ) set];
+	[track fill];
+
+	//An edge on the off state only: an accent fill needs no help being seen,
+	//and a border around it would read as a second shape.
+	if ( !on )
+	{
+		[[DIXTheme controlBorder] set];
+		[track setLineWidth: 0.5];
+		[track stroke];
+	}
+
+	const CGFloat knobSize = NSHeight( bounds ) - kSwitchKnobInset * 2.0;
+	const CGFloat knobX = on ? NSMaxX( bounds ) - kSwitchKnobInset - knobSize
+							 : NSMinX( bounds ) + kSwitchKnobInset;
+
+	NSRect knob = NSMakeRect( knobX, NSMinY( bounds ) + kSwitchKnobInset, knobSize, knobSize );
+
+	//Always the light knob, in both appearances and on both fills: it is the
+	//thing that moves, and a knob that changed colour with the state would say
+	//the state twice and the position not at all.
+	[[NSColor whiteColor] set];
+	[[NSBezierPath bezierPathWithOvalInRect: knob] fill];
+
+	if ( ![self isEnabled] )
+	{
+		[[[DIXTheme surface] colorWithAlphaComponent: 0.5] set];
+		[track fill];
+	}
+}
+
+- (NSSize) intrinsicContentSize
+{
+	return NSMakeSize( 38.0, 22.0 );
+}
+
+//"NSAccessibilitySwitchRole" does not exist; a switch is a checkbox with a
+//subrole, which is what AppKit's own NSSwitch reports.
+- (NSAccessibilitySubrole) accessibilitySubrole
+{
+	return NSAccessibilitySwitchSubrole;
+}
+
+@end

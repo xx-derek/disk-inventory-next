@@ -42,7 +42,22 @@
 	PrefsPageLayout *_layout;
 }
 
+//The width a page lays itself out in: the settings window less the rail and the
+//pane's own padding. One number, here, because every page has to agree with the
+//rail beside it.
++ (CGFloat) contentWidth;
+
 - (id) initWithPageRecord: (PrefsPageRecord*) pageRecord;
+
+//The DEFAULTS section the design puts at the foot of every tab. "help" says
+//what this particular tab's reset does and does not touch, which differs -
+//resetting Scanning keeps the stored scans, resetting Privacy cannot give back
+//a system permission.
+- (void) addRestoreDefaultsSectionTo: (PrefsPageLayout*) layout help: (NSString*) help;
+
+//Asks first, then resets this page only. Holding Option resets every page,
+//which is what the General tab's help line offers.
+- (IBAction) restoreThisPage: (id) sender;
 
 - (PrefsPageRecord*) pageRecord;
 - (NSString*) title;

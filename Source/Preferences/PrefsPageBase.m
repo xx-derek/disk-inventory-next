@@ -17,6 +17,11 @@
 #import "PrefsPageBase.h"
 #import "PrefsPageRecord.h"
 #import "PrefsPageLayout.h"
+#import "PrefsPanelController.h"
+
+@interface PrefsPageBase()
+- (void) restoreDefaultsForKeys: (NSArray<NSString*>*) keys;
+@end
 
 //Equality that treats nil as a value in its own right. Plain -isEqual: cannot:
 //sending it to nil answers NO, so two absent values would compare as different.
@@ -31,7 +36,17 @@ static BOOL ValuesDiffer( id valueA, id valueB )
 	return ![valueA isEqual: valueB];
 }
 
+//the strings table the page text is localized in
+static NSString * const PrefsTitlesTable = @"Preferences";
+
 @implementation PrefsPageBase
+
+//560 wide, a 168pt rail, and 22pt of padding either side of the pane - the
+//design's numbers, arrived at here so that no page can disagree with the rail.
++ (CGFloat) contentWidth
+{
+	return 560.0 - 168.0 - 22.0 * 2.0;
+}
 
 - (id) initWithPageRecord: (PrefsPageRecord*) pageRecord
 {
@@ -120,13 +135,75 @@ static BOOL ValuesDiffer( id valueA, id valueB )
 #pragma mark --------defaults-----------------
 
 //The preferences shown in each page are declared in Info.plist, under
-//Registrations, and that list is what these two work from.
+//Registrations, and that list is what these work from.
 
-- (void) restoreDefaultsNoPrompt
+- (void) addRestoreDefaultsSectionTo: (PrefsPageLayout*) layout help: (NSString*) help
+{
+	[layout beginSectionWithLabel: @"Defaults"];
+
+	//Not destructive in the design's sense: it puts settings back, and every one
+	//of them can be set again. The things that cannot be undone - deleting the
+	//scan history - are the accent ones.
+	[layout addButtonTitled: @"Restore defaults"
+					   help: help
+				buttonTitle: @"Restore…"
+				destructive: NO
+					 target: self
+					 action: @selector(restoreThisPage:)];
+}
+
+- (IBAction) restoreThisPage: (id) sender
+{
+	//Option resets every page. The General tab says so; the others do not, since
+	//one place to learn it is enough and four would be noise.
+	const BOOL everyPage =
+		( [NSEvent modifierFlags] & NSEventModifierFlagOption ) != 0;
+
+	NSAlert *alert = [[NSAlert alloc] init];
+
+	[alert setMessageText: NSLocalizedStringFromTable(
+		everyPage ? @"Restore every tab to its factory settings?"
+				  : @"Restore this tab to its factory settings?",
+		PrefsTitlesTable, @"" )];
+
+	[alert setInformativeText: NSLocalizedStringFromTable(
+		@"Any changes you have made will be lost.", PrefsTitlesTable, @"" )];
+
+	//first button is the default, which is what the handler tests for
+	[alert addButtonWithTitle: NSLocalizedStringFromTable( @"Restore", PrefsTitlesTable, @"" )];
+	[alert addButtonWithTitle: NSLocalizedStringFromTable( @"Cancel", PrefsTitlesTable, @"" )];
+
+	NSWindow *window = [[self controlBox] window];
+
+	void (^respond)( NSModalResponse ) = ^( NSModalResponse returnCode )
+	{
+		if ( returnCode != NSAlertFirstButtonReturn )
+			return;
+
+		if ( everyPage )
+		{
+			for ( PrefsPageRecord *record in [PrefsPanelController allPageRecords] )
+				[self restoreDefaultsForKeys: [record defaultsArray]];
+		}
+		else
+		{
+			[self restoreDefaultsNoPrompt];
+		}
+
+		[self valuesHaveChanged];
+	};
+
+	if ( window != nil )
+		[alert beginSheetModalForWindow: window completionHandler: respond];
+	else
+		respond( [alert runModal] );
+}
+
+- (void) restoreDefaultsForKeys: (NSArray<NSString*>*) keys
 {
 	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
 
-	for ( NSString *key in [_pageRecord defaultsArray] )
+	for ( NSString *key in keys )
 	{
 		//removeObjectForKey: is not key-value observing compliant, so bound
 		//controls have to be told by hand
@@ -134,6 +211,11 @@ static BOOL ValuesDiffer( id valueA, id valueB )
 		[defaults removeObjectForKey: key];
 		[defaults didChangeValueForKey: key];
 	}
+}
+
+- (void) restoreDefaultsNoPrompt
+{
+	[self restoreDefaultsForKeys: [_pageRecord defaultsArray]];
 }
 
 - (BOOL) haveAnyDefaultsChanged

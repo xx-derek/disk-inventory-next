@@ -14,49 +14,97 @@
 
 #import <Cocoa/Cocoa.h>
 
-//Builds one preferences page: a two-column grid of right-aligned section labels
-//against a column of checkboxes, with optional explanatory text under a
-//checkbox. Pages used to be a nib per page per language — eight bundles for two
-//pages — which is why the two of them had drifted into different shapes.
-//Describing a page in code means the alignment is a property of the layout
-//rather than of whoever last opened Interface Builder.
+//One settings row that answers rather than asks: a title, a help line, and a
+//coloured dot beside a word. Returned by -addStatusTitled:help: so the page can
+//fill it in - Full Disk Access has to be looked up, and how much history is
+//stored has to be counted.
+@interface PrefsStatusRow : NSView
+
+- (void) setStatusText: (NSString*) text good: (BOOL) good;
+- (void) setHelpText: (NSString*) help;
+
+@end
+
+//One row carrying a folder: a monospaced chip on a line of its own and a
+//Choose… button beside it. Returned so the page can put a path in it and read
+//one back out.
+@interface PrefsPathRow : NSView
+
+- (void) setPath: (NSString*) path;
+
+@end
+
+//Builds one settings page as the design draws it: sections, each a small
+//uppercase label over a 2pt ink rule, then rows separated by 1pt, then an
+//optional footnote. A row is a 13pt title over an 11pt help line with one
+//control right-aligned against it.
+//
+//Pages used to be a nib per page per language - eight bundles for two pages -
+//which is why the two of them had drifted into different shapes. Describing a
+//page in code means the alignment is a property of the layout rather than of
+//whoever last opened Interface Builder.
 //
 //Titles are localized through the "Preferences" table, so the strings passed in
 //are the English text, matching the convention everywhere else in the project.
-
 @interface PrefsPageLayout : NSObject
 {
-	NSGridView *_grid;
-	NSMutableArray<NSButton*> *_checkboxes;
+	NSView *_view;
+	CGFloat _width;
+	CGFloat _y;                 //how far down the page the next row starts
+
 	NSMutableArray<NSView*> *_controls;
-	NSMutableArray<NSTextField*> *_helpFields;
-	NSButton *_firstCheckbox;
-	NSButton *_lastCheckbox;
-	NSString *_pendingSectionLabel;
+	NSView *_firstControl;
+	NSView *_lastControl;
+
+	BOOL _sectionHasRows;       //whether a 1pt separator is owed above the next row
 }
 
-+ (instancetype) layout;
+//"width" is the content width of the right-hand pane, which the panel decides.
++ (instancetype) layoutWithWidth: (CGFloat) width;
 
-//Starts a group. The label sits against the first row added after this call;
-//pass nil for a group that needs no label.
 - (void) beginSectionWithLabel: (NSString*) label;
 
-//A checkbox bound to a user-defaults key, with optional explanatory text
-//beneath it in the same column.
-- (void) addCheckboxTitled: (NSString*) title
-			   defaultsKey: (NSString*) defaultsKey
-					  help: (NSString*) help;
+//An NSSwitch bound to a defaults key. "inverted" is for the keys that are
+//stored as suppression flags - DontShowPrivacyWarningMessage reads as "warn me"
+//in the window and as "don't" on disk.
+- (void) addToggleTitled: (NSString*) title
+					help: (NSString*) help
+			 defaultsKey: (NSString*) defaultsKey;
 
-//A pop-up of numbers bound to a user-defaults key, with a caption after it, so
-//a page can carry a small bounded choice as well as on/off. The values become
-//the menu items' tags, which is what the binding matches against, so the stored
-//preference is the number itself rather than a menu position.
-- (void) addPopUpWithValues: (NSArray<NSNumber*>*) values
-				defaultsKey: (NSString*) defaultsKey
-			  trailingTitle: (NSString*) trailingTitle
-					   help: (NSString*) help;
+- (void) addToggleTitled: (NSString*) title
+					help: (NSString*) help
+			 defaultsKey: (NSString*) defaultsKey
+				inverted: (BOOL) inverted;
 
-//the finished page view
+//A pop-up bound to a defaults key. The values become the menu items' tags, and
+//the binding is NSSelectedTagBinding, so what is stored is the number chosen
+//rather than where it sat in the menu.
+- (void) addPopUpTitled: (NSString*) title
+				   help: (NSString*) help
+			defaultsKey: (NSString*) defaultsKey
+				 titles: (NSArray<NSString*>*) titles
+				 values: (NSArray<NSNumber*>*) values;
+
+//A row whose control is a button. Destructive ones are the solid accent.
+- (void) addButtonTitled: (NSString*) title
+					help: (NSString*) help
+			 buttonTitle: (NSString*) buttonTitle
+			 destructive: (BOOL) destructive
+				  target: (id) target
+				  action: (SEL) action;
+
+- (PrefsStatusRow*) addStatusTitled: (NSString*) title help: (NSString*) help;
+
+- (PrefsPathRow*) addPathRowTitled: (NSString*) title
+							  help: (NSString*) help
+					   buttonTitle: (NSString*) buttonTitle
+							target: (id) target
+							action: (SEL) action;
+
+//11pt, under the group, explaining the group rather than any one row.
+- (void) addFootnote: (NSString*) text;
+
+//the finished page view, sized to what was added
 - (NSView*) view;
 
 //first and last control, for the page's keyboard loop; either may be nil

@@ -18,20 +18,27 @@
 
 @class PrefsPageBase, PrefsPageRecord;
 
-//The preferences window: a toolbar of pages over a content area that swaps to
-//whichever page is selected. The pages come from Info.plist, under
-//Registrations keyed by the name of this class, and their titles are localized
-//through "Preferences.strings".
+//The settings window: a rail of tabs beside a pane that swaps to whichever one
+//is selected. The pages come from Info.plist, under Registrations keyed by the
+//name of this class, and their titles are localized through
+//"Preferences.strings".
+//
+//A rail rather than a toolbar. It is how current macOS settings windows are
+//laid out, it gives each tab a heading in the title bar, and on macOS 26 a
+//toolbar would draw every item inside a glass capsule.
 //
 //(Previously a subclass of OmniAppKit's OAPreferenceController, which is folded
 //in here.)
 
-@interface PrefsPanelController : NSWindowController <NSToolbarDelegate>
+@interface PrefsPanelController : NSWindowController
 {
 	NSMutableDictionary *_pagesByIdentifier;
 	PrefsPageRecord *_currentPageRecord;
 	PrefsPageBase *_currentPage;
 	BOOL _windowBuilt;
+
+	NSView *_railView;
+	NSMutableArray *_railRows;
 }
 
 + (PrefsPanelController*) sharedPreferenceController;

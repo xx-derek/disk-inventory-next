@@ -36,6 +36,16 @@ NSString *DontShowDonationMessage        = @"DontShowDonationMessage";
 NSString *DontShowPrivacyWarningMessage        = @"DontShowPrivacyWarningMessage";
 NSString *ShareKindColors				= @"ShareKindColors";
 
+NSString *OpenWith                      = @"OpenWith";
+NSString *ReopenLastScan                = @"ReopenLastScan";
+NSString *ScanHistoryRetentionDays      = @"ScanHistoryRetentionDays";
+NSString *ScanHistoryLocationBookmark   = @"ScanHistoryLocationBookmark";
+NSString *ShowPartialResults            = @"ShowPartialResults";
+NSString *ShowSkippedFoldersBanner      = @"ShowSkippedFoldersBanner";
+
+const NSInteger DIXHistoryOff     =  0;
+const NSInteger DIXHistoryForever = -1;
+
 
 #pragma mark ----------------- NSUserDefaults(VersionDepedantValues) -------------------
 

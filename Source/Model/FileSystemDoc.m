@@ -280,6 +280,9 @@ NSString *DIXChangeFilterOption = @"DIXChangeFilter";
 		//screens read as one window carrying on rather than two appearing.
 		[_progressController takeFrameFrom: [[DIXScanPickerController sharedController] pickerWindow]];
 
+		[_progressController setAllowsPartialResults:
+			[[NSUserDefaults standardUserDefaults] boolForKey: ShowPartialResults]];
+
 		uint64_t startTime = getTime();
 		
         _rootItem = [[FSItem alloc] initWithPath: folder];

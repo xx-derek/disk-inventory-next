@@ -123,6 +123,18 @@
 
 @end
 
+#pragma mark --------the settings switch-----------------
+
+//The on/off switch in the settings window: 38 x 22 with an accent fill when on.
+//
+//`NSSwitch` cannot be tinted - its fill is the *system* accent colour, and
+//there is no per-control or per-application override - so the one control the
+//design colours would have been the one control drawn in somebody else's blue.
+//This is an NSButton underneath, so NSValueBinding works exactly as it does for
+//a checkbox and a page still binds a switch in one line.
+@interface DIXSwitch : NSButton
+@end
+
 #pragma mark --------the button shape-----------------
 
 //The shape both factories above produce: a flat fill, the theme's 6pt radius,
