@@ -5,7 +5,8 @@
 
 A macOS disk usage visualizer. It scans a volume or folder and shows where your space went
 as a **treemap** — every file is a rectangle sized in proportion to the space it occupies
-and colored by file type — alongside a sortable outline view and a breakdown by file kind.
+and colored by file type — alongside a sortable outline view, a breakdown by file kind, and
+what has changed since the last time you looked.
 
 ---
 
@@ -61,12 +62,14 @@ fix that and to bring the interface up to date.
 
 ## What's changed
 
-All of it between 15 and 16 August 2026, and released as 1.0.0.
+### In 1.0.0
+
+Between 15 and 16 August 2026, and what the download above contains.
 
 - **Runs natively on current macOS**, as a universal arm64 + x86_64 binary. The original
   targeted Intel and depended on four prebuilt frameworks that were not in the source, which
   is what made a native build impossible; there are no external dependencies now.
-- **The interface is current** — collapsible panes instead of deprecated drawers, SF Symbol
+- **The deprecated interface is gone** — collapsible panes instead of drawers, SF Symbol
   icons, a legible treemap palette, a rebuilt Info panel, and a settings window laid out in
   code rather than in twelve localized nibs.
 - **Scanning does not freeze the app.** The directory walk runs on a background queue
@@ -75,13 +78,49 @@ All of it between 15 and 16 August 2026, and released as 1.0.0.
 - **A dozen real bugs are fixed**, including drag and drop doing nothing, no service ever
   appearing in the Services menu, and clicking the treemap selecting nothing.
 
+### Since 1.0.0 — the interface, rebuilt
+
+Not in the download yet. This is the work in progress toward the next release.
+
+- **A volume picker at launch.** A card per volume with its capacity, its free space and
+  what the last scan of it found, plus a folder chooser. It replaces the Drives panel.
+- **A scanning screen that says what is happening** — files, folders, skipped and bytes as
+  they are counted, a rate, an estimate, and the three biggest files found so far.
+  *Show Partial Results* stops the walk and keeps what it has. The percentage comes from the
+  last scan of that same path, or from the volume's inode count; with neither it stays blank
+  rather than made up.
+- **What a folder gained or lost since the last scan.** The summary strip carries the delta,
+  and opens a window listing what grew and what went. A folder and the one file that
+  explains its change collapse to a single row, so the list names the file rather than the
+  folder chain above it. *Show only these on the map* dims everything else.
+- **A window built around the map** — a breadcrumb in the title bar, a sidebar of sources
+  and file kinds, an inspector where the floating Info window used to be, a summary strip
+  and a status bar. Every pane remembers what it was dragged to.
+- **The treemap redrawn** — gutters, labels on the large cells, and cushion shading against
+  twelve hues chosen so that shading them keeps them distinct. Cells too small to draw are
+  packed into one hatched remainder, which can still be opened. The original look is kept as
+  *Classic cushion shading*.
+- **Search, and filters that combine.** A search field over the file list, a colour chip per
+  kind in it, and a Filter menu that narrows the map to one kind — which reads as `AND`
+  against the change filter, not instead of it.
+- **Settings in four tabs** — General, Treemap, Scanning and Privacy — in a rail rather than
+  a toolbar, adding how many folders are walked at once and how long scan history is kept.
+- **Skipped folders are named where the total is.** The privacy warning is a banner across
+  the result rather than an alert before it, and it lists what was actually unreadable
+  rather than what macOS protects in general.
+- **Five nib bundles per language became one.** Everything but the main menu is built in
+  code, so the interface can be diffed.
+
 [CHANGELOG.md](CHANGELOG.md) has the detail, release by release.
 
 ## Features
 
 - **Treemap visualization** — file size mapped to rectangle area, colored by file kind
-- **Outline view** — sortable, navigable file/folder tree with size columns
-- **File kind statistics** — see which types of file dominate a volume
+- **Outline view** — sortable, navigable file/folder tree with size columns and kind chips
+- **File kind statistics** — which types of file dominate a volume, and a filter down to one
+- **Change tracking** — what a folder gained or lost since the last scan of it
+- **Search** across the scanned tree
+- **Inspector** — the selected file's details, and what sits beside it
 - **Finder integration** — open files, "Open with…", system services, drag & drop
 - **Move to Trash** directly from the app
 - **Dark mode** support
@@ -129,8 +168,8 @@ Apple silicon.
 ### Dependencies
 
 None — the app links only system frameworks. See
-[No external dependencies](#no-external-dependencies) for what used to be required and
-where it went.
+[No external dependencies](CHANGELOG.md#no-external-dependencies) for what used to be
+required and where it went.
 
 ### Releases
 
