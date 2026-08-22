@@ -340,7 +340,10 @@
 
 	[menu addItem: [NSMenuItem separatorItem]];
 
-	[[menu addItemWithTitle: NSLocalizedString( @"Move To Trash", @"file context menu" )
+	//The nib's spelling was "Move To Trash", which would be a second key beside
+	//the inspector's, differing only in a capital. The lowercase one is both
+	//already translated and what the Finder itself says.
+	[[menu addItemWithTitle: NSLocalizedString( @"Move to Trash", @"file context menu" )
 					 action: @selector(moveToTrash:) keyEquivalent: @""] setTarget: self];
 
 	[menu addItem: [NSMenuItem separatorItem]];

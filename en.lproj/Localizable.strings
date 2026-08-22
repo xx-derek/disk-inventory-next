@@ -213,3 +213,9 @@
 "QR code for the donation address %@" = "QR code for the donation address %@";
 "Disk Inventory Next is free software, developed in spare time. If you find it useful, you can support it with a donation to this address on any EVM-compatible chain." = "Disk Inventory Next is free software, developed in spare time. If you find it useful, you can support it with a donation to this address on any EVM-compatible chain.";
 "Disk Inventory Next is a fork of Disk Inventory X by Tjark Derlien, who wrote most of the code it is built on. Donations on his website go to him and not to this fork." = "Disk Inventory Next is a fork of Disk Inventory X by Tjark Derlien, who wrote most of the code it is built on. Donations on his website go to him and not to this fork.";
+
+/*the file context menu*/
+"Open With" = "Open With";
+"Reveal in Finder" = "Reveal in Finder";
+"Refresh" = "Refresh";
+"Synchronizes folder or file with Finder." = "Synchronizes folder or file with Finder.";

@@ -207,3 +207,9 @@
 "QR code for the donation address %@" = "QR-Code für die Spendenadresse %@";
 "Disk Inventory Next is free software, developed in spare time. If you find it useful, you can support it with a donation to this address on any EVM-compatible chain." = "Disk Inventory Next ist freie Software, in der Freizeit entwickelt. Wenn Sie es nützlich finden, können Sie es mit einer Spende an diese Adresse auf jeder EVM-kompatiblen Chain unterstützen.";
 "Disk Inventory Next is a fork of Disk Inventory X by Tjark Derlien, who wrote most of the code it is built on. Donations on his website go to him and not to this fork." = "Disk Inventory Next ist ein Fork von Disk Inventory X von Tjark Derlien, der den größten Teil des zugrunde liegenden Codes geschrieben hat. Spenden auf seiner Website gehen an ihn und nicht an diesen Fork.";
+
+/* the file context menu */
+"Open With" = "Öffnen mit";
+"Reveal in Finder" = "Im Finder anzeigen";
+"Refresh" = "Aktualisieren";
+"Synchronizes folder or file with Finder." = "Synchronisiert Ordner oder Datei mit der Ansicht im Finder";
