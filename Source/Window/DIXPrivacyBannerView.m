@@ -124,11 +124,8 @@ static const CGFloat kListRowHeight  = 30.0;
 {
 	_folders = folders;
 
-	for ( NSView *view in [_lockViews arrayByAddingObjectsFromArray: _nameFields] )
-		[view removeFromSuperview];
-
-	for ( NSView *view in _stateFields )
-		[view removeFromSuperview];
+	for ( NSMutableArray *group in @[ _lockViews, _nameFields, _stateFields ] )
+		[group makeObjectsPerformSelector: @selector(removeFromSuperview)];
 
 	[_lockViews removeAllObjects];
 	[_nameFields removeAllObjects];

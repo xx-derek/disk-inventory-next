@@ -23,15 +23,25 @@
 #import "MainWindowController.h"
 #import "Preferences.h"
 
-@interface FilesOutlineViewController(Private)
+//Two blocks, because the compiler checks them differently: a class extension's
+//methods have to be in the main @implementation, a category's in the category's
+//own. The search and the kind chips are implemented in the main block, so
+//declaring them alongside the category's asked for them there and warned once
+//for each.
+@interface FilesOutlineViewController()
 
-- (void) onDocumentSelectionChanged;
 - (void) searchResultsChanged: (NSNotification*) notification;
 - (NSArray<FSItem*>*) searchResults;
 - (NSColor*) chipColorForItem: (FSItem*) item;
 - (NSString*) dominantKindForFolder: (FSItem*) folder;
 - (void) accumulateKindSizesUnder: (FSItem*) item into: (NSMutableDictionary<NSString*,NSNumber*>*) parentTotals;
 - (void) viewOptionChangedInvalidatesChips;
+
+@end
+
+@interface FilesOutlineViewController(Private)
+
+- (void) onDocumentSelectionChanged;
 - (void) reloadPackages: (FSItem*) parent;
 - (void) reloadData;
 - (void) setOutlineViewFont;

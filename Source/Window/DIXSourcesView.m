@@ -49,7 +49,6 @@ static const CGFloat kForgetSize = 16.0;
 static const CGFloat kIconSize      = 15.0;
 static const CGFloat kIconGap       = 10.0;
 static const CGFloat kBarHeight     =  4.0;
-static const CGFloat kBarTopGap     =  6.0;   //the design's margin-top
 
 //Free space moves as the machine is used, and nothing announces it. Five
 //seconds is what the Drives panel already uses; the timer only runs while this

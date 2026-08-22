@@ -15,7 +15,7 @@
 @class DIXChangesController;
 @class DIXPrivacyBannerView;
 
-@interface MainWindowController : ToolbarWindowController <NSSplitViewDelegate>
+@interface MainWindowController : ToolbarWindowController <NSSplitViewDelegate, NSWindowDelegate>
 {
     //The sidebar's pane. It was the kind-statistics drawer's content view in the
     //nib; it is built in -buildSidePanes now, and the selection list that sat
